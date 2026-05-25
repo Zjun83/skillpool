@@ -1,0 +1,16 @@
+# SkillPool Quality Dimension Weights
+# Used by QualityProfiler to compute overall scores
+# Sum must equal 1.0
+
+completeness: 0.30
+accuracy: 0.30
+usability: 0.20
+maintainability: 0.20
+
+# Calibration offsets applied to raw dimension scores
+# Positive = boost, Negative = penalty
+calibration_offsets:
+  completeness: 0.0
+  accuracy: -0.05
+  usability: 0.0
+  maintainability: 0.0

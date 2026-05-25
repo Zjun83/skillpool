@@ -1,0 +1,13 @@
+skill:
+  name: sample-skill
+  version: "1.0.0"
+  description: A sample skill for testing
+  author: test-author
+  tags:
+    - testing
+    - sample
+  dependencies: []
+  quality:
+    has_readme: true
+    has_tests: true
+    has_examples: true
