@@ -1,84 +1,99 @@
-# SkillPool v4.1.0
+# SkillPool v4.3.0
 
-> Skill registry, search, and management API built with FastAPI.
+> AI Agent Skill Governance & Delivery Platform — MCP Resources/Tools/Prompts architecture
 
 ## Quick Start
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
+# Install (editable)
+pip install -e .
 
-# Run the server
-python -m skillpool.main
+# CLI
+skillpool --version
+skillpool inspect S09
 
-# API available at http://localhost:8000
-# Docs at http://localhost:8000/docs
+# MCP Server (stdio)
+skillpool-mcp
 ```
 
-## Docker
+## Architecture (V4.3 Dual-Channel)
 
-```bash
-# Build and run
-docker compose -f deploy/docker-compose.yml up -d
+| Channel | Transport | Purpose |
+|---------|-----------|---------|
+| CLI | Start Hook | Materialization — one-time SKILL.md file writes |
+| MCP Resources | stdio | Read-only context delivery (skill definitions, audit, bugs) |
+| MCP Tools | stdio | State-changing governance actions (register, gate, heal) |
+| MCP Prompts | stdio | User-controlled templates (review, skill context) |
 
-# Health check
-curl http://localhost:8000/health
-```
+## MCP Resources (Read-Only)
 
-## API Endpoints
+| URI | Description |
+|-----|-------------|
+| `skill://list` | All skills metadata (L0 tier, ~50 tokens/skill) |
+| `skill://{id}/summary` | Medium detail (L1 tier, ~200 tokens) |
+| `skill://{id}/definition` | Full SKILL.md content (L2 tier) |
+| `skill://{id}/manifest.yaml` | Dependencies, conflicts, veto rules |
+| `skill://{id}/x-execution` | Execution method + input/output schema |
+| `skill://graph` | Skill dependency DAG |
+| `audit://records` | Audit hash chain (read-only, immutable) |
+| `bug://list` | BugCollector defect records |
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/health` | Health check |
-| GET | `/api/v1/skills` | List all skills |
-| POST | `/api/v1/skills` | Register a new skill |
-| GET | `/api/v1/skills/{skill_id}` | Get skill by ID |
-| PUT | `/api/v1/skills/{skill_id}` | Update a skill |
-| DELETE | `/api/v1/skills/{skill_id}` | Delete a skill |
-| GET | `/api/v1/skills/search` | Search skills |
+## MCP Tools (Governance Actions)
 
-## Project Structure
+| Tool | Description |
+|------|-------------|
+| `gate_check` | Gate decision (ALLOW/GUARD/ESCALATE/DENY) |
+| `telemetry_report` | Report telemetry event |
+| `audit_verify` | Verify audit hash chain integrity |
+| `security_scan` | Pre-materialization security gate |
+| `healing_scan` | Scan bugs for recurring defects, propose healing |
+| `healing_execute` | Execute healing with BDD verify + auto-rollback |
+| `skill_register` | Register skill candidate into Registry |
+| `skill_transition` | Transition skill lifecycle state |
+| `evolution_trigger` | Record defect triggering evolution |
+| `evolution_proposal` | Create recommendation-only evolution proposal |
+| `monitor_evaluate` | Five-dimension skill evaluation |
+| `health_check` | System health check |
+| `review_trigger` | Trigger review checkpoint (L1-L4) |
 
-```
-skillpool/
-├── skillpool/           # Application source
-│   ├── __init__.py
-│   ├── main.py          # FastAPI app entry point
-│   ├── api/             # API routes
-│   │   ├── __init__.py
-│   │   └── v1/
-│   │       ├── __init__.py
-│   │       └── skills.py
-│   ├── models/          # Pydantic models
-│   │   ├── __init__.py
-│   │   └── skill.py
-│   ├── services/        # Business logic
-│   │   ├── __init__.py
-│   │   └── skill_service.py
-│   └── config.py        # Configuration
-├── deploy/              # Deployment configs
-│   ├── Dockerfile
-│   ├── deployment.yml   # Kubernetes manifest
-│   └── docker-compose.yml
-├── tests/               # Test suite
-│   ├── __init__.py
-│   ├── conftest.py
-│   └── test_skills.py
-├── requirements.txt
-├── pyproject.toml
-└── README.md
-```
+## MCP Prompts (User-Controlled)
 
-## Configuration
+| Prompt | Description |
+|--------|-------------|
+| `skill_context {skill_id}` | Inject skill definition + dependencies |
+| `trigger_review` | Multi-dimension review (uses MCP Resources) |
+| `gate_status {skill_id}` | Check gate decision for a skill |
 
-Environment variables:
+## Security Architecture
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SKILLPOOL_HOST` | `0.0.0.0` | Server bind address |
-| `SKILLPOOL_PORT` | `8000` | Server bind port |
-| `SKILLPOOL_DATA_DIR` | `./data` | Data storage directory |
-| `SKILLPOOL_LOG_LEVEL` | `INFO` | Logging level |
+Three-layer pre-materialization security gate:
+1. **Hook layer**: SecurityScanner — YAML safety + dangerous pattern scanning
+2. **MCP layer**: `gate_check` tool — complexity assessment + profile matching
+3. **Audit layer**: Immutable hash chain — all actions recorded, tamper-evident
+
+Timeout degradation: `gate_check` → DENY, `telemetry` → silent, `health_check` → DEGRADED
+
+## Key Modules
+
+| Module | Description |
+|--------|-------------|
+| Lifecycle | 9-state skill lifecycle state machine |
+| Profile | Agent capability profiles (Claude Code/Codex/Hermes) |
+| Gate | Gate management + complexity assessment |
+| Materializer | CSDF → SKILL.md materialization engine (14 mapping rules) |
+| LazySkillLoader | L0/L1/L2 tiered loading with cache + thread safety |
+| Resolver | Skill chain resolution + DAG + circuit breaker + rate limiter |
+| Review | Review trigger + VETO V1-V6 + L1-L4 checkpoints |
+| BugCollector | 4-stage defect pipeline (Capture→Enrich→Filter→Persist) |
+| SelfHealingLoop | BugCollector → Evolver → BDD verify → auto-rollback |
+| SecurityScanner | YAML safety + dangerous pattern scanning + signature placeholder |
+| Audit | 34-field OTel audit + SHA-256 hash chain |
+| Evolver | Defect accumulation + Add/Merge/Discard evolution |
+| Registry | Skill registry + supply chain evidence + 9-state lifecycle |
+
+## Test Baseline
+
+1027 tests passing (V4.3.0)
 
 ## License
 
