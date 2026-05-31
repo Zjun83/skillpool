@@ -161,12 +161,12 @@ class TestExtractCodeBlocks:
         assert "print('hello')" in result
 
     def test_multiple_code_blocks(self):
-        """Multiple code blocks — first block is extracted."""
+        """Multiple code blocks — all blocks are extracted."""
         from skillpool.hooks.security_scanner import _extract_code_blocks
         content = "```python\nprint('a')\n```\n```bash\necho b\n```\n"
         result = _extract_code_blocks(content)
-        # Current implementation extracts first block; verify at least first is present
         assert "print('a')" in result
+        assert "echo b" in result
 
     def test_no_code_blocks_returns_full_content(self):
         from skillpool.hooks.security_scanner import _extract_code_blocks
@@ -180,6 +180,28 @@ class TestExtractCodeBlocks:
         # NOSONAR: testing detection
         result = _extract_code_blocks(content)
         assert "exec('x')" in result
+
+    def test_dangerous_pattern_in_second_block_detected(self):
+        """exec() in a second code block must be detected (was a bug)."""
+        scanner = SecurityScanner()
+        # NOSONAR: testing detection
+        content = "```python\nprint('safe')\n```\n```bash\nexec('malicious')\n```\n"
+        result = scanner.scan_dangerous_patterns(content)
+        assert result.threat_level == ThreatLevel.CRITICAL
+
+    def test_tilde_fence_with_backtick_inside(self):
+        """Tilde fence containing backtick lines should not confuse the parser."""
+        from skillpool.hooks.security_scanner import _extract_code_blocks
+        content = "~~~python\nprint('`hello`')\n~~~\n"
+        result = _extract_code_blocks(content)
+        assert "hello" in result
+
+    def test_nested_fences(self):
+        """Inner fence with different type should be treated as content."""
+        from skillpool.hooks.security_scanner import _extract_code_blocks
+        content = "~~~markdown\n```python\ncode\n```\n~~~\n"
+        result = _extract_code_blocks(content)
+        assert "code" in result
 
 
 class TestSafeContextExclusion:

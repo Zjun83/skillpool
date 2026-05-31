@@ -71,41 +71,70 @@ def _extract_code_blocks(content: str) -> str:
     - Tilde fences (~~~...~~~)
     - Unclosed code blocks (fallback: scan entire content)
     - CRLF line endings
+    - Multiple consecutive code blocks
     """
     # Normalize CRLF to LF
     normalized = content.replace("\r\n", "\n")
 
-    # Try to extract fenced code blocks
-    # Pattern: opening fence (``` or ~~~) with optional language tag,
-    # content, closing fence (same character as opening)
-    blocks = []
-    # Match both backtick and tilde fences
-    for match in re.finditer(
-        r"(?:^|\n)(```+|~~~+)[\w]*\n(.*?)(?:\n(?:```+|~~~+))(?:\n|$)",
-        normalized,
-        re.DOTALL,
-    ):
-        blocks.append(match.group(2))
+    # Line-by-line parser: correctly handles multiple blocks
+    blocks: list[str] = []
+    in_block = False
+    fence_char: str | None = None
+    fence_len = 0
+    current_lines: list[str] = []
 
-    # If no fenced blocks found, check for unclosed fences
-    if not blocks:
-        # Look for opening fences without matching closing fences
-        has_unclosed = bool(re.search(r"(?:^|\n)(```+|~~~+)[\w]*\n", normalized))
-        if has_unclosed:
-            # Unclosed code block — scan entire content as fallback
-            # Remove the opening fence line itself
-            scan_text = re.sub(r"(?:^|\n)(```+|~~~+)[\w]*\n", "\n", normalized)
-            return scan_text
+    for line in normalized.split("\n"):
+        stripped = line.strip()
+        is_fence = False
+        detected_char: str | None = None
+        detected_len = 0
 
-    # If still no blocks, scan inline code and plain content
+        if stripped.startswith("```"):
+            detected_char = "`"
+            for ch in stripped:
+                if ch == "`":
+                    detected_len += 1
+                else:
+                    break
+            is_fence = detected_len >= 3
+        elif stripped.startswith("~~~"):
+            detected_char = "~"
+            for ch in stripped:
+                if ch == "~":
+                    detected_len += 1
+                else:
+                    break
+            is_fence = detected_len >= 3
+
+        if is_fence:
+            if not in_block:
+                # Opening fence
+                in_block = True
+                fence_char = detected_char
+                fence_len = detected_len
+                current_lines = []
+            elif detected_char == fence_char and detected_len >= fence_len:
+                # Closing fence matching opening
+                blocks.append("\n".join(current_lines))
+                in_block = False
+                current_lines = []
+            else:
+                # Different fence inside a block — treat as content
+                current_lines.append(line)
+        elif in_block:
+            current_lines.append(line)
+
+    # Handle unclosed fence
+    if in_block and current_lines:
+        blocks.append("\n".join(current_lines))
+
+    # If no fenced blocks found, try inline code
     if not blocks:
-        # Extract inline code (single backticks)
         inline_blocks = re.findall(r"`([^`]+)`", normalized)
         if inline_blocks:
-            blocks = inline_blocks
-        else:
-            # No code blocks at all — scan the entire content
-            return normalized
+            return "\n".join(inline_blocks)
+        # No code blocks at all — scan the entire content
+        return normalized
 
     return "\n".join(blocks)
 
