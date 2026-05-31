@@ -21,9 +21,9 @@ def _find_skillpool_dir() -> Path:
 
 
 @click.group()
-@click.version_option(version="4.1.0")
+@click.version_option(version="4.3.0")
 def main():
-    """SkillPool V4.1 — AI Agent Skill Governance & Delivery Platform."""
+    """SkillPool V4.3 — AI Agent Skill Governance & Delivery Platform."""
 
 
 # ── Init ──────────────────────────────────────────────────────────
