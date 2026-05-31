@@ -1,1 +1,0 @@
-"""SkillPool test fixtures package."""

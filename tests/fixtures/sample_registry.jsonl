@@ -1,3 +1,0 @@
-{"name": "sample-skill", "version": "1.0.0", "description": "A sample skill for testing", "quality_score": 0.8, "author": "test-author", "tags": ["test", "sample"]}
-{"name": "minimal-skill", "version": "0.1.0", "description": "A minimal skill with no quality", "quality_score": 0.2, "author": "test-author", "tags": []}
-{"name": "high-quality-skill", "version": "2.0.0", "description": "A high quality skill", "quality_score": 0.95, "author": "pro-author", "tags": ["production"]}

@@ -105,7 +105,7 @@ class WALManager:
             return None
         try:
             data = json.loads(self._checkpoint_file.read_text(encoding="utf-8"))
-            return data.get("timestamp")
+            return str(data.get("timestamp")) if data.get("timestamp") is not None else None
         except (json.JSONDecodeError, Exception):
             return None
 

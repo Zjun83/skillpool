@@ -1,142 +1,84 @@
-# SkillPool V4.1
+# SkillPool v4.1.0
 
-Multi-agent skill registry, materialization, and lifecycle management.
+> Skill registry, search, and management API built with FastAPI.
 
 ## Quick Start
 
 ```bash
-# Install
-pip install -e .
+# Install dependencies
+pip install -r requirements.txt
 
-# Initialize data directory
-skillpool init
+# Run the server
+python -m skillpool.main
 
-# Import existing skills
-skillpool registry import ~/.codex/skills/
+# API available at http://localhost:8000
+# Docs at http://localhost:8000/docs
+```
 
-# Materialize for an agent
-skillpool materialize --agent claude-code --target ~/.codex/skills/
+## Docker
+
+```bash
+# Build and run
+docker compose -f deploy/docker-compose.yml up -d
 
 # Health check
-skillpool health
+curl http://localhost:8000/health
 ```
 
-## Architecture
+## API Endpoints
 
-- **Registry** — CSDF-based skill registration with quality scoring
-- **Materializer** — Agent-specific skill materialization (Claude Code / Codex / Hermes)
-- **Gate** — Dual-track gate checking (soft advisory + hard veto)
-- **MCP Server** — 7-tool stdio server for agent runtime queries
-- **Evolver** — Skill evolution based on telemetry feedback
-- **Bridge** — WAL, freeze detection, and maintenance for registry integrity
-- **Audit** — Append-only audit log with event tracking and querying
-- **Telemetry** — Usage tracking and skill performance metrics
-- **Adapters** — Unified interface for Codex and Claude agent runtimes
-
-## MCP Server Tools
-
-SkillPool exposes 7 tools via stdio MCP protocol:
-
-| Tool | Description |
-|------|-------------|
-| `skill_list` | List registered skills, optionally filtered by min quality score |
-| `skill_get` | Get full details of a specific skill by name |
-| `skill_gate` | Run quality gate check on a skill (pass/fail) |
-| `check_updates` | Check for available updates by comparing skill versions |
-| `report_usage` | Record a skill usage event with outcome tracking |
-| `get_emergency_overrides` | List active emergency overrides with expiry status |
-| `assess_paradigm` | Assess which paradigm(s) a skill belongs to |
-
-### MCP Configuration
-
-Add to your Codex `config.toml`:
-
-```toml
-[mcp_servers.skillpool]
-command = "/path/to/python3"
-args = ["-m", "skillpool.mcp_server"]
-```
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Health check |
+| GET | `/api/v1/skills` | List all skills |
+| POST | `/api/v1/skills` | Register a new skill |
+| GET | `/api/v1/skills/{skill_id}` | Get skill by ID |
+| PUT | `/api/v1/skills/{skill_id}` | Update a skill |
+| DELETE | `/api/v1/skills/{skill_id}` | Delete a skill |
+| GET | `/api/v1/skills/search` | Search skills |
 
 ## Project Structure
 
 ```
 skillpool/
-├── src/skillpool/          # Source code
-│   ├── registry.py         # Skill registration and lookup
-│   ├── csdf.py             # CSDF document parser
-│   ├── materializer.py     # Agent-specific materialization
-│   ├── gate.py             # Quality gate checker
-│   ├── quality.py          # Quality profiling and scoring
-│   ├── mcp_server.py       # MCP stdio server (7 tools)
-│   ├── audit.py            # Append-only audit log
-│   ├── telemetry.py        # Usage tracking
-│   ├── evolver.py          # Skill evolution engine
-│   ├── cli.py              # Click CLI interface
-│   ├── adapters/           # Agent runtime adapters
-│   │   ├── base.py         # Abstract adapter
-│   │   ├── codex_adapter.py
-│   │   └── claude_adapter.py
-│   └── bridge/             # Registry integrity
-│       ├── wal_manager.py  # Write-ahead logging
-│       ├── freeze_detector.py
-│       └── maintenance.py
-├── tests/                  # Test suites (200+ tests)
-│   ├── unit/               # Unit tests
-│   ├── mcp/                # MCP server tests
-│   └── integration/        # Integration tests
-└── .skillpool/             # Runtime data (created by init)
+├── skillpool/           # Application source
+│   ├── __init__.py
+│   ├── main.py          # FastAPI app entry point
+│   ├── api/             # API routes
+│   │   ├── __init__.py
+│   │   └── v1/
+│   │       ├── __init__.py
+│   │       └── skills.py
+│   ├── models/          # Pydantic models
+│   │   ├── __init__.py
+│   │   └── skill.py
+│   ├── services/        # Business logic
+│   │   ├── __init__.py
+│   │   └── skill_service.py
+│   └── config.py        # Configuration
+├── deploy/              # Deployment configs
+│   ├── Dockerfile
+│   ├── deployment.yml   # Kubernetes manifest
+│   └── docker-compose.yml
+├── tests/               # Test suite
+│   ├── __init__.py
+│   ├── conftest.py
+│   └── test_skills.py
+├── requirements.txt
+├── pyproject.toml
+└── README.md
 ```
 
-## Development
+## Configuration
 
-```bash
-# Install with dev dependencies
-pip install -e ".[dev]"
+Environment variables:
 
-# Run tests with coverage
-pytest --cov=skillpool --cov-fail-under=85
-
-# Lint
-ruff check src/ tests/
-ruff format --check src/ tests/
-
-# Type check
-mypy src/skillpool --ignore-missing-imports
-
-# Security audit
-pip-audit
-
-# Build package
-python -m build
-```
-
-## CI Pipeline
-
-The project uses GitHub Actions with 4 jobs:
-
-1. **lint** — Ruff check + format + MyPy (Python 3.12)
-2. **test** — Pytest with coverage ≥85% (Python 3.11, 3.12 matrix)
-3. **security** — pip-audit vulnerability scan
-4. **build** — Package build verification (depends on lint+test+security)
-
-## Quality Dimensions
-
-Skills are scored across 12 dimensions:
-
-| Dimension | Weight | Description |
-|-----------|--------|-------------|
-| completeness | 1.0 | Coverage of stated functionality |
-| accuracy | 1.5 | Correctness of outputs |
-| usability | 1.0 | Ease of integration and use |
-| maintainability | 0.8 | Code quality and documentation |
-| performance | 0.7 | Speed and resource efficiency |
-| security | 1.2 | Vulnerability resistance |
-| reliability | 1.0 | Consistency under varying conditions |
-| adaptability | 0.6 | Flexibility across contexts |
-| documentation | 0.8 | Quality of inline and external docs |
-| testability | 0.7 | Ease of writing and running tests |
-| interoperability | 0.5 | Compatibility with other systems |
-| observability | 0.5 | Monitoring and debugging support |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SKILLPOOL_HOST` | `0.0.0.0` | Server bind address |
+| `SKILLPOOL_PORT` | `8000` | Server bind port |
+| `SKILLPOOL_DATA_DIR` | `./data` | Data storage directory |
+| `SKILLPOOL_LOG_LEVEL` | `INFO` | Logging level |
 
 ## License
 

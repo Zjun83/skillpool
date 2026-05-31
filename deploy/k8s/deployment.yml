@@ -1,0 +1,131 @@
+# ── SkillPool V4.1 Kubernetes Deployment ─────────────────────────
+# kubectl apply -f deploy/k8s/
+# ──────────────────────────────────────────────────────────────────
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: skillpool
+  labels:
+    app.kubernetes.io/name: skillpool
+    app.kubernetes.io/version: "4.1.0"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skillpool
+  namespace: skillpool
+  labels:
+    app.kubernetes.io/name: skillpool
+    app.kubernetes.io/version: "4.1.0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: skillpool
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: skillpool
+        app.kubernetes.io/version: "4.1.0"
+    spec:
+      containers:
+        - name: skillpool
+          image: skillpool:4.1.0
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
+          env:
+            - name: SKILLPOOL_HOST
+              value: "0.0.0.0"
+            - name: SKILLPOOL_PORT
+              value: "8000"
+            - name: SKILLPOOL_DATA_DIR
+              value: "/data"
+            - name: SKILLPOOL_LOG_LEVEL
+              value: "INFO"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: skillpool-data
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: skillpool-data
+  namespace: skillpool
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: skillpool
+  namespace: skillpool
+  labels:
+    app.kubernetes.io/name: skillpool
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: skillpool
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: skillpool
+  namespace: skillpool
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: skillpool.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: skillpool
+                port:
+                  number: 8000

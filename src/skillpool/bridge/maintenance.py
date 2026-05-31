@@ -102,7 +102,7 @@ class MaintenanceCron:
         if not reports:
             return None
         try:
-            return json.loads(reports[-1].read_text(encoding="utf-8"))
+            return dict(json.loads(reports[-1].read_text(encoding="utf-8")))
         except (json.JSONDecodeError, Exception):
             return None
 

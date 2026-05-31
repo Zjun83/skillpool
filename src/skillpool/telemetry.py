@@ -1,159 +1,120 @@
-"""SkillPool Telemetry — Structured event logging for audit trails."""
+"""
+TelemetryBridge — 反向反馈通道，将运行时信号传回 SkillPool。
 
+3 个通道:
+  1. hook  — Claude Code / Codex hook 事件（PreToolUse, PostToolUse, Stop 等）
+  2. mcp   — MCP tool call（由 mcp_server.py 暴露 telemetry_report 工具）
+  3. log_file — 文件轮询（兼容无 hook/MCP 的环境）
+"""
 from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Optional, Callable
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 
-class EventType(str, Enum):
-    """Types of telemetry events."""
-
-    SKILL_REGISTERED = "skill.registered"
-    SKILL_UPDATED = "skill.updated"
-    SKILL_DELETED = "skill.deleted"
-    GATE_CHECKED = "gate.checked"
-    GATE_OVERRIDE = "gate.override"
-    MATERIALIZE_STARTED = "materialize.started"
-    MATERIALIZE_COMPLETED = "materialize.completed"
-    MATERIALIZE_FAILED = "materialize.failed"
-    ERROR = "system.error"
+class TelemetryChannel(StrEnum):
+    HOOK = "hook"
+    MCP = "mcp"
+    LOG_FILE = "log_file"
 
 
 class TelemetryEvent(BaseModel):
-    """A single telemetry event."""
-
-    event_type: EventType
-    skill_name: str = ""
-    payload: dict[str, Any] = Field(default_factory=dict)
-    timestamp: str = ""
-    session_id: str = ""
-
-    @model_validator(mode="after")
-    def _set_timestamp(self) -> TelemetryEvent:
-        if not self.timestamp:
-            self.timestamp = datetime.now(timezone.utc).isoformat()
-        return self
+    """单条遥测事件。"""
+    event_type: str
+    skill_id: str
+    channel: TelemetryChannel = TelemetryChannel.LOG_FILE
+    payload: dict = {}
+    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    trace_id: str = ""
 
 
-class TelemetryLogger:
-    """Structured telemetry logger that writes JSONL event logs.
+class TelemetryBridge:
+    """反向反馈通道 — 从运行时向 SkillPool 传递遥测信号。
 
-    Each event is written as a single JSON line to the log file,
-    providing a complete audit trail of all skillpool operations.
+    Usage:
+        bridge = TelemetryBridge(log_dir=Path("~/.skillpool/telemetry"))
+        bridge.emit("skill_used", skill_id="S05a", channel="hook")
+        bridge.emit("skill_error", skill_id="S10", channel="mcp", payload={"error": "timeout"})
     """
 
-    def __init__(self, log_dir: Path, session_id: str = "") -> None:
-        self._log_dir = log_dir
-        self._session_id = session_id or datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-        self._log_dir.mkdir(parents=True, exist_ok=True)
+    def __init__(self, log_dir: Optional[Path] = None):
+        self.log_dir = log_dir or Path.home() / ".skillpool" / "telemetry"
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        self._hooks: list[Callable] = []
 
-    @property
-    def log_path(self) -> Path:
-        """Return the current log file path."""
-        date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        return self._log_dir / f"telemetry-{date_str}.jsonl"
-
-    def _write_event(self, event: TelemetryEvent) -> None:
-        """Append an event to the log file."""
-        if not event.session_id:
-            event.session_id = self._session_id
-        with open(self.log_path, "a") as f:
-            f.write(event.model_dump_json() + "\n")
-
-    def log_registered(self, skill_name: str, quality_score: float = 0.0, **kwargs: Any) -> None:
-        """Log a skill registration event."""
-        self._write_event(
-            TelemetryEvent(
-                event_type=EventType.SKILL_REGISTERED,
-                skill_name=skill_name,
-                payload={"quality_score": quality_score, **kwargs},
-            )
+    def emit(
+        self,
+        event_type: str,
+        skill_id: str,
+        channel: TelemetryChannel | str = TelemetryChannel.LOG_FILE,
+        payload: Optional[dict] = None,
+        trace_id: str = "",
+    ) -> TelemetryEvent:
+        """发射一条遥测事件。同时写入 log_file 并调用已注册的 hook。"""
+        ch = TelemetryChannel(channel) if isinstance(channel, str) else channel
+        event = TelemetryEvent(
+            event_type=event_type,
+            skill_id=skill_id,
+            channel=ch,
+            payload=payload or {},
+            trace_id=trace_id,
         )
 
-    def log_updated(self, skill_name: str, changes: dict[str, Any], **kwargs: Any) -> None:
-        """Log a skill update event."""
-        self._write_event(
-            TelemetryEvent(
-                event_type=EventType.SKILL_UPDATED,
-                skill_name=skill_name,
-                payload={"changes": changes, **kwargs},
-            )
-        )
+        # 始终写入 log_file
+        self._write_to_log(event)
 
-    def log_deleted(self, skill_name: str, **kwargs: Any) -> None:
-        """Log a skill deletion event."""
-        self._write_event(
-            TelemetryEvent(
-                event_type=EventType.SKILL_DELETED,
-                skill_name=skill_name,
-                payload={**kwargs},
-            )
-        )
+        # 调用注册的 hook
+        for hook_fn in self._hooks:
+            try:
+                hook_fn(event)
+            except Exception:
+                pass  # hook 失败不阻断主流程
 
-    def log_gate_check(self, skill_name: str, status: str, score: float, **kwargs: Any) -> None:
-        """Log a gate check event."""
-        event_type = EventType.GATE_OVERRIDE if status == "override" else EventType.GATE_CHECKED
-        self._write_event(
-            TelemetryEvent(
-                event_type=event_type,
-                skill_name=skill_name,
-                payload={"status": status, "score": score, **kwargs},
-            )
-        )
+        return event
 
-    def log_materialize(self, skill_name: str, status: str, **kwargs: Any) -> None:
-        """Log a materialization event."""
-        type_map = {
-            "started": EventType.MATERIALIZE_STARTED,
-            "completed": EventType.MATERIALIZE_COMPLETED,
-            "failed": EventType.MATERIALIZE_FAILED,
-        }
-        event_type = type_map.get(status, EventType.MATERIALIZE_FAILED)
-        self._write_event(
-            TelemetryEvent(
-                event_type=event_type,
-                skill_name=skill_name,
-                payload={"status": status, **kwargs},
-            )
-        )
-
-    def log_error(self, message: str, **kwargs: Any) -> None:
-        """Log an error event."""
-        self._write_event(
-            TelemetryEvent(
-                event_type=EventType.ERROR,
-                payload={"message": message, **kwargs},
-            )
-        )
+    def register_hook(self, fn: Callable) -> None:
+        """注册一个 hook 回调，每次 emit 时调用。"""
+        self._hooks.append(fn)
 
     def read_events(
         self,
-        event_type: EventType | None = None,
-        skill_name: str | None = None,
-        limit: int = 100,
+        skill_id: Optional[str] = None,
+        event_type: Optional[str] = None,
+        since: Optional[float] = None,
     ) -> list[TelemetryEvent]:
-        """Read events from the log with optional filtering."""
-        events: list[TelemetryEvent] = []
-        if not self.log_path.exists():
+        """从 log_file 读取历史事件。"""
+        events = []
+        log_file = self.log_dir / f"telemetry-{datetime.now().strftime('%Y%m%d')}.jsonl"
+        if not log_file.exists():
             return events
-        with open(self.log_path) as f:
-            for line in f:
-                line = line.strip()
-                if not line:
+
+        for line in log_file.read_text().strip().split("\n"):
+            if not line:
+                continue
+            try:
+                data = json.loads(line)
+                event = TelemetryEvent(**data)
+                if skill_id and event.skill_id != skill_id:
                     continue
-                try:
-                    event = TelemetryEvent(**json.loads(line))
-                    if event_type and event.event_type != event_type:
-                        continue
-                    if skill_name and event.skill_name != skill_name:
-                        continue
-                    events.append(event)
-                except (json.JSONDecodeError, Exception):
+                if event_type and event.event_type != event_type:
                     continue
-        return events[-limit:]
+                if since:
+                    evt_ts = datetime.fromisoformat(event.timestamp).timestamp()
+                    if evt_ts < since:
+                        continue
+                events.append(event)
+            except (json.JSONDecodeError, Exception):
+                continue
+
+        return events
+
+    def _write_to_log(self, event: TelemetryEvent) -> None:
+        """追加写入当日 JSONL 文件。"""
+        log_file = self.log_dir / f"telemetry-{datetime.now().strftime('%Y%m%d')}.jsonl"
+        with open(log_file, "a") as f:
+            f.write(event.model_dump_json() + "\n")

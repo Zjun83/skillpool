@@ -1,1 +1,0 @@
-"""SkillPool MCP server tests."""

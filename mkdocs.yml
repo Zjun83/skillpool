@@ -1,0 +1,37 @@
+site_name: SkillPool
+site_description: Structured skill management for AI agents
+site_url: https://skillpool.dev
+repo_url: https://github.com/skillpool/skillpool
+repo_name: skillpool/skillpool
+
+theme:
+  name: material
+  palette:
+    primary: indigo
+    accent: indigo
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - search.suggest
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+  - Concepts:
+    - CSDF Format: concepts/csdf.md
+    - Registry: concepts/registry.md
+    - Gate: concepts/gate.md
+  - Infrastructure:
+    - MCP Server: infra/mcp-server.md
+    - Audit & Telemetry: infra/audit-telemetry.md
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - toc:
+      permalink: true

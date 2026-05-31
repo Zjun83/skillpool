@@ -1,0 +1,249 @@
+"""Tests for CSDF schema validators."""
+
+from pathlib import Path
+
+import pytest
+import yaml
+from pydantic import ValidationError
+
+from skillpool.schemas import (
+    CSDFSkill,
+    ChecklistItem,
+    SkillDimension,
+    validate_csdf,
+    validate_csdf_file,
+)
+
+
+# --- Fixtures ---
+
+@pytest.fixture
+def valid_csdf_dict() -> dict:
+    """A minimal valid CSDF skill dictionary."""
+    return {
+        "id": "S05a",
+        "name": "Security Transport Layer",
+        "version": "9.0.0",
+        "dimension": "D3",
+        "weight": 0.148,
+        "veto_rule": "V1: D3 < 7.0 -> block",
+        "description": "Check transport layer security compliance.",
+        "checklist": [
+            {"id": "S05a-C01", "description": "TLS 1.3+ required", "severity": "critical"},
+            {"id": "S05a-C02", "description": "mTLS enabled", "severity": "high"},
+        ],
+    }
+
+
+@pytest.fixture
+def valid_csdf_yaml(tmp_path: Path) -> Path:
+    """Write a valid CSDF YAML file and return its path."""
+    yaml_path = tmp_path / "S05a-test.yaml"
+    yaml_path.write_text(
+        """
+id: S05a
+name: "Security Transport Layer"
+version: "9.0.0"
+dimension: "D3"
+weight: 0.148
+veto_rule: "V1: D3 < 7.0 -> block"
+description: |
+  Check transport layer security compliance.
+checklist:
+  - id: S05a-C01
+    description: "TLS 1.3+ required"
+    severity: critical
+  - id: S05a-C02
+    description: "mTLS enabled"
+    severity: high
+""",
+        encoding="utf-8",
+    )
+    return yaml_path
+
+
+# --- Tests for ChecklistItem ---
+
+class TestChecklistItem:
+    def test_valid_checklist_item(self) -> None:
+        item = ChecklistItem(id="C01", description="Test item", severity="critical")
+        assert item.id == "C01"
+        assert item.severity == "critical"
+
+    def test_all_severities_allowed(self) -> None:
+        for sev in ("critical", "high", "medium", "low"):
+            item = ChecklistItem(id="C01", description="Test", severity=sev)
+            assert item.severity == sev
+
+    def test_invalid_severity_raises(self) -> None:
+        with pytest.raises(ValidationError) as exc_info:
+            ChecklistItem(id="C01", description="Test", severity="urgent")
+        assert "severity must be one of" in str(exc_info.value)
+
+
+# --- Tests for CSDFSkill ---
+
+class TestCSDFSkill:
+    def test_valid_csdf_passes(self, valid_csdf_dict: dict) -> None:
+        skill = CSDFSkill.model_validate(valid_csdf_dict)
+        assert skill.id == "S05a"
+        assert skill.version == "9.0.0"
+        assert skill.dimension == SkillDimension.D3
+        assert skill.weight == 0.148
+        assert len(skill.checklist) == 2
+
+    def test_missing_required_field_raises(self, valid_csdf_dict: dict) -> None:
+        del valid_csdf_dict["id"]
+        with pytest.raises(ValidationError) as exc_info:
+            CSDFSkill.model_validate(valid_csdf_dict)
+        assert "id" in str(exc_info.value).lower()
+
+    def test_missing_name_raises(self, valid_csdf_dict: dict) -> None:
+        del valid_csdf_dict["name"]
+        with pytest.raises(ValidationError) as exc_info:
+            CSDFSkill.model_validate(valid_csdf_dict)
+        assert "name" in str(exc_info.value).lower()
+
+    def test_invalid_dimension_raises(self, valid_csdf_dict: dict) -> None:
+        valid_csdf_dict["dimension"] = "D99"
+        with pytest.raises(ValidationError) as exc_info:
+            CSDFSkill.model_validate(valid_csdf_dict)
+        assert "dimension" in str(exc_info.value).lower()
+
+    def test_dimension_all_allowed(self, valid_csdf_dict: dict) -> None:
+        valid_csdf_dict["dimension"] = "ALL"
+        valid_csdf_dict["weight"] = None
+        valid_csdf_dict["veto_rule"] = None
+        skill = CSDFSkill.model_validate(valid_csdf_dict)
+        assert skill.dimension == SkillDimension.ALL
+
+    def test_invalid_version_format_raises(self, valid_csdf_dict: dict) -> None:
+        valid_csdf_dict["version"] = "9.0"  # Missing patch
+        with pytest.raises(ValidationError) as exc_info:
+            CSDFSkill.model_validate(valid_csdf_dict)
+        assert "semver" in str(exc_info.value).lower()
+
+    def test_version_with_prerelease_rejected(self, valid_csdf_dict: dict) -> None:
+        valid_csdf_dict["version"] = "9.0.0-alpha"
+        with pytest.raises(ValidationError):
+            CSDFSkill.model_validate(valid_csdf_dict)
+
+    def test_weight_out_of_range_high_raises(self, valid_csdf_dict: dict) -> None:
+        valid_csdf_dict["weight"] = 1.5
+        with pytest.raises(ValidationError) as exc_info:
+            CSDFSkill.model_validate(valid_csdf_dict)
+        assert "weight" in str(exc_info.value).lower()
+
+    def test_weight_out_of_range_low_raises(self, valid_csdf_dict: dict) -> None:
+        valid_csdf_dict["weight"] = -0.1
+        with pytest.raises(ValidationError):
+            CSDFSkill.model_validate(valid_csdf_dict)
+
+    def test_weight_null_allowed(self, valid_csdf_dict: dict) -> None:
+        valid_csdf_dict["weight"] = None
+        skill = CSDFSkill.model_validate(valid_csdf_dict)
+        assert skill.weight is None
+
+    def test_veto_rule_null_allowed(self, valid_csdf_dict: dict) -> None:
+        valid_csdf_dict["veto_rule"] = None
+        skill = CSDFSkill.model_validate(valid_csdf_dict)
+        assert skill.veto_rule is None
+
+    def test_optional_dependencies_and_conflicts(self, valid_csdf_dict: dict) -> None:
+        valid_csdf_dict["dependencies"] = ["S01", "S02"]
+        valid_csdf_dict["conflicts"] = ["S99"]
+        skill = CSDFSkill.model_validate(valid_csdf_dict)
+        assert skill.dependencies == ["S01", "S02"]
+        assert skill.conflicts == ["S99"]
+
+    def test_empty_checklist_allowed(self, valid_csdf_dict: dict) -> None:
+        valid_csdf_dict["checklist"] = []
+        skill = CSDFSkill.model_validate(valid_csdf_dict)
+        assert skill.checklist == []
+
+
+# --- Tests for validate_csdf function ---
+
+class TestValidateCsdf:
+    def test_validate_csdf_returns_skill(self, valid_csdf_dict: dict) -> None:
+        skill = validate_csdf(valid_csdf_dict)
+        assert isinstance(skill, CSDFSkill)
+        assert skill.id == "S05a"
+
+    def test_validate_csdf_raises_on_invalid(self) -> None:
+        with pytest.raises(ValidationError):
+            validate_csdf({})
+
+
+# --- Tests for validate_csdf_file function ---
+
+class TestValidateCsdfFile:
+    def test_validate_csdf_file_valid_yaml(
+        self, valid_csdf_yaml: Path
+    ) -> None:
+        skill = validate_csdf_file(valid_csdf_yaml)
+        assert skill.id == "S05a"
+        assert skill.version == "9.0.0"
+        assert len(skill.checklist) == 2
+
+    def test_validate_csdf_file_missing_raises(
+        self, tmp_path: Path
+    ) -> None:
+        missing_path = tmp_path / "nonexistent.yaml"
+        with pytest.raises(FileNotFoundError):
+            validate_csdf_file(missing_path)
+
+    def test_validate_csdf_file_invalid_yaml_content(
+        self, tmp_path: Path
+    ) -> None:
+        bad_yaml = tmp_path / "invalid.yaml"
+        bad_yaml.write_text("- item1\n- item2\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="Expected a YAML mapping"):
+            validate_csdf_file(bad_yaml)
+
+    def test_validate_csdf_file_schema_error(
+        self, tmp_path: Path
+    ) -> None:
+        bad_schema = tmp_path / "bad_schema.yaml"
+        bad_schema.write_text(
+            """
+id: S99
+name: "Missing required fields"
+""",
+            encoding="utf-8",
+        )
+        with pytest.raises(ValidationError):
+            validate_csdf_file(bad_schema)
+
+
+# --- Integration test with real skill file ---
+
+class TestRealSkillFiles:
+    def test_validate_real_s05a_yaml(self) -> None:
+        """Validate an actual skill file from the skills directory."""
+        skill_path = Path("/root/.skillpool/skills/S05a-security-transport.yaml")
+        if skill_path.exists():
+            skill = validate_csdf_file(skill_path)
+            assert skill.id == "S05a"
+            assert skill.dimension == SkillDimension.D3
+            assert skill.weight is not None
+            assert 0 < skill.weight <= 1
+
+    def test_validate_real_s10_yaml(self) -> None:
+        """Validate S10 which has version 9.1.0."""
+        skill_path = Path("/root/.skillpool/skills/S10-recovery-mttr.yaml")
+        if skill_path.exists():
+            skill = validate_csdf_file(skill_path)
+            assert skill.id == "S10"
+            assert skill.version == "9.1.0"
+            assert skill.dimension == SkillDimension.D5
+
+    def test_validate_real_s00_yaml(self) -> None:
+        """Validate S00 orchestrator with dimension=ALL and weight=null."""
+        skill_path = Path("/root/.skillpool/skills/S00-orchestrator.yaml")
+        if skill_path.exists():
+            skill = validate_csdf_file(skill_path)
+            assert skill.id == "S00"
+            assert skill.dimension == SkillDimension.ALL
+            assert skill.weight is None
+            assert skill.veto_rule is None

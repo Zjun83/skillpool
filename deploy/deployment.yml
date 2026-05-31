@@ -1,0 +1,39 @@
+# ── SkillPool V4.1 Standalone Deployment Spec ────────────────────
+# For bare-metal / VM deployment without Docker or Kubernetes
+# Usage: ansible-playbook deploy/deployment.yml
+# ──────────────────────────────────────────────────────────────────
+
+app_name: skillpool
+app_version: "4.1.0"
+app_user: skillpool
+app_group: skillpool
+app_port: 8000
+
+# Directories
+install_dir: /opt/skillpool
+data_dir: /data/skillpool
+log_dir: /var/log/skillpool
+backup_dir: /data/skillpool/backups
+
+# Python
+python_version: "3.12"
+venv_dir: "{{ install_dir }}/venv"
+
+# Systemd
+service_name: skillpool
+service_description: "SkillPool Skill Registry API"
+
+# Environment variables
+env_vars:
+  SKILLPOOL_HOST: "0.0.0.0"
+  SKILLPOOL_PORT: "{{ app_port }}"
+  SKILLPOOL_DATA_DIR: "{{ data_dir }}"
+  SKILLPOOL_LOG_LEVEL: "INFO"
+  SKILLPOOL_BACKUP_DIR: "{{ backup_dir }}"
+
+# Resource limits
+ulimit_nofile: 65536
+max_memory_mb: 512
+
+# Backup retention
+backup_retention_days: 30
