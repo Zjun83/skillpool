@@ -190,6 +190,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Rewritten from scratch with modern Python patterns
 
+[4.3.0]: https://github.com/your-org/skillpool/compare/v4.2.0...v4.3.0
 [4.2.0]: https://github.com/your-org/skillpool/compare/v4.1.0...v4.2.0
 [4.1.0]: https://github.com/your-org/skillpool/compare/v4.0.0...v4.1.0
 [4.0.0]: https://github.com/your-org/skillpool/compare/v3.2.0...v4.0.0
