@@ -31,9 +31,12 @@ __all__ = [
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
+from pathlib import Path
 from typing import Any
 import hashlib
 import secrets
+
+import yaml
 
 
 class DefectSeverity(StrEnum):
@@ -177,8 +180,10 @@ class EvolverLayer:
     # Safety constraint #6: regression monitor window (7 days)
     REGRESSION_MONITOR_DAYS = 7
 
-    def __init__(self, audit_layer=None) -> None:
+    def __init__(self, audit_layer=None, skills_dir: Path | None = None, evolver_dir: Path | None = None) -> None:
         self._audit = audit_layer
+        self._skills_dir = skills_dir or Path.home() / ".skillpool" / "skills"
+        self._evolver_dir = evolver_dir or Path.home() / ".skillpool" / "evolver"
         self._proposals: dict[str, EvolutionProposal] = {}
         self._defect_accumulator = DefectAccumulator()
         self._evolution_queue: list[dict] = []
@@ -196,6 +201,8 @@ class EvolverLayer:
         self._verification_reports: dict[str, VerificationReport] = {}
         # Rollback snapshots
         self._snapshots: dict[str, dict] = {}
+        # Auto-load from disk on init
+        self._load_from_disk()
 
     # === Defect Management ===
 
@@ -289,12 +296,42 @@ class EvolverLayer:
         return EvolutionAction.ADD
 
     def _calculate_similarity(self, skill_a: str, skill_b: str) -> float:
-        """Calculate similarity between two skills (placeholder)."""
+        """Calculate similarity between two skills based on ID structure.
+
+        Skill IDs follow patterns like S05a, S09, S13a. Similarity is based on:
+        1. Exact match → 1.0
+        2. Same base number (e.g. S05a vs S05b) → 0.85
+        3. Same dimension (derived from DIMENSION_SKILLS mapping) → 0.6
+        4. Otherwise → 0.0
+        """
         if skill_a == skill_b:
             return 1.0
-        common = sum(1 for a, b in zip(skill_a, skill_b) if a == b)
-        max_len = max(len(skill_a), len(skill_b))
-        return common / max_len if max_len > 0 else 0.0
+
+        # Extract base number: S05a → S05, S13b → S13
+        import re
+        match_a = re.match(r"S(\d+)", skill_a)
+        match_b = re.match(r"S(\d+)", skill_b)
+        if not match_a or not match_b:
+            # Fallback to Jaccard on characters for non-standard IDs
+            set_a = set(skill_a)
+            set_b = set(skill_b)
+            intersection = len(set_a & set_b)
+            union = len(set_a | set_b)
+            return intersection / union if union else 0.0
+
+        num_a = match_a.group(1)
+        num_b = match_b.group(1)
+        if num_a == num_b:
+            return 0.85  # Same skill family (e.g. S05a, S05b)
+
+        # Check if skills share a dimension
+        from skillpool.review.checkpoint_runner import DIMENSION_SKILLS
+        dims_a = {d for d, skills in DIMENSION_SKILLS.items() if skill_a in skills}
+        dims_b = {d for d, skills in DIMENSION_SKILLS.items() if skill_b in skills}
+        if dims_a & dims_b:
+            return 0.6  # Same dimension
+
+        return 0.0
 
     # === Proposal Creation ===
 
@@ -373,6 +410,7 @@ class EvolverLayer:
         elif upgrade_type == "MINOR":
             self._daily_minor_count += 1
 
+        self._save_to_disk()
         return proposal
 
     def _create_blocked_proposal(
@@ -440,6 +478,141 @@ class EvolverLayer:
         """Get current daily evolution counts."""
         self._check_daily_reset()
         return {"patch": self._daily_patch_count, "minor": self._daily_minor_count}
+
+    # === Evolution Execution (V4.3) ===
+
+    def execute_evolution(
+        self,
+        proposal_id: str,
+        updates: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Execute an evolution proposal: write changes to CSDF YAML + re-materialize.
+
+        Steps:
+        1. Validate proposal exists
+        2. Find the skill's CSDF YAML file
+        3. Save pre-evolution snapshot for rollback
+        4. Apply updates to the YAML data
+        5. Write updated YAML back to disk
+        6. Trigger re-materialization
+
+        Args:
+            proposal_id: The evolution proposal ID to execute.
+            updates: Optional dict of field updates to apply to the CSDF.
+
+        Returns:
+            Dict with execution result (status, yaml_updated, materialized).
+        """
+        proposal = self._proposals.get(proposal_id)
+        if proposal is None:
+            return {"status": "not_found", "error": f"No proposal with id {proposal_id}"}
+
+        skill_id = proposal.context.get("skill_id", "")
+        if not skill_id:
+            return {"status": "error", "error": "Proposal has no skill_id in context"}
+
+        # Find CSDF YAML
+        yaml_path = self._find_skill_yaml(skill_id)
+        if yaml_path is None:
+            return {"status": "no_yaml", "error": f"No CSDF YAML found for {skill_id}"}
+
+        # Read current data
+        try:
+            data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+        except (yaml.YAMLError, OSError) as e:
+            return {"status": "yaml_error", "error": str(e)}
+
+        if not isinstance(data, dict):
+            return {"status": "yaml_error", "error": "CSDF is not a dict"}
+
+        # Save snapshot for rollback (deep copy before mutation)
+        import copy
+        self.save_snapshot(proposal_id, copy.deepcopy(data))
+
+        # Apply updates
+        if updates:
+            data.update(updates)
+
+        # Bump version based on upgrade_type
+        version = str(data.get("version", "0.0.0"))
+        data["version"] = self._bump_version(version, proposal.upgrade_type)
+        data["last_evolved"] = datetime.now(UTC).isoformat()
+        data["evolution_proposal"] = proposal_id
+
+        # Write back to disk
+        try:
+            yaml_path.write_text(
+                yaml.dump(data, default_flow_style=False, allow_unicode=True, sort_keys=False),
+                encoding="utf-8",
+            )
+        except OSError as e:
+            return {"status": "write_error", "error": str(e)}
+
+        # Trigger re-materialization
+        materialized = self._rematerialize(skill_id, yaml_path)
+
+        if self._audit:
+            self._audit.append(
+                action="execute_evolution",
+                object_id=proposal_id,
+                result="success",
+            )
+
+        return {
+            "status": "success",
+            "skill_id": skill_id,
+            "version": data["version"],
+            "yaml_updated": True,
+            "materialized": materialized,
+        }
+
+    def _find_skill_yaml(self, skill_id: str) -> Path | None:
+        """Find the CSDF YAML file for a skill ID."""
+        if not self._skills_dir.exists():
+            return None
+        exact = self._skills_dir / f"{skill_id}.yaml"
+        if exact.exists():
+            return exact
+        for p in self._skills_dir.iterdir():
+            if p.name.startswith(f"{skill_id}-") and p.suffix == ".yaml":
+                return p
+        return None
+
+    @staticmethod
+    def _bump_version(version: str, upgrade_type: str) -> str:
+        """Bump a semver version based on upgrade type."""
+        import re
+        match = re.match(r"(\d+)\.(\d+)\.(\d+)", version)
+        if not match:
+            return version
+        major, minor, patch = int(match.group(1)), int(match.group(2)), int(match.group(3))
+        if upgrade_type == "MAJOR":
+            return f"{major + 1}.0.0"
+        elif upgrade_type == "MINOR":
+            return f"{major}.{minor + 1}.0"
+        else:  # PATCH
+            return f"{major}.{minor}.{patch + 1}"
+
+    def _rematerialize(self, skill_id: str, yaml_path: Path) -> bool:
+        """Trigger re-materialization of a skill after evolution.
+
+        Re-materializes to the default Claude Code skills directory.
+        """
+        try:
+            from skillpool.materializer import Materializer
+            from skillpool.profile import CLAUDE_CODE_PROFILE
+
+            mat = Materializer(profile=CLAUDE_CODE_PROFILE)
+            result = mat.materialize(csdf_path=yaml_path)
+            if result.status == "success" and result.skill:
+                out_dir = Path.home() / ".claude" / "skills"
+                out_dir.mkdir(parents=True, exist_ok=True)
+                skill_file = out_dir / f"{result.skill.id}.md"
+                skill_file.write_text(result.skill.markdown, encoding="utf-8")
+                return True
+        except Exception:
+            pass
+        return False
 
     # === VERIFY Phase (V4.1) ===
 
@@ -540,6 +713,7 @@ class EvolverLayer:
                 result=status.value,
             )
 
+        self._save_to_disk()
         return report
 
     def get_verification_report(self, proposal_id: str) -> VerificationReport | None:
@@ -547,11 +721,18 @@ class EvolverLayer:
         return self._verification_reports.get(proposal_id)
 
     def _perform_rollback(self, proposal_id: str) -> None:
-        """Perform rollback for failed verification (safety constraint #3)."""
+        """Perform rollback for failed verification (safety constraint #3).
+
+        Restores skill data from the pre-evolution snapshot. The snapshot
+        contains the complete skill definition dict saved before evolution.
+        """
         snapshot = self._snapshots.get(proposal_id)
-        if snapshot:
-            # Restore from snapshot — in production this would restore skill definitions
-            pass
+        if snapshot and "data" in snapshot:
+            # Restore the skill data from snapshot
+            restored_data = snapshot["data"]
+            skill_id = restored_data.get("id", "")
+            if skill_id and skill_id in self._skills:
+                self._skills[skill_id] = restored_data
         if self._audit:
             self._audit.append(
                 action="evolution_rollback",
@@ -566,6 +747,7 @@ class EvolverLayer:
             "saved_at": datetime.now(UTC).isoformat(),
             "hash": hashlib.sha256(str(skill_data).encode()).hexdigest()[:16],
         }
+        self._save_to_disk()
 
     def get_snapshot(self, proposal_id: str) -> dict | None:
         """Get a saved snapshot."""
@@ -611,6 +793,111 @@ class EvolverLayer:
             return "already_major"
 
     # === Dual-Loop Architecture Support ===
+
+    # === Disk Persistence (V4.3) ===
+
+    def _save_to_disk(self) -> None:
+        """Persist proposals, snapshots, and verification reports to disk."""
+        try:
+            self._evolver_dir.mkdir(parents=True, exist_ok=True)
+
+            # Save proposals
+            proposals_path = self._evolver_dir / "proposals.yaml"
+            proposals_data = {}
+            for pid, p in self._proposals.items():
+                proposals_data[pid] = {
+                    "context": p.context,
+                    "proposal_id": p.proposal_id,
+                    "risk": p.risk,
+                    "audit_ref": p.audit_ref,
+                    "action": p.action.value,
+                    "created_at": p.created_at,
+                    "upgrade_type": p.upgrade_type,
+                }
+            proposals_path.write_text(
+                yaml.dump(proposals_data, default_flow_style=False, allow_unicode=True),
+                encoding="utf-8",
+            )
+
+            # Save snapshots
+            snapshots_path = self._evolver_dir / "snapshots.yaml"
+            snapshots_path.write_text(
+                yaml.dump(self._snapshots, default_flow_style=False, allow_unicode=True),
+                encoding="utf-8",
+            )
+
+            # Save verification reports
+            reports_path = self._evolver_dir / "verification_reports.yaml"
+            reports_data = {}
+            for pid, r in self._verification_reports.items():
+                reports_data[pid] = {
+                    "proposal_id": r.proposal_id,
+                    "status": r.status.value,
+                    "bdd_regression_passed": r.bdd_regression_passed,
+                    "dimension_scores_before": r.dimension_scores_before,
+                    "dimension_scores_after": r.dimension_scores_after,
+                    "new_blind_spots": r.new_blind_spots,
+                    "veto_triggered": r.veto_triggered,
+                    "veto_details": r.veto_details,
+                    "rollback_performed": r.rollback_performed,
+                    "verified_at": r.verified_at,
+                }
+            reports_path.write_text(
+                yaml.dump(reports_data, default_flow_style=False, allow_unicode=True),
+                encoding="utf-8",
+            )
+        except OSError:
+            pass  # Disk persistence is best-effort
+
+    def _load_from_disk(self) -> None:
+        """Load proposals, snapshots, and verification reports from disk."""
+        try:
+            if not self._evolver_dir.exists():
+                return
+
+            # Load proposals
+            proposals_path = self._evolver_dir / "proposals.yaml"
+            if proposals_path.exists():
+                data = yaml.safe_load(proposals_path.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    for pid, p_data in data.items():
+                        self._proposals[pid] = EvolutionProposal(
+                            context=p_data.get("context", {}),
+                            proposal_id=p_data.get("proposal_id", pid),
+                            risk=p_data.get("risk", "medium"),
+                            audit_ref=p_data.get("audit_ref", ""),
+                            action=EvolutionAction(p_data.get("action", "add")),
+                            created_at=p_data.get("created_at", ""),
+                            upgrade_type=p_data.get("upgrade_type", "PATCH"),
+                        )
+
+            # Load snapshots
+            snapshots_path = self._evolver_dir / "snapshots.yaml"
+            if snapshots_path.exists():
+                data = yaml.safe_load(snapshots_path.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    self._snapshots = data
+
+            # Load verification reports
+            reports_path = self._evolver_dir / "verification_reports.yaml"
+            if reports_path.exists():
+                data = yaml.safe_load(reports_path.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    for pid, r_data in data.items():
+                        self._verification_reports[pid] = VerificationReport(
+                            proposal_id=r_data.get("proposal_id", pid),
+                            status=VerificationStatus(r_data.get("status", "passed")),
+                            bdd_regression_passed=r_data.get("bdd_regression_passed", True),
+                            dimension_scores_before=r_data.get("dimension_scores_before", {}),
+                            dimension_scores_after=r_data.get("dimension_scores_after", {}),
+                            new_blind_spots=r_data.get("new_blind_spots", []),
+                            veto_triggered=r_data.get("veto_triggered", False),
+                            veto_details=r_data.get("veto_details", []),
+                            rollback_performed=r_data.get("rollback_performed", False),
+                            verified_at=r_data.get("verified_at", ""),
+                        )
+        except (yaml.YAMLError, OSError):
+            pass  # Disk load is best-effort
 
     def process_internal_feedback(
         self,

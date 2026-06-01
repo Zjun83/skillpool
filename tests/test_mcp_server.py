@@ -90,14 +90,15 @@ class TestSkillGraphResource:
 
 
 class TestAuditRecordsResource:
-    def test_returns_list(self) -> None:
+    def test_returns_dict(self) -> None:
         result = audit_records()
-        assert isinstance(result, list)
+        assert isinstance(result, dict)
+        assert "records" in result
+        assert "total" in result
 
-    def test_capped_at_100(self) -> None:
-        """audit://records should cap at 100 records for token efficiency."""
+    def test_default_limit(self) -> None:
         result = audit_records()
-        assert len(result) <= 100
+        assert result["limit"] <= 500
 
 
 # ── Tools ──
@@ -111,7 +112,7 @@ class TestGateCheck:
             "min_trust_level": 1,
             "checklist": [],
         }
-        result = gate_check(csdf)
+        result = gate_check(csdf, profile_name="claude-code")
         assert result["decision"] == "allow"
 
     def test_deny_capability_mismatch(self) -> None:
@@ -126,7 +127,7 @@ class TestGateCheck:
     def test_safe_deny_on_error(self) -> None:
         """gate_check should return DENY on any error (safe-deny default)."""
         # Pass invalid data that causes an internal error
-        result = gate_check(None)  # type: ignore
+        result = gate_check(None, profile_name="claude-code")  # type: ignore
         assert result["decision"] == "DENY"
         assert "safe-deny" in result["reason"]
 

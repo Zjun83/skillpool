@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "skillpool"
-version = "4.1.0"
-description = "Skill Pool V4.1 — AI Agent Skill Governance & Delivery Platform"
+version = "4.3.0"
+description = "Skill Pool V4.3 — AI Agent Skill Governance & Delivery Platform"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 dependencies = [
@@ -30,6 +30,13 @@ where = ["src"]
 testpaths = ["tests"]
 addopts = "-v --tb=short"
 asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["skillpool"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 90
 
 [tool.ruff]
 line-length = 120

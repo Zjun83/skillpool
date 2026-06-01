@@ -31,7 +31,7 @@ auto_refresh: "false"
 | 哪些任务没完成 | TASK_MAP.md P0/P1 |
 | 环境配置/陷阱 | AGENTS_HANDBOOK.md |
 | 找某个文档 | DOC_MAP.md |
-| 12维评审状态 | .agents/skills/12-dim-review/state.yaml |
+| 多维评审状态 | ~/.skillpool/skills/multi-dim-review/state.yaml |
 
 ## 快速验证
 PYTHONPATH=src pytest tests/ -v --co -q

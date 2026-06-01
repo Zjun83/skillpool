@@ -278,15 +278,39 @@ class AuditLayer:
         """Rotate audit log when entries exceed max_entries.
 
         Keeps the most recent max_entries records, preserving hash chain integrity
-        by re-anchoring the oldest retained record as the new genesis.
+        by carrying forward the last pre-rotation hash as the new anchor and
+        recomputing hashes for all retained records.
         """
         if len(self._records) <= self._max_entries:
             return
+        # Capture the hash of the last record being discarded
         cutoff = len(self._records) - self._max_entries
+        last_discarded_hash = self._records[cutoff - 1].current_hash if cutoff > 0 else self.GENESIS_HASH
         self._records = self._records[cutoff:]
-        # Re-anchor: the oldest retained record becomes the new genesis reference
+        # Re-anchor: carry forward the pre-rotation chain tail hash
+        # and recompute hashes for all retained records
         if self._records:
-            self._records[0].previous_hash = self.GENESIS_HASH
+            prev_hash = last_discarded_hash
+            for idx, record in enumerate(self._records):
+                record.previous_hash = prev_hash
+                record.chain_index = idx
+                chain_payload = json.dumps({
+                    "event_id": record.event_id,
+                    "trace_id": record.trace_id,
+                    "span_id": record.span_id,
+                    "action": record.action,
+                    "actor": record.actor,
+                    "resource_type": record.resource_type,
+                    "resource_id": record.resource_id,
+                    "result": record.result,
+                    "timestamp": record.created_at,
+                    "chain_index": idx,
+                    "previous_hash": prev_hash,
+                }, sort_keys=True)
+                record.current_hash = hashlib.sha256(chain_payload.encode()).hexdigest()
+                record.signature = record.current_hash
+                prev_hash = record.current_hash
+            self._last_hash = prev_hash
 
     def is_available(self) -> bool:
         """Check if Audit layer is available."""
@@ -425,16 +449,21 @@ class AuditLayer:
 
     def verify_integrity(self) -> bool:
         """
-        Verify hash chain integrity.
+        Verify hash chain integrity of in-memory audit records.
 
-        Returns True if all records form a valid chain.
+        Checks:
+        1. Each record's current_hash matches recomputed hash from its content
+        2. Each record's previous_hash matches the preceding record's current_hash
+
+        After rotation, the first record's previous_hash may reference a
+        pre-rotation chain tail rather than GENESIS_HASH — we accept it
+        as a valid anchor.
         """
-        expected_hash = self.GENESIS_HASH
+        if not self._records:
+            return True
 
         for idx, record in enumerate(self._records):
-            if record.previous_hash != expected_hash:
-                return False
-
+            # Recompute hash from record content
             chain_payload = json.dumps({
                 "event_id": record.event_id,
                 "trace_id": record.trace_id,
@@ -445,14 +474,19 @@ class AuditLayer:
                 "resource_id": record.resource_id,
                 "result": record.result,
                 "timestamp": record.created_at,
-                "chain_index": idx,
-                "previous_hash": expected_hash,
+                "chain_index": record.chain_index,
+                "previous_hash": record.previous_hash,
             }, sort_keys=True)
-
             expected_hash = hashlib.sha256(chain_payload.encode()).hexdigest()
 
             if record.current_hash != expected_hash:
                 return False
+
+            # Verify chain link (skip first record — its previous_hash
+            # may reference pre-rotation tail)
+            if idx > 0:
+                if record.previous_hash != self._records[idx - 1].current_hash:
+                    return False
 
         return True
 

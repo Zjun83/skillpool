@@ -145,10 +145,15 @@ class SecurityScanner:
     Part of SkillPool — independent infrastructure, shared by all agents.
     """
 
-    def __init__(self, custom_patterns: list[tuple[str, str]] | None = None):
+    def __init__(
+        self,
+        custom_patterns: list[tuple[str, str]] | None = None,
+        evidence_tier: str | None = None,
+    ):
         self._patterns = _DANGEROUS_PATTERNS.copy()
         if custom_patterns:
             self._patterns.extend(custom_patterns)
+        self._evidence_tier = evidence_tier
 
     def check_yaml_safety(self, content: str) -> SecurityCheckResult:
         """Check YAML content for unsafe constructs.
@@ -224,17 +229,31 @@ class SecurityScanner:
         return result
 
     def verify_signature(self, skill_path: Path) -> SecurityCheckResult:
-        """Verify skill signature (placeholder implementation).
+        """Verify skill signature.
 
-        Production environments should replace this with sigstore/cosign
-        verification. Currently always passes with a warning.
+        Tier-dependent behavior:
+        - dev: placeholder passes with informational note
+        - ci/prod: returns WARNING (strict mode, needs real cosign/sigstore)
         """
+        import os
+
+        tier = getattr(self, "_evidence_tier", None) or os.environ.get(
+            "SKILLPOOL_EVIDENCE_TIER", "dev"
+        )
         result = SecurityCheckResult(threat_level=ThreatLevel.SAFE)
         result.checks_passed.append("signature_check")
-        result.warnings.append(
-            "Signature verification is a placeholder — "
-            "replace with sigstore/cosign in production"
-        )
+
+        if tier in ("ci", "prod"):
+            result.warnings.append(
+                "Signature verification is a placeholder — "
+                "production deployment requires cosign/sigstore"
+            )
+            result.threat_level = ThreatLevel.WARNING
+        else:
+            result.warnings.append(
+                "Signature verification skipped (dev tier) — "
+                "set SKILLPOOL_EVIDENCE_TIER=prod for strict checking"
+            )
         return result
 
     def full_check(self, content: str, skill_path: Path | None = None) -> SecurityCheckResult:

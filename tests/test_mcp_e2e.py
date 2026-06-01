@@ -81,25 +81,29 @@ class TestBugListResource:
     """Verify bug://list Resource returns BugCollector records."""
 
     async def test_bug_list_returns_list(self, client: Client) -> None:
-        result = await client.read_resource("bug://list")
+        result = await client.read_resource("bug://list/0")
         assert len(result) > 0
         text = getattr(result[0], "text", str(result[0]))
         import json
-        data = json.loads(text) if text.startswith("[") else []
-        assert isinstance(data, list)
+        data = json.loads(text)
+        assert isinstance(data, dict)
+        assert "bugs" in data
+        assert "total" in data
 
     async def test_bug_list_capped_at_100(self, client: Client) -> None:
-        result = await client.read_resource("bug://list")
+        result = await client.read_resource("bug://list/0")
         text = getattr(result[0], "text", str(result[0]))
         import json
-        data = json.loads(text) if text.startswith("[") else []
-        assert len(data) <= 100
+        data = json.loads(text)
+        assert isinstance(data, dict)
+        assert data["limit"] <= 500
+        assert len(data.get("bugs", [])) <= data["limit"]
 
     async def test_bug_list_in_resource_list(self, client: Client) -> None:
-        """bug://list should appear in resources/list."""
-        resources = await client.list_resources()
-        uris = [str(r.uri) for r in resources]
-        assert "bug://list" in uris
+        """bug://list template should appear in resource templates."""
+        templates = await client.list_resource_templates()
+        uris = [str(t.uriTemplate) for t in templates]
+        assert "bug://list/{cursor}" in uris
 
 
 class TestResourceListV43:
@@ -111,14 +115,14 @@ class TestResourceListV43:
         assert "skill://list" in uris
 
     async def test_list_includes_bug_list(self, client: Client) -> None:
-        resources = await client.list_resources()
-        uris = [str(r.uri) for r in resources]
-        assert "bug://list" in uris
+        templates = await client.list_resource_templates()
+        uris = [str(t.uriTemplate) for t in templates]
+        assert "bug://list/{cursor}" in uris
 
     async def test_list_includes_audit_records(self, client: Client) -> None:
-        resources = await client.list_resources()
-        uris = [str(r.uri) for r in resources]
-        assert "audit://records" in uris
+        templates = await client.list_resource_templates()
+        uris = [str(t.uriTemplate) for t in templates]
+        assert "audit://records/{cursor}" in uris
 
     async def test_list_includes_skill_graph(self, client: Client) -> None:
         resources = await client.list_resources()
@@ -201,6 +205,28 @@ class TestSkillExecutionResource:
         result = await client.read_resource("skill://NONEXISTENT_EXEC/x-execution")
         text = getattr(result[0], "text", str(result[0]))
         assert "not found" in text.lower() or "error" in text.lower()
+
+
+class TestSkillRulesResource:
+    """Verify skill://{id}/rules Resource returns RULES.md content."""
+
+    async def test_rules_for_directory_skill(self, client: Client) -> None:
+        result = await client.read_resource("skill://multi-dim-review/rules")
+        text = getattr(result[0], "text", str(result[0]))
+        # multi-dim-review has a RULES.md with scoring rules
+        if text:
+            assert "D3" in text or "VETO" in text or "维度" in text
+
+    async def test_rules_for_csdf_skill_empty(self, client: Client) -> None:
+        result = await client.read_resource("skill://S09/rules")
+        text = getattr(result[0], "text", str(result[0]))
+        # S09 is a CSDF skill, no RULES.md
+        assert text == ""
+
+    async def test_rules_in_resource_templates(self, client: Client) -> None:
+        templates = await client.list_resource_templates()
+        uris = [str(t.uriTemplate) for t in templates]
+        assert any("rules" in u for u in uris), f"No rules template in: {uris}"
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -551,7 +577,7 @@ class TestCrossEndpointIntegration:
     async def test_bug_list_and_healing_consistency(self, client: Client) -> None:
         """bug://list and healing_scan should reference the same BugCollector."""
         import json
-        bug_result = await client.read_resource("bug://list")
+        bug_result = await client.read_resource("bug://list/0")
         bug_text = getattr(bug_result[0], "text", str(bug_result[0]))
         bugs = json.loads(bug_text) if bug_text.startswith("[") else []
 
@@ -579,6 +605,7 @@ class TestCrossEndpointIntegration:
         # 4. Gate check
         gate_result = await client.call_tool("gate_check", {
             "csdf": {"id": "S09", "name": "Resilience", "min_trust_level": 1, "checklist": []},
+            "profile_name": "claude-code",
         })
         assert gate_result.data.get("decision") in ("allow", "ALLOW", "GUARD", "ESCALATE", "deny", "DENY")
 
@@ -589,3 +616,74 @@ class TestCrossEndpointIntegration:
             "skill_id": "S09",
         })
         assert "is_safe" in scan_result.data
+
+
+class TestCrossAgentSync:
+    """Verify skill_transition by one Agent is visible to another via skill_status."""
+
+    async def test_transition_visible_to_other_agent(self, client: Client) -> None:
+        """Simulate: Agent A transitions a skill, Agent B queries status."""
+        # 1. Register a skill
+        reg_result = await client.call_tool("skill_register", {
+            "skill_id": "sync-test-1",
+            "name": "SyncTest",
+            "version": "1.0.0",
+            "sbom_ref": "sbom",
+            "provenance_ref": "prov",
+            "source_pin": "src",
+            "signature_ref": "sig",
+        })
+        assert reg_result.data.get("skill_id") == "sync-test-1"
+
+        # 2. Agent A transitions to enabled
+        trans_result = await client.call_tool("skill_transition", {
+            "skill_id": "sync-test-1",
+            "from_status": "testing",
+            "to_status": "enabled",
+            "sandbox_result": "pass",
+            "policy_approval": True,
+        })
+        assert trans_result.data.get("to_status") == "enabled"
+
+        # 3. Agent B queries the same skill status
+        status_result = await client.call_tool("skill_status", {
+            "skill_id": "sync-test-1",
+        })
+        assert status_result.data.get("status") == "enabled"
+        assert status_result.data.get("enabled") is True
+
+
+class TestTraceIdPassthrough:
+    """Verify trace_id is accepted and returned by state-modifying tools."""
+
+    async def test_skill_transition_trace_id(self, client: Client) -> None:
+        """skill_transition should accept and return trace_id."""
+        # Register first
+        await client.call_tool("skill_register", {
+            "skill_id": "trace-test-1",
+            "name": "TraceTest",
+            "version": "1.0.0",
+        })
+
+        # Transition with trace_id
+        result = await client.call_tool("skill_transition", {
+            "skill_id": "trace-test-1",
+            "from_status": "testing",
+            "to_status": "enabled",
+            "sandbox_result": "pass",
+            "policy_approval": True,
+            "trace_id": "0af7651916cd43dd8448eb211c80319c",
+        })
+        assert result.data.get("trace_id") == "0af7651916cd43dd8448eb211c80319c"
+
+    async def test_evolution_trigger_trace_id(self, client: Client) -> None:
+        """evolution_trigger should accept trace_id."""
+        result = await client.call_tool("evolution_trigger", {
+            "skill_id": "S09",
+            "version": "1.0.0",
+            "severity": "minor",
+            "description": "test trace",
+            "trace_id": "0af7651916cd43dd8448eb211c80319c",
+        })
+        # Should not error — trace_id is accepted
+        assert "error" not in result.data or result.data.get("error") is None

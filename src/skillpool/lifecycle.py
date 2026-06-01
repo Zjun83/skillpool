@@ -106,3 +106,44 @@ def parse_state(name: str) -> Optional[SkillLifecycleState]:
         return SkillLifecycleState[upper]
     except KeyError:
         return None
+
+
+def check_auto_deprecation(skill_id: str) -> bool:
+    """Check if an ACTIVE skill should auto-transition to DEPRECATED.
+
+    Based on execution feedback data from GainTracker:
+      - avg_effectiveness < 3.0 with >= 5 executions → deprecate
+
+    Also cascades: skill deprecated → all its PROMOTED combinations deprecated.
+
+    Returns True if auto-deprecated, False otherwise.
+    """
+    try:
+        from skillpool.gain import GainTracker
+        from skillpool.combiner import CombinationLifecycleManager
+
+        tracker = GainTracker()
+        report = tracker.report(skill_id, last_n=50)
+
+        # No executions — not enough data to deprecate
+        if report.execution_count == 0:
+            return False
+
+        # Low effectiveness with sufficient data → deprecate
+        if report.avg_effectiveness < 3.0 and report.execution_count >= 5:
+            # Cascade: deprecate all PROMOTED combinations involving this skill
+            lifecycle_mgr = CombinationLifecycleManager()
+            combos = lifecycle_mgr.get_combinations_for_skill(skill_id)
+            for combo in combos:
+                if combo.state.value == 2:  # PROMOTED
+                    lifecycle_mgr.transition(
+                        combo.combination_id,
+                        4,  # DEPRECATED
+                        reason=f"Skill {skill_id} auto-deprecated (effectiveness={report.avg_effectiveness:.1f})",
+                    )
+            return True
+
+    except (ImportError, Exception):
+        pass
+
+    return False

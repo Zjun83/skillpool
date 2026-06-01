@@ -310,20 +310,29 @@ class TestCheckpointRunner:
         s2 = r2.run_checkpoint(CheckpointLevel.L2, ["S05a"])
         assert s1 == s2
 
-    def test_different_seed_different_scores(self):
-        r1 = CheckpointRunner(seed=42)
-        r2 = CheckpointRunner(seed=99)
+    def test_different_seed_fallback_differs(self):
+        """With fallback scores (no skill files), different seeds produce
+        different results."""
+        r1 = CheckpointRunner(seed=42, skills_dir=Path("/nonexistent"))
+        r2 = CheckpointRunner(seed=99, skills_dir=Path("/nonexistent"))
         s1 = r1.run_checkpoint(CheckpointLevel.L2, ["S05a"])
         s2 = r2.run_checkpoint(CheckpointLevel.L2, ["S05a"])
-        # Extremely unlikely to be identical with different seeds
         assert s1 != s2
 
-    def test_different_skills_different_scores(self):
-        # Use default seed (derived from skills) so different skills produce different seeds
+    def test_real_scoring_uses_skill_files(self):
+        """When skill files exist, scoring is based on file quality."""
         runner = CheckpointRunner()
-        s1 = runner.run_checkpoint(CheckpointLevel.L2, ["S05a"])
-        s2 = runner.run_checkpoint(CheckpointLevel.L2, ["S10"])
-        assert s1 != s2
+        scores = runner.run_checkpoint(CheckpointLevel.L2, ["S05a"])
+        # All dimensions should have scores > 0
+        for dim, score in scores.items():
+            assert score > 0.0, f"{dim} score should be positive"
+
+    def test_missing_skill_dir_uses_fallback(self):
+        """When skills dir doesn't exist, fallback scoring is used."""
+        runner = CheckpointRunner(skills_dir=Path("/nonexistent"))
+        scores = runner.run_checkpoint(CheckpointLevel.L2, ["S05a"])
+        for dim, score in scores.items():
+            assert 5.0 <= score <= 10.0, f"{dim} fallback score out of range"
 
 
 # ── SuspectMarker ────────────────────────────────────────────────────

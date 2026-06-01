@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
+import yaml
 
 from skillpool.evolver import (
     DefectAccumulator,
@@ -15,6 +17,12 @@ from skillpool.evolver import (
     VerificationReport,
     VerificationStatus,
 )
+
+
+@pytest.fixture(autouse=True)
+def _isolated_evolver(tmp_path, monkeypatch):
+    """Ensure all tests use isolated evolver directory (no cross-contamination)."""
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
 
 
 class TestDefectSeverity:
@@ -634,3 +642,172 @@ class TestEvolutionProposalUpgradeType:
             upgrade_type="MAJOR",
         )
         assert proposal.upgrade_type == "MAJOR"
+
+
+class TestExecuteEvolution:
+    """Test execute_evolution: YAML write + re-materialize."""
+
+    def test_execute_writes_yaml(self, tmp_path: Path):
+        """execute_evolution should update the CSDF YAML on disk."""
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+        skill_yaml = skills_dir / "S09-test.yaml"
+        skill_yaml.write_text(
+            yaml.dump({"id": "S09", "name": "Test", "version": "1.0.0"}),
+            encoding="utf-8",
+        )
+
+        evolver = EvolverLayer(skills_dir=skills_dir)
+        proposal = evolver.create_proposal(
+            context={"skill_id": "S09"},
+            upgrade_type="PATCH",
+        )
+        result = evolver.execute_evolution(proposal.proposal_id)
+
+        assert result["status"] == "success"
+        assert result["yaml_updated"] is True
+
+        # Verify YAML was updated
+        data = yaml.safe_load(skill_yaml.read_text(encoding="utf-8"))
+        assert data["version"] == "1.0.1"
+        assert "last_evolved" in data
+        assert data["evolution_proposal"] == proposal.proposal_id
+
+    def test_execute_with_updates(self, tmp_path: Path):
+        """execute_evolution should apply custom updates to the YAML."""
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+        skill_yaml = skills_dir / "S09-test.yaml"
+        skill_yaml.write_text(
+            yaml.dump({"id": "S09", "name": "Test", "version": "1.2.0"}),
+            encoding="utf-8",
+        )
+
+        evolver = EvolverLayer(skills_dir=skills_dir)
+        proposal = evolver.create_proposal(
+            context={"skill_id": "S09"},
+            upgrade_type="MINOR",
+        )
+        result = evolver.execute_evolution(
+            proposal.proposal_id,
+            updates={"description": "Updated via evolution"},
+        )
+
+        assert result["status"] == "success"
+        data = yaml.safe_load(skill_yaml.read_text(encoding="utf-8"))
+        assert data["version"] == "1.3.0"
+        assert data["description"] == "Updated via evolution"
+
+    def test_execute_major_version_bump(self, tmp_path: Path):
+        """MAJOR upgrade should bump major version."""
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+        skill_yaml = skills_dir / "S09-test.yaml"
+        skill_yaml.write_text(
+            yaml.dump({"id": "S09", "name": "Test", "version": "2.3.1"}),
+            encoding="utf-8",
+        )
+
+        evolver = EvolverLayer(skills_dir=skills_dir)
+        proposal = evolver.create_proposal(
+            context={"skill_id": "S09"},
+            upgrade_type="MAJOR",
+        )
+        result = evolver.execute_evolution(proposal.proposal_id)
+
+        assert result["status"] == "success"
+        data = yaml.safe_load(skill_yaml.read_text(encoding="utf-8"))
+        assert data["version"] == "3.0.0"
+
+    def test_execute_not_found_proposal(self):
+        """execute_evolution should return error for nonexistent proposal."""
+        evolver = EvolverLayer()
+        result = evolver.execute_evolution("nonexistent")
+        assert result["status"] == "not_found"
+
+    def test_execute_no_yaml_file(self):
+        """execute_evolution should return error when no YAML exists."""
+        evolver = EvolverLayer(skills_dir=Path("/nonexistent"))
+        proposal = evolver.create_proposal(
+            context={"skill_id": "S99"},
+            upgrade_type="PATCH",
+        )
+        result = evolver.execute_evolution(proposal.proposal_id)
+        assert result["status"] == "no_yaml"
+
+    def test_execute_saves_snapshot(self, tmp_path: Path):
+        """execute_evolution should save pre-evolution snapshot for rollback."""
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+        skill_yaml = skills_dir / "S09-test.yaml"
+        original_data = {"id": "S09", "name": "Test", "version": "1.0.0"}
+        skill_yaml.write_text(
+            yaml.dump(original_data),
+            encoding="utf-8",
+        )
+
+        evolver = EvolverLayer(skills_dir=skills_dir)
+        proposal = evolver.create_proposal(
+            context={"skill_id": "S09"},
+            upgrade_type="PATCH",
+        )
+        evolver.execute_evolution(proposal.proposal_id)
+
+        # Verify snapshot was saved
+        snapshot = evolver.get_snapshot(proposal.proposal_id)
+        assert snapshot is not None
+        assert snapshot["id"] == "S09"
+        assert snapshot["version"] == "1.0.0"
+
+
+class TestBumpVersion:
+    """Test _bump_version static method."""
+
+    def test_patch_bump(self):
+        assert EvolverLayer._bump_version("1.2.3", "PATCH") == "1.2.4"
+
+    def test_minor_bump(self):
+        assert EvolverLayer._bump_version("1.2.3", "MINOR") == "1.3.0"
+
+    def test_major_bump(self):
+        assert EvolverLayer._bump_version("1.2.3", "MAJOR") == "2.0.0"
+
+    def test_non_semver_unchanged(self):
+        assert EvolverLayer._bump_version("v1", "PATCH") == "v1"
+
+
+class TestDiskPersistence:
+    """Test Evolver disk persistence (proposals, snapshots, reports)."""
+
+    def test_save_and_load_proposals(self, tmp_path: Path):
+        """Proposals should persist to disk and reload on init."""
+        evolver_dir = tmp_path / "evolver"
+
+        evolver = EvolverLayer(evolver_dir=evolver_dir)
+        proposal = evolver.create_proposal(
+            context={"skill_id": "S09"},
+            upgrade_type="PATCH",
+        )
+        assert evolver_dir.exists()
+        assert (evolver_dir / "proposals.yaml").exists()
+
+        # Create new evolver instance and verify it loads
+        evolver2 = EvolverLayer(evolver_dir=evolver_dir)
+        assert proposal.proposal_id in evolver2._proposals
+
+    def test_save_and_load_snapshots(self, tmp_path: Path):
+        """Snapshots should persist to disk and reload on init."""
+        evolver_dir = tmp_path / "evolver"
+
+        evolver = EvolverLayer(evolver_dir=evolver_dir)
+        evolver.save_snapshot("snap-1", {"id": "S09", "version": "1.0.0"})
+        assert (evolver_dir / "snapshots.yaml").exists()
+
+        evolver2 = EvolverLayer(evolver_dir=evolver_dir)
+        assert "snap-1" in evolver2._snapshots
+
+    def test_graceful_no_dir(self, tmp_path: Path):
+        """Loading should be a no-op when no evolver dir exists."""
+        evolver_dir = tmp_path / "nonexistent"
+        evolver = EvolverLayer(evolver_dir=evolver_dir)
+        assert len(evolver._proposals) == 0

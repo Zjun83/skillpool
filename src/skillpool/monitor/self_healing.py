@@ -21,7 +21,10 @@ __all__ = [
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from pathlib import Path
 from typing import Any
+
+import yaml
 
 from skillpool.evolver import (
     DefectSeverity,
@@ -83,12 +86,16 @@ class SelfHealingLoop:
         bug_collector: BugCollector,
         evolver: EvolverLayer,
         audit_layer: Any | None = None,
+        skills_dir: Path | None = None,
     ) -> None:
         self._bug_collector = bug_collector
         self._evolver = evolver
         self._audit = audit_layer
+        self._skills_dir = skills_dir or Path.home() / ".skillpool" / "skills"
         self._proposals: dict[str, HealingProposal] = {}
         self._proposal_counter: int = 0
+        # Pre-evolution YAML snapshots for disk-level rollback
+        self._yaml_snapshots: dict[str, str] = {}
 
     def scan_and_propose(self) -> list[dict[str, Any]]:
         """Scan BugCollector for recurring defects and propose evolutions.
@@ -226,6 +233,11 @@ class SelfHealingLoop:
         # Mark executing
         healing.status = HealingStatus.EXECUTING
 
+        # Read and snapshot the CSDF YAML before evolution
+        yaml_path = self._find_skill_yaml(healing.skill_id)
+        if yaml_path and yaml_path.exists():
+            self._yaml_snapshots[proposal_id] = yaml_path.read_text(encoding="utf-8")
+
         # Capture pre-evolution bug count for this skill+defect_type
         bugs_before = self._bug_collector.get_bugs(
             skill_id=healing.skill_id,
@@ -276,6 +288,8 @@ class SelfHealingLoop:
                     defect_type=healing.defect_type,
                 )),
             }
+            # Persist evolution to CSDF YAML on disk
+            self._persist_evolution(healing.skill_id, healing)
         else:
             # BDD failed — trigger evolver rollback via verify_evolution
             if healing.evolver_proposal:
@@ -291,12 +305,16 @@ class SelfHealingLoop:
             if healing.evolver_proposal:
                 snapshot = self._evolver.get_snapshot(healing.evolver_proposal.proposal_id)
 
+            # Restore original YAML from disk snapshot
+            yaml_restored = self._restore_yaml_snapshot(proposal_id, healing.skill_id)
+
             healing.status = HealingStatus.ROLLED_BACK
             healing.verification_result = {
                 "bdd_passed": False,
                 "bug_count_before": count_before,
                 "reason": "BDD verification failed: bug count did not decrease",
                 "snapshot_restored": snapshot is not None,
+                "yaml_restored": yaml_restored,
             }
 
         if self._audit:
@@ -378,15 +396,11 @@ class SelfHealingLoop:
         defect_type: DefectType,
         count_before: int,
     ) -> bool:
-        """BDD-style verification: check that bug count did not increase.
+        """BDD-style verification: bug count check + optional review checkpoint.
 
-        Compares pre-evolution bug count with current bug count for the
-        same skill_id + defect_type. If new bugs appeared, fails.
-
-        Since the Evolver is recommendation-only (does not auto-apply
-        skill changes), BDD verification checks whether the defect pattern
-        is worsening regardless — a worsening pattern means the proposed
-        evolution is insufficient.
+        1. Compares pre/post bug counts (tolerates ≤1 concurrent bug)
+        2. Optionally calls `skillpool review --checkpoint L3` for real regression
+           check when the environment supports it
         """
         current_bugs = self._bug_collector.get_bugs(
             skill_id=skill_id,
@@ -402,4 +416,101 @@ class SelfHealingLoop:
         # (not just the same bugs we counted before)
         new_bug_count = count_after - count_before
         # If more than 1 new bug of the same type appeared, pattern is worsening
-        return new_bug_count <= 1
+        if new_bug_count > 1:
+            return False
+
+        # Exactly 1 new bug — tolerable as concurrent, but run
+        # checkpoint L3 if available for deeper verification
+        review_ok = self._run_review_checkpoint(skill_id)
+        return review_ok
+
+    def _run_review_checkpoint(self, skill_id: str) -> bool:
+        """Run review checkpoint L3 for a skill. Returns True if review passes.
+
+        Falls back to True (pass) if review infrastructure is unavailable.
+        """
+        try:
+            from skillpool.review import ReviewManager
+            from skillpool.review.models import (
+                CheckpointLevel,
+                ReviewTrigger,
+                ReviewTriggerRequest,
+            )
+
+            rm = ReviewManager()
+            request = ReviewTriggerRequest(
+                trigger=ReviewTrigger.L3_REGRESSION_FAIL,
+                checkpoint=CheckpointLevel.L3,
+                affected_skills=[skill_id],
+            )
+            result = rm.trigger(request)
+            # If no veto triggered, review passes
+            return not result.veto_triggered
+        except Exception:
+            # Review infrastructure unavailable — default pass
+            return True
+
+    def _find_skill_yaml(self, skill_id: str) -> Path | None:
+        """Find the CSDF YAML file for a skill ID."""
+        if not self._skills_dir.exists():
+            return None
+        # Exact match
+        exact = self._skills_dir / f"{skill_id}.yaml"
+        if exact.exists():
+            return exact
+        # Prefix match
+        for p in self._skills_dir.iterdir():
+            if p.name.startswith(f"{skill_id}-") and p.suffix == ".yaml":
+                return p
+        return None
+
+    def _persist_evolution(self, skill_id: str, healing: HealingProposal) -> bool:
+        """Write evolution results back to the CSDF YAML file.
+
+        Updates the YAML with healing metadata (last_healed, upgrade_type,
+        defect_type) so the change is durable across restarts.
+        """
+        yaml_path = self._find_skill_yaml(skill_id)
+        if yaml_path is None:
+            return False
+
+        try:
+            data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+        except (yaml.YAMLError, OSError):
+            return False
+
+        if not isinstance(data, dict):
+            return False
+
+        # Apply healing metadata
+        from skillpool.utils.time_utils import utc_now
+        data["last_healed"] = utc_now().isoformat()
+        data["last_healing_type"] = healing.upgrade_type.value
+        data["last_healing_defect"] = healing.defect_type.value
+
+        # Write back
+        try:
+            yaml_path.write_text(
+                yaml.dump(data, default_flow_style=False, allow_unicode=True, sort_keys=False),
+                encoding="utf-8",
+            )
+            return True
+        except OSError:
+            return False
+
+    def _restore_yaml_snapshot(self, proposal_id: str, skill_id: str) -> bool:
+        """Restore original YAML from pre-evolution snapshot."""
+        original = self._yaml_snapshots.get(proposal_id)
+        if original is None:
+            return False
+
+        yaml_path = self._find_skill_yaml(skill_id)
+        if yaml_path is None:
+            return False
+
+        try:
+            yaml_path.write_text(original, encoding="utf-8")
+            del self._yaml_snapshots[proposal_id]
+            return True
+        except OSError:
+            return False

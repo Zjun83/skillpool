@@ -40,9 +40,9 @@ class TestResourceList:
         assert "skill://list" in uris
 
     async def test_list_resources_includes_audit_records(self, client: Client) -> None:
-        resources = await client.list_resources()
-        uris = [str(r.uri) for r in resources]
-        assert "audit://records" in uris
+        templates = await client.list_resource_templates()
+        uris = [str(t.uriTemplate) for t in templates]
+        assert "audit://records/{cursor}" in uris
 
     async def test_list_resources_includes_skill_graph(self, client: Client) -> None:
         resources = await client.list_resources()
@@ -94,7 +94,7 @@ class TestResourceRead:
         assert len(result) > 0
 
     async def test_read_audit_records(self, client: Client) -> None:
-        result = await client.read_resource("audit://records")
+        result = await client.read_resource("audit://records/0")
         assert len(result) > 0
 
     async def test_read_directory_skill_definition(self, client: Client) -> None:
@@ -139,6 +139,7 @@ class TestToolCall:
     async def test_gate_check_allow(self, client: Client) -> None:
         result = await client.call_tool("gate_check", {
             "csdf": {"id": "S01", "name": "Simple", "min_trust_level": 1, "checklist": []},
+            "profile_name": "claude-code",
         })
         assert not result.is_error
         assert result.data is not None
@@ -216,6 +217,7 @@ class TestToolErrorHandling:
         """gate_check with empty/minimal CSDF should return a valid decision, not crash."""
         result = await client.call_tool("gate_check", {
             "csdf": {"id": "", "name": "", "min_trust_level": 0, "checklist": []},
+            "profile_name": "claude-code",
         })
         assert not result.is_error
         decision = result.data.get("decision", "")
@@ -309,7 +311,7 @@ class TestResourceBoundaryConditions:
 
     async def test_audit_records_capped(self, client: Client) -> None:
         """audit://records should return at most 100 records."""
-        result = await client.read_resource("audit://records")
+        result = await client.read_resource("audit://records/0")
         text = getattr(result[0], "text", str(result[0]))
         import json
         records = json.loads(text) if text.startswith("[") else []

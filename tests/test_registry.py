@@ -391,3 +391,79 @@ class TestSupplyChainEvidence:
         assert "SLSA provenance" in evidence["evidence"]
         assert "source pin" in evidence["evidence"]
         assert "signature" in evidence["evidence"]
+
+
+class TestSaveLoadCycle:
+    """Integration tests for Registry save→load cycle (data survives restart)."""
+
+    def test_state_transitions_preserved(self, tmp_path):
+        """State transitions should survive a save→load cycle."""
+        path = str(tmp_path / "registry.json")
+        audit = _make_audit()
+        reg = Registry(audit_layer=audit, registry_path=path)
+
+        # Register and transition to enabled
+        meta = _make_metadata("s1")
+        reg.register_candidate(RegisterSkillRequest(skill_metadata=meta))
+        reg.transition_state("s1", StateTransitionRequest(
+            from_status=SkillStatus.TESTING,
+            to_status=SkillStatus.ENABLED,
+        ), sandbox_result="pass", policy_approval=True)
+        assert reg.is_enabled("s1")
+
+        # Save and reload
+        reg2 = Registry(audit_layer=audit, registry_path=path)
+        record = reg2.get_skill("s1")
+        assert record is not None
+        assert record.metadata.status == SkillStatus.ENABLED
+        assert reg2.is_enabled("s1")
+
+    def test_multiple_skills_preserved(self, tmp_path):
+        """Multiple skills with different states should survive save→load."""
+        path = str(tmp_path / "registry.json")
+        audit = _make_audit()
+        reg = Registry(audit_layer=audit, registry_path=path)
+
+        # Register 3 skills with different states
+        for sid in ["s1", "s2", "s3"]:
+            meta = _make_metadata(sid)
+            reg.register_candidate(RegisterSkillRequest(skill_metadata=meta))
+
+        # Transition s1 to enabled
+        reg.transition_state("s1", StateTransitionRequest(
+            from_status=SkillStatus.TESTING,
+            to_status=SkillStatus.ENABLED,
+        ), sandbox_result="pass", policy_approval=True)
+
+        # Transition s2 to disabled
+        reg.transition_state("s2", StateTransitionRequest(
+            from_status=SkillStatus.TESTING,
+            to_status=SkillStatus.DISABLED,
+        ))
+
+        # Reload and verify all 3 skills with correct states
+        reg2 = Registry(audit_layer=audit, registry_path=path)
+        assert reg2.get_skill("s1").metadata.status == SkillStatus.ENABLED
+        assert reg2.get_skill("s2").metadata.status == SkillStatus.DISABLED
+        assert reg2.get_skill("s3").metadata.status == SkillStatus.TESTING
+
+    def test_evidence_preserved(self, tmp_path):
+        """Supply chain evidence should survive save→load."""
+        path = str(tmp_path / "registry.json")
+        audit = _make_audit()
+        reg = Registry(audit_layer=audit, registry_path=path)
+
+        meta = _make_metadata("s1")
+        reg.register_candidate(RegisterSkillRequest(skill_metadata=meta))
+
+        # Reload and verify evidence
+        reg2 = Registry(audit_layer=audit, registry_path=path)
+        evidence = reg2.get_supply_chain_evidence("s1")
+        assert "SPDX SBOM" in evidence["evidence"]
+
+    def test_empty_registry_load(self, tmp_path):
+        """Loading from nonexistent file should produce empty registry."""
+        path = str(tmp_path / "nonexistent.json")
+        audit = _make_audit()
+        reg = Registry(audit_layer=audit, registry_path=path)
+        assert len(reg._skills) == 0

@@ -179,11 +179,11 @@ class TestMCPNewTools:
         assert len(tool_names) >= 10, f"Expected >=10 tools, got {tool_names}"
 
     def test_audit_records_resource_exists(self):
-        """audit_query was refactored to audit://records Resource (read-only)."""
+        """audit_query was refactored to audit://records/{cursor} Resource (read-only, paginated)."""
         from skillpool.mcp_server import mcp
-        resources = asyncio.run(mcp.list_resources())
-        resource_uris = [str(r.uri) for r in resources]
-        assert "audit://records" in resource_uris
+        templates = asyncio.run(mcp.list_resource_templates())
+        template_uris = [str(t.uri_template) for t in templates]
+        assert "audit://records/{cursor}" in template_uris
 
     def test_skill_register_tool_exists(self):
         from skillpool.mcp_server import mcp

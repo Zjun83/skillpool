@@ -146,21 +146,21 @@ class TestPresetProfiles:
         assert CLAUDE_CODE_PROFILE.required_capabilities == {"bash", "file_system", "python", "web_search"}
         assert CLAUDE_CODE_PROFILE.context_window == 200000
         assert CLAUDE_CODE_PROFILE.trust_level == 3
-        assert CLAUDE_CODE_PROFILE.supported_paradigms == {"review", "code", "planning"}
+        assert CLAUDE_CODE_PROFILE.supported_paradigms == {"review", "code", "planning", "docsdd", "sdd", "bdd", "tdd"}
 
     def test_codex_profile_values(self):
         assert CODEX_PROFILE.name == "codex"
         assert CODEX_PROFILE.required_capabilities == {"bash", "file_system", "python"}
         assert CODEX_PROFILE.context_window == 128000
         assert CODEX_PROFILE.trust_level == 2
-        assert CODEX_PROFILE.supported_paradigms == {"code", "test"}
+        assert CODEX_PROFILE.supported_paradigms == {"code", "test", "sdd", "bdd", "tdd"}
 
     def test_hermes_profile_values(self):
         assert HERMES_PROFILE.name == "hermes"
         assert HERMES_PROFILE.required_capabilities == {"file_system", "web_search"}
         assert HERMES_PROFILE.context_window == 32000
         assert HERMES_PROFILE.trust_level == 1
-        assert HERMES_PROFILE.supported_paradigms == {"research", "planning"}
+        assert HERMES_PROFILE.supported_paradigms == {"research", "planning", "docsdd"}
 
     def test_claude_code_can_execute_code_skill(self):
         result = CLAUDE_CODE_PROFILE.can_execute({
@@ -174,6 +174,6 @@ class TestPresetProfiles:
         ok, msg = HERMES_PROFILE.can_execute({"required_capabilities": {"bash"}})
         assert ok is False
 
-    def test_codex_cannot_execute_review_paradigm(self):
-        ok, msg = CODEX_PROFILE.can_execute({"paradigm": "review"})
+    def test_codex_cannot_execute_research_paradigm(self):
+        ok, msg = CODEX_PROFILE.can_execute({"paradigm": "research"})
         assert ok is False

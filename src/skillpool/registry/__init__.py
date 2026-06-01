@@ -422,7 +422,7 @@ class Registry:
         record = self._skills.get(skill_id)
         if not record:
             return None
-        missing = REQUIRED_EVIDENCE - record.evidence
+        missing = self._required_evidence - record.evidence
         return {
             "skill_id": skill_id,
             "evidence": sorted(record.evidence),
@@ -440,7 +440,7 @@ class Registry:
             return [f"Skill not found: {skill_id}"]
 
         issues = []
-        missing = REQUIRED_EVIDENCE - record.evidence
+        missing = self._required_evidence - record.evidence
         if missing:
             issues.append(f"Missing evidence: {sorted(missing)}")
 

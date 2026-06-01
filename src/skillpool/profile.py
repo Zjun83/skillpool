@@ -66,7 +66,7 @@ CLAUDE_CODE_PROFILE = AgentCapabilityProfile(
     required_capabilities={"bash", "file_system", "python", "web_search"},
     context_window=200000,
     trust_level=3,
-    supported_paradigms={"review", "code", "planning"},
+    supported_paradigms={"review", "code", "planning", "docsdd", "sdd", "bdd", "tdd"},
 )
 
 CODEX_PROFILE = AgentCapabilityProfile(
@@ -74,7 +74,7 @@ CODEX_PROFILE = AgentCapabilityProfile(
     required_capabilities={"bash", "file_system", "python"},
     context_window=128000,
     trust_level=2,
-    supported_paradigms={"code", "test"},
+    supported_paradigms={"code", "test", "sdd", "bdd", "tdd"},
 )
 
 HERMES_PROFILE = AgentCapabilityProfile(
@@ -82,5 +82,13 @@ HERMES_PROFILE = AgentCapabilityProfile(
     required_capabilities={"file_system", "web_search"},
     context_window=32000,
     trust_level=1,
-    supported_paradigms={"research", "planning"},
+    supported_paradigms={"research", "planning", "docsdd"},
+)
+
+OPENCLAW_PROFILE = AgentCapabilityProfile(
+    name="openclaw",
+    required_capabilities={"bash", "file_system", "python", "web_search"},
+    context_window=128000,
+    trust_level=2,
+    supported_paradigms={"review", "code", "test", "planning", "docsdd", "sdd", "bdd", "tdd"},
 )

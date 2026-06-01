@@ -123,12 +123,20 @@ class TestPatternScan:
 class TestSignatureVerification:
     """Tests for signature verification (placeholder)."""
 
-    def test_placeholder_passes_with_warning(self):
+    def test_dev_tier_passes_with_note(self):
+        """Dev tier: signature check passes with informational note."""
         scanner = SecurityScanner()
         result = scanner.verify_signature(Path("/tmp/fake"))
         assert result.threat_level == ThreatLevel.SAFE
         assert "signature_check" in result.checks_passed
-        assert any("placeholder" in w.lower() for w in result.warnings)
+        assert any("dev tier" in w.lower() or "skipped" in w.lower() for w in result.warnings)
+
+    def test_prod_tier_returns_warning(self):
+        """Prod tier: signature check returns WARNING."""
+        scanner = SecurityScanner(evidence_tier="prod")
+        result = scanner.verify_signature(Path("/tmp/fake"))
+        assert result.threat_level == ThreatLevel.WARNING
+        assert "signature_check" in result.checks_passed
 
 
 class TestExtractCodeBlocks:

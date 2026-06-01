@@ -185,6 +185,25 @@ class TestAuditLayer:
             layer.append(action=f"a{i}")
         assert layer.get_record_count() == 3
 
+    def test_rotation_preserves_chain_integrity(self):
+        """After rotation, internal hash chain must still verify."""
+        layer = AuditLayer(max_entries=3)
+        for i in range(5):
+            layer.append(action=f"a{i}")
+        assert layer.verify_integrity() is True
+
+    def test_rotation_carries_forward_pre_rotation_hash(self):
+        """After rotation, the first retained record's previous_hash must
+        match the current_hash of the last discarded record."""
+        layer = AuditLayer(max_entries=3)
+        for i in range(5):
+            layer.append(action=f"a{i}")
+        # Records kept: a2, a3, a4 (cutoff=2, discarded: a0, a1)
+        first_retained = layer._records[0]
+        assert first_retained.action == "a2"
+        # previous_hash should be the current_hash of a1 (last discarded)
+        assert first_retained.previous_hash != AuditLayer.GENESIS_HASH
+
     def test_log_event_record(self):
         layer = AuditLayer()
         record = layer.log_event_record(action="custom_event", actor="tester")

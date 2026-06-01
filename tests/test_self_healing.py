@@ -5,6 +5,8 @@ Part of SkillPool — independent infrastructure, shared by all agents.
 from __future__ import annotations
 
 import pytest
+import yaml
+from pathlib import Path
 
 from skillpool.audit import AuditLayer
 from skillpool.evolver import EvolverLayer
@@ -200,3 +202,113 @@ class TestGetHealingStatus:
         status = loop.get_healing_status()
         assert status["total_proposals"] == 2
         assert "verified" in status["by_status"]
+
+
+class TestCSDFReadWrite:
+    """Test CSDF file read-modify-write closure."""
+
+    def test_persist_evolution_writes_yaml(self, tmp_path: Path):
+        """Healing should persist evolution metadata to CSDF YAML."""
+        # Create a test skill YAML
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+        skill_yaml = skills_dir / "S09-test.yaml"
+        skill_yaml.write_text(
+            yaml.dump({"id": "S09", "name": "Test Skill", "version": "1.0.0"}),
+            encoding="utf-8",
+        )
+
+        audit = AuditLayer()
+        evolver = EvolverLayer(audit_layer=audit)
+        collector = BugCollector(audit_layer=audit)
+        loop = SelfHealingLoop(
+            bug_collector=collector,
+            evolver=evolver,
+            audit_layer=audit,
+            skills_dir=skills_dir,
+        )
+
+        # Trigger healing
+        for i in range(3):
+            collector.record(BugSeverity.P2, DefectType.TIMEOUT, f"t#{i}", skill_id="S09")
+        proposals = loop.scan_and_propose()
+        result = loop.execute_healing(proposals[0]["proposal_id"])
+
+        assert result["status"] == "verified"
+
+        # Verify YAML was updated
+        data = yaml.safe_load(skill_yaml.read_text(encoding="utf-8"))
+        assert "last_healed" in data
+        assert data["last_healing_type"] == "PATCH"
+        assert data["last_healing_defect"] == "TIMEOUT"
+
+    def test_rollback_restores_original_yaml(self, tmp_path: Path):
+        """Rollback should restore the original YAML content."""
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+        skill_yaml = skills_dir / "S09-test.yaml"
+        original_content = yaml.dump({"id": "S09", "name": "Original", "version": "1.0.0"})
+        skill_yaml.write_text(original_content, encoding="utf-8")
+
+        audit = AuditLayer()
+        evolver = EvolverLayer(audit_layer=audit)
+        collector = BugCollector(audit_layer=audit)
+        loop = SelfHealingLoop(
+            bug_collector=collector,
+            evolver=evolver,
+            audit_layer=audit,
+            skills_dir=skills_dir,
+        )
+
+        # Manually create a proposal and snapshot
+        from skillpool.monitor.self_healing import HealingProposal
+        proposal = HealingProposal(
+            proposal_id="heal-1",
+            skill_id="S09",
+            defect_type=DefectType.TIMEOUT,
+            upgrade_type=HealingAction.PATCH,
+            bug_count=3,
+            bug_severity=BugSeverity.P2,
+            status=HealingStatus.PROPOSED,
+        )
+        loop._proposals["heal-1"] = proposal
+
+        # Simulate execution with snapshot
+        loop._yaml_snapshots["heal-1"] = original_content
+
+        # Modify the file
+        skill_yaml.write_text(
+            yaml.dump({"id": "S09", "name": "Modified", "version": "1.0.1"}),
+            encoding="utf-8",
+        )
+
+        # Restore from snapshot
+        restored = loop._restore_yaml_snapshot("heal-1", "S09")
+        assert restored is True
+
+        # Verify original content restored
+        assert skill_yaml.read_text(encoding="utf-8") == original_content
+
+    def test_no_yaml_file_graceful_skip(self, tmp_path: Path):
+        """Healing should gracefully skip when no YAML file exists."""
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+
+        audit = AuditLayer()
+        evolver = EvolverLayer(audit_layer=audit)
+        collector = BugCollector(audit_layer=audit)
+        loop = SelfHealingLoop(
+            bug_collector=collector,
+            evolver=evolver,
+            audit_layer=audit,
+            skills_dir=skills_dir,
+        )
+
+        # Trigger healing for a skill without YAML
+        for i in range(3):
+            collector.record(BugSeverity.P2, DefectType.TIMEOUT, f"t#{i}", skill_id="S99")
+        proposals = loop.scan_and_propose()
+        result = loop.execute_healing(proposals[0]["proposal_id"])
+
+        # Should still succeed (in-memory only)
+        assert result["status"] == "verified"

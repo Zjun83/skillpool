@@ -118,16 +118,100 @@ def materialize(agent_type: str, target_dir: str | None, csdf_path: str | None):
               help="Target agent type")
 @click.option("--target", "target_dir", type=click.Path(), default=None,
               help="Target directory")
-def sync(agent_type: str, target_dir: str | None):
+@click.option("--force", is_flag=True, help="Force re-materialize all skills")
+def sync(agent_type: str, target_dir: str | None, force: bool):
     """Incremental sync — only re-materialize changed skills.
 
     Compares content hashes; skips unchanged files.
     """
-    # For now, delegate to materialize (incremental optimization is future work)
-    click.echo(f"[sync] Running incremental materialization for {agent_type}...")
-    ctx = click.get_current_context()
-    ctx.invoke(materialize, agent_type=agent_type, target_dir=target_dir, csdf_path=None)
+    import hashlib
+    import yaml
 
+    from skillpool.materializer import Materializer
+    from skillpool.profile import (
+        CLAUDE_CODE_PROFILE, CODEX_PROFILE, HERMES_PROFILE,
+    )
+
+    profiles = {
+        "claude-code": CLAUDE_CODE_PROFILE,
+        "codex": CODEX_PROFILE,
+        "hermes": HERMES_PROFILE,
+    }
+    profile = profiles.get(agent_type, CLAUDE_CODE_PROFILE)
+
+    # Default target directories per agent type
+    if target_dir is None:
+        defaults = {
+            "claude-code": str(Path.home() / ".claude" / "skills"),
+            "codex": str(Path.home() / ".codex"),
+            "hermes": str(Path.home() / ".hermes" / "skills"),
+        }
+        target_dir = defaults.get(agent_type, str(DEFAULT_SKILLPOOL_DIR / "output"))
+
+    sp_dir = _find_skillpool_dir()
+    skills_dir = sp_dir / "skills"
+    out_path = Path(target_dir)
+    out_path.mkdir(parents=True, exist_ok=True)
+
+    # Hash state file for incremental sync
+    hash_file = out_path / ".sync_hashes.yaml"
+    old_hashes: dict[str, str] = {}
+    if hash_file.exists() and not force:
+        try:
+            old_hashes = yaml.safe_load(hash_file.read_text()) or {}
+        except yaml.YAMLError:
+            old_hashes = {}
+
+    mat = Materializer(profile=profile)
+    new_hashes: dict[str, str] = {}
+    synced = 0
+    skipped = 0
+
+    if not skills_dir.exists():
+        click.echo(f"No skills directory found at {skills_dir}")
+        return
+
+    for yaml_file in skills_dir.glob("*.yaml"):
+        content = yaml_file.read_bytes()
+        content_hash = hashlib.sha256(content).hexdigest()[:16]
+        skill_id = yaml_file.stem
+        new_hashes[skill_id] = content_hash
+
+        if not force and old_hashes.get(skill_id) == content_hash:
+            skipped += 1
+            continue
+
+        result = mat.materialize(csdf_path=yaml_file)
+        if result.status == "success" and result.skill:
+            skill_file = out_path / f"{result.skill.id}.md"
+            skill_file.write_text(result.skill.markdown)
+            synced += 1
+
+    # Also process directory-based skills
+    for skill_dir in skills_dir.iterdir():
+        if skill_dir.is_dir() and (skill_dir / "SKILL.md").exists():
+            skill_md = skill_dir / "SKILL.md"
+            content = skill_md.read_bytes()
+            content_hash = hashlib.sha256(content).hexdigest()[:16]
+            skill_id = skill_dir.name
+            new_hashes[skill_id] = content_hash
+
+            if not force and old_hashes.get(skill_id) == content_hash:
+                skipped += 1
+                continue
+
+            # Copy directory skill as-is
+            import shutil
+            dest_dir = out_path / skill_id
+            if dest_dir.exists():
+                shutil.rmtree(dest_dir)
+            shutil.copytree(skill_dir, dest_dir)
+            synced += 1
+
+    # Save new hashes
+    hash_file.write_text(yaml.dump(new_hashes, default_flow_style=False))
+
+    click.echo(f"[sync] Synced {synced} skill(s), skipped {skipped} unchanged -> {target_dir}")
 
 # ── Register ──────────────────────────────────────────────────────
 
@@ -272,6 +356,90 @@ def status():
         click.echo(f"  Registry: {sp_dir / 'registry.jsonl'}")
     else:
         click.echo("SkillPool not initialized. Run 'skillpool init'.")
+
+
+@main.command()
+@click.argument("skill_id")
+@click.option("--upgrade-type", default="PATCH",
+              type=click.Choice(["PATCH", "MINOR", "MAJOR"]),
+              help="Evolution upgrade type")
+@click.option("--updates", default=None,
+              help="JSON string of field updates to apply")
+def evolve(skill_id: str, upgrade_type: str, updates: str | None):
+    """Execute an evolution for a skill: write changes to CSDF YAML + re-materialize.
+
+    This is the CLI counterpart of the evolution_proposal + execute_evolution
+    MCP tools, providing a direct command-line path for skill evolution.
+    """
+    from skillpool.evolver import EvolverLayer
+    from skillpool.audit import AuditLayer
+
+    audit = AuditLayer()
+    evolver = EvolverLayer(audit_layer=audit)
+
+    # Parse updates if provided
+    update_dict = {}
+    if updates:
+        try:
+            update_dict = json.loads(updates)
+        except json.JSONDecodeError:
+            click.echo(f"Invalid JSON in --updates: {updates}")
+            return
+
+    # Create proposal
+    proposal = evolver.create_proposal(
+        context={"skill_id": skill_id},
+        upgrade_type=upgrade_type,
+    )
+
+    # Execute evolution
+    result = evolver.execute_evolution(proposal.proposal_id, updates=update_dict)
+
+    if result["status"] == "success":
+        click.echo(f"Evolved: {skill_id} v{result['version']}")
+        click.echo(f"  Proposal: {proposal.proposal_id}")
+        click.echo(f"  YAML updated: {result['yaml_updated']}")
+        if result.get("materialized"):
+            click.echo(f"  Re-materialized: yes")
+    else:
+        click.echo(f"Evolution failed: {result.get('error', result['status'])}")
+
+
+@main.command()
+@click.argument("proposal_id")
+def heal(proposal_id: str):
+    """Execute a healing proposal: apply fix and verify via BDD.
+
+    This is the CLI counterpart of the healing_execute MCP tool.
+    Use 'skillpool review --checkpoint L3' to scan for bugs first.
+    """
+    from skillpool.evolver import EvolverLayer
+    from skillpool.monitor.bug_collector import BugCollector
+    from skillpool.monitor.self_healing import SelfHealingLoop
+    from skillpool.audit import AuditLayer
+
+    audit = AuditLayer()
+    evolver = EvolverLayer(audit_layer=audit)
+    collector = BugCollector(audit_layer=audit)
+    loop = SelfHealingLoop(bug_collector=collector, evolver=evolver, audit_layer=audit)
+
+    result = loop.execute_healing(proposal_id)
+
+    if result["status"] == "not_found":
+        click.echo(f"Healing proposal '{proposal_id}' not found.")
+        click.echo("Run a scan first to generate proposals.")
+    elif result["status"] == "needs_human":
+        click.echo(f"MAJOR upgrade requires human approval.")
+    elif result["status"] == "verified":
+        click.echo(f"Healed: {result['proposal_id']}")
+        click.echo(f"  BDD passed: {result['verification']['bdd_passed']}")
+        if result['verification'].get('yaml_updated') or result['verification'].get('yaml_restored'):
+            click.echo(f"  YAML changes persisted: yes")
+    elif result["status"] == "rolled_back":
+        click.echo(f"Healing rolled back: {result['proposal_id']}")
+        click.echo(f"  Reason: {result['verification']['reason']}")
+    else:
+        click.echo(f"Healing result: {result}")
 
 
 # ── Review ────────────────────────────────────────────────────────
