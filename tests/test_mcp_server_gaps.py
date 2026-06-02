@@ -541,13 +541,28 @@ class TestSkillMatchTool:
     """Tests for skill_match MCP tool."""
 
     def test_skill_match_basic(self):
-        """skill_match should return a result dict."""
-        result = skill_match(
-            task_description="check code resilience",
-            agent_type="claude-code",
-        )
-        assert "task" in result
-        assert result["agent"] == "claude-code"
+        """skill_match should return a result dict with task and agent."""
+        mock_routing = MagicMock()
+        mock_routing.primary = None
+        mock_routing.layers_used = ["L1"]
+        mock_routing.candidates = []
+        mock_routing.enhancers = []
+
+        mock_response = MagicMock()
+        mock_response.resolved = []
+
+        with patch("skillpool.router.IntentRouter") as MockRouter, \
+             patch("skillpool.resolver.SkillResolver") as MockResolver, \
+             patch("skillpool.mcp_server._SKILLS_DIR", Path("/nonexistent")):
+            MockRouter.return_value.route.return_value = mock_routing
+            MockResolver.return_value.resolve.return_value = mock_response
+
+            result = skill_match(
+                task_description="check code resilience",
+                agent_type="claude-code",
+            )
+            assert "task" in result
+            assert result["agent"] == "claude-code"
 
 
 class TestReportUsageTool:
