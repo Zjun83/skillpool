@@ -12,6 +12,7 @@ __all__ = [
     "ContextVarsBinding",
     "JSONRenderer",
     "SkillPoolLogger",
+    "get_skillpool_logger",
 ]
 
 import json
@@ -172,6 +173,19 @@ DEFAULT_PROCESSORS = [
 ]
 
 DEFAULT_RENDERER = JSONRenderer()
+
+
+def get_skillpool_logger(name: str) -> SkillPoolLogger:
+    """Factory: return a SkillPoolLogger with the appropriate renderer.
+
+    In prod (SKILLPOOL_LOG_LEVEL=PROD or when not a TTY), uses JSONRenderer.
+    Otherwise uses ConsoleRenderer for readable dev output.
+    """
+    import os as _os
+
+    log_level = _os.environ.get("SKILLPOOL_LOG_LEVEL", "INFO").upper()
+    renderer: Any = ConsoleRenderer() if sys.stderr.isatty() else JSONRenderer()
+    return SkillPoolLogger(name=name, renderer=renderer)
 
 
 # ── Logger ──
