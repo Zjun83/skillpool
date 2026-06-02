@@ -469,3 +469,123 @@ class TestConftestHook:
     def test_classify_error_type_unknown(self):
         import conftest
         assert conftest._classify_error_type("SomeRandomError") == DefectType.UNKNOWN
+
+
+class TestPersistEdgeCases:
+    """Tests for _persist edge cases — audit chain errors, filesystem errors."""
+
+    def test_audit_chain_error_does_not_crash(self, isolated_collector):
+        """If audit_layer.append raises, persist should log warning and continue."""
+        from unittest.mock import MagicMock
+        bad_audit = MagicMock()
+        bad_audit.append.side_effect = RuntimeError("audit broken")
+
+        collector = BugCollector(
+            audit_layer=bad_audit,
+            log_dir=isolated_collector,
+            sample_rate=1.0,
+        )
+        # Should not raise
+        rec = collector.record(BugSeverity.P0, DefectType.STATE_CORRUPTION, "audit fail")
+        assert rec.bug_id.startswith("bug-")
+
+    def test_filesystem_error_does_not_crash(self, isolated_collector, tmp_path):
+        """If filesystem write fails, persist should silently skip."""
+        unwritable = tmp_path / "unwritable"
+        unwritable.mkdir()
+        unwritable.chmod(0o000)
+        collector = BugCollector(
+            log_dir=unwritable / "nested",
+            sample_rate=1.0,
+        )
+        # Should not crash even when log dir is unwritable
+        try:
+            rec = collector.record(BugSeverity.P1, DefectType.EXECUTION_FAILURE, "fs fail")
+            assert rec.bug_id.startswith("bug-")
+        finally:
+            unwritable.chmod(0o755)
+
+    def test_bug_id_is_unique(self, isolated_collector):
+        """Each bug record should have a unique ID."""
+        collector = BugCollector(log_dir=isolated_collector)
+        ids = set()
+        for i in range(10):
+            rec = collector.record(BugSeverity.P2, DefectType.PARAM_ERROR, f"bug {i}")
+            ids.add(rec.bug_id)
+        assert len(ids) == 10
+
+
+class TestCaptureExceptionEdgeCases:
+    """Additional capture_exception tests."""
+
+    def test_capture_connection_refused(self, isolated_collector):
+        """ConnectionRefusedError should map to RESOURCE_EXHAUSTION."""
+        collector = BugCollector(log_dir=isolated_collector)
+        rec = collector.capture_exception(ConnectionRefusedError("connection refused"))
+        assert rec.defect_type == DefectType.RESOURCE_EXHAUSTION
+        assert rec.context.get("exc_type") == "ConnectionRefusedError"
+
+    def test_capture_keyerror(self, isolated_collector):
+        """KeyError should map to PARAM_ERROR."""
+        collector = BugCollector(log_dir=isolated_collector)
+        rec = collector.capture_exception(KeyError("missing_key"))
+        assert rec.defect_type == DefectType.PARAM_ERROR
+
+    def test_capture_memoryerror_high_severity(self, isolated_collector):
+        """MemoryError should be captured as high severity."""
+        collector = BugCollector(log_dir=isolated_collector)
+        rec = collector.capture_exception(MemoryError("OOM"))
+        # MemoryError inherits from Exception, should still be captured
+        assert rec.severity in (BugSeverity.P0, BugSeverity.P1)
+
+    def test_capture_with_skill_id(self, isolated_collector):
+        """capture_exception should propagate skill_id."""
+        collector = BugCollector(log_dir=isolated_collector)
+        rec = collector.capture_exception(ValueError("bad value"), skill_id="S09")
+        assert rec.skill_id == "S09"
+
+
+class TestExcepthookIntegration:
+    """Tests for excepthook auto-capture edge cases."""
+
+    def test_excepthook_catches_runtime_error(self, isolated_collector):
+        """Excepthook should capture RuntimeError."""
+        collector = BugCollector(log_dir=isolated_collector)
+        collector.install_excepthook()
+        try:
+            # Simulate an unhandled exception via the hook
+            hook = sys.excepthook
+            hook(RuntimeError, RuntimeError("test error"), None)
+        finally:
+            collector.uninstall_excepthook()
+        bugs = collector.get_bugs()
+        assert any(b.context.get("source") == "excepthook" for b in bugs)
+
+    def test_excepthook_skips_keyboard_interrupt(self, isolated_collector):
+        """KeyboardInterrupt should not be collected."""
+        collector = BugCollector(log_dir=isolated_collector)
+        collector.install_excepthook()
+        original_hook = collector._original_excepthook
+        try:
+            hook = sys.excepthook
+            hook(KeyboardInterrupt, KeyboardInterrupt(), None)
+        finally:
+            collector.uninstall_excepthook()
+        bugs = collector.get_bugs()
+        assert len(bugs) == 0
+
+
+class TestGetStatsAggregation:
+    """Tests for get_stats with multiple severity/defect combinations."""
+
+    def test_stats_multiple_defects(self, isolated_collector):
+        """Stats should aggregate by both severity and defect type."""
+        collector = BugCollector(log_dir=isolated_collector)
+        collector.record(BugSeverity.P0, DefectType.TIMEOUT, "t1", skill_id="S09")
+        collector.record(BugSeverity.P1, DefectType.PARAM_ERROR, "t2", skill_id="S09")
+        collector.record(BugSeverity.P2, DefectType.EXECUTION_FAILURE, "t3", skill_id="S09")
+        stats = collector.get_stats()
+        assert stats["total"] == 3
+        assert stats["by_severity"]["P0"] == 1
+        assert stats["by_severity"]["P1"] == 1
+        assert stats["by_severity"]["P2"] == 1

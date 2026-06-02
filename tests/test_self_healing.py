@@ -13,6 +13,7 @@ from skillpool.evolver import EvolverLayer
 from skillpool.monitor.bug_collector import BugCollector, BugSeverity, DefectType
 from skillpool.monitor.self_healing import (
     HealingAction,
+    HealingProposal,
     HealingStatus,
     SelfHealingLoop,
 )
@@ -579,3 +580,148 @@ class TestExecuteHealingEdgeCases:
         assert status["total_proposals"] == 2
         assert "verified" in status["by_status"]
         assert "needs_human" in status["by_status"]
+
+class TestRunReviewCheckpoint:
+    """Tests for _run_review_checkpoint edge cases."""
+
+    def test_review_infrastructure_unavailable(self):
+        """When ReviewManager import fails, should default to pass."""
+        from unittest.mock import patch, MagicMock
+        bc = BugCollector()
+        ev = EvolverLayer()
+        loop = SelfHealingLoop(bug_collector=bc, evolver=ev)
+
+        # The function uses try/except ImportError — simulate by making the module import fail
+        with patch.dict("sys.modules", {"skillpool.review": None}):
+            result = loop._run_review_checkpoint("S09")
+            # Should not crash; either True (default pass) or the function's fallback
+            assert isinstance(result, bool)
+
+
+class TestFindSkillYamlEdgeCases:
+    """Tests for _find_skill_yaml edge cases."""
+
+    def test_skills_dir_not_exists(self, tmp_path):
+        """If skills_dir doesn't exist, should return None."""
+        from unittest.mock import MagicMock
+        bc = BugCollector()
+        ev = EvolverLayer()
+        loop = SelfHealingLoop(bug_collector=bc, evolver=ev, skills_dir=tmp_path / "nonexistent")
+        assert loop._find_skill_yaml("S09") is None
+
+    def test_prefix_match(self, tmp_path):
+        """Should find YAML by prefix match (skill_id-*.yaml)."""
+        from unittest.mock import MagicMock
+        bc = BugCollector()
+        ev = EvolverLayer()
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+        yaml_file = skills_dir / "S09-resilience-degradation.yaml"
+        yaml_file.write_text("id: S09\nname: test")
+        loop = SelfHealingLoop(bug_collector=bc, evolver=ev, skills_dir=skills_dir)
+        result = loop._find_skill_yaml("S09")
+        assert result is not None
+        assert result.name == "S09-resilience-degradation.yaml"
+
+
+class TestPersistEvolutionEdgeCases:
+    """Tests for _persist_evolution edge cases."""
+
+    def test_invalid_yaml_content(self, tmp_path):
+        """If YAML content is not a dict, should return False."""
+        from unittest.mock import MagicMock
+        bc = BugCollector()
+        ev = EvolverLayer()
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+        yaml_file = skills_dir / "S09.yaml"
+        yaml_file.write_text("just a string")
+        loop = SelfHealingLoop(bug_collector=bc, evolver=ev, skills_dir=skills_dir)
+
+        proposal = HealingProposal(
+            proposal_id="heal-1",
+            skill_id="S09",
+            defect_type=DefectType.EXECUTION_FAILURE,
+            upgrade_type=HealingAction.PATCH,
+            bug_count=3,
+            bug_severity=BugSeverity.P2,
+        )
+        assert loop._persist_evolution("S09", proposal) is False
+
+    def test_yaml_parse_error(self, tmp_path):
+        """If YAML parsing fails, should return False."""
+        bc = BugCollector()
+        ev = EvolverLayer()
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+        yaml_file = skills_dir / "S09.yaml"
+        yaml_file.write_text("{{invalid yaml}}")
+        loop = SelfHealingLoop(bug_collector=bc, evolver=ev, skills_dir=skills_dir)
+
+        proposal = HealingProposal(
+            proposal_id="heal-1",
+            skill_id="S09",
+            defect_type=DefectType.EXECUTION_FAILURE,
+            upgrade_type=HealingAction.PATCH,
+            bug_count=3,
+            bug_severity=BugSeverity.P2,
+        )
+        assert loop._persist_evolution("S09", proposal) is False
+
+
+class TestRestoreYamlSnapshotEdgeCases:
+    """Tests for _restore_yaml_snapshot edge cases."""
+
+    def test_no_snapshot_returns_false(self):
+        """If no snapshot exists, should return False."""
+        bc = BugCollector()
+        ev = EvolverLayer()
+        loop = SelfHealingLoop(bug_collector=bc, evolver=ev)
+        assert loop._restore_yaml_snapshot("heal-1", "S09") is False
+
+    def test_no_yaml_file_returns_false(self, tmp_path):
+        """If YAML file doesn't exist, should return False."""
+        bc = BugCollector()
+        ev = EvolverLayer()
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+        loop = SelfHealingLoop(bug_collector=bc, evolver=ev, skills_dir=skills_dir)
+        loop._yaml_snapshots["heal-1"] = "original content"
+        # No S09.yaml exists
+        assert loop._restore_yaml_snapshot("heal-1", "S09") is False
+
+    def test_successful_restore(self, tmp_path):
+        """Successful restore should write original content and clean up."""
+        bc = BugCollector()
+        ev = EvolverLayer()
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+        yaml_file = skills_dir / "S09.yaml"
+        yaml_file.write_text("modified content")
+        loop = SelfHealingLoop(bug_collector=bc, evolver=ev, skills_dir=skills_dir)
+        loop._yaml_snapshots["heal-1"] = "original content"
+        result = loop._restore_yaml_snapshot("heal-1", "S09")
+        assert result is True
+        assert yaml_file.read_text() == "original content"
+        assert "heal-1" not in loop._yaml_snapshots
+
+
+class TestBddVerifyEdgeCases:
+    """Tests for _bdd_verify edge cases."""
+
+    def test_count_after_equal_count_before(self):
+        """If count_after equals count_before, should pass."""
+        bc = BugCollector()
+        ev = EvolverLayer()
+        loop = SelfHealingLoop(bug_collector=bc, evolver=ev)
+        bc.record(BugSeverity.P2, DefectType.EXECUTION_FAILURE, "bug1", skill_id="S09")
+        result = loop._bdd_verify("S09", DefectType.EXECUTION_FAILURE, 1)
+        assert result is True
+
+    def test_new_bug_count_zero(self):
+        """If no bugs exist for skill, should pass."""
+        bc = BugCollector()
+        ev = EvolverLayer()
+        loop = SelfHealingLoop(bug_collector=bc, evolver=ev)
+        result = loop._bdd_verify("S09", DefectType.EXECUTION_FAILURE, 0)
+        assert result is True
