@@ -322,3 +322,64 @@ class TestErrorBudget:
         mon = MonitorLayer()
         # Should not raise
         mon.record_budget_request("S09", success=False)
+
+
+class TestRecordBug:
+    """Tests for record_bug method (BugCollector integration)."""
+
+    def test_record_bug_creates_bug_record(self):
+        mon = MonitorLayer()
+        from skillpool.monitor.bug_collector import BugSeverity, DefectType
+        record = mon.record_bug(
+            severity=BugSeverity.P2,
+            defect_type=DefectType.PARAM_ERROR,
+            message="test bug",
+            skill_id="S09",
+        )
+        assert record.bug_id.startswith("bug-")
+        assert record.severity == BugSeverity.P2
+        assert record.defect_type == DefectType.PARAM_ERROR
+        assert record.skill_id == "S09"
+
+    def test_record_bug_with_context(self):
+        mon = MonitorLayer()
+        from skillpool.monitor.bug_collector import BugSeverity, DefectType
+        record = mon.record_bug(
+            severity=BugSeverity.P1,
+            defect_type=DefectType.EXECUTION_FAILURE,
+            message="execution failure",
+            skill_id="S13a",
+            context={"checkpoint": "L3"},
+        )
+        assert record.context.get("checkpoint") == "L3"
+
+
+class TestScoreToLevel:
+    """Tests for _score_to_level conversion."""
+
+    def test_good_threshold(self):
+        mon = MonitorLayer()
+        assert mon._score_to_level(0.7) == EvaluationLevel.GOOD
+        assert mon._score_to_level(0.9) == EvaluationLevel.GOOD
+        assert mon._score_to_level(1.0) == EvaluationLevel.GOOD
+
+    def test_average_threshold(self):
+        mon = MonitorLayer()
+        assert mon._score_to_level(0.4) == EvaluationLevel.AVERAGE
+        assert mon._score_to_level(0.5) == EvaluationLevel.AVERAGE
+        assert mon._score_to_level(0.69) == EvaluationLevel.AVERAGE
+
+    def test_poor_threshold(self):
+        mon = MonitorLayer()
+        assert mon._score_to_level(0.0) == EvaluationLevel.POOR
+        assert mon._score_to_level(0.39) == EvaluationLevel.POOR
+
+    def test_boundary_at_0_4(self):
+        mon = MonitorLayer()
+        assert mon._score_to_level(0.399) == EvaluationLevel.POOR
+        assert mon._score_to_level(0.4) == EvaluationLevel.AVERAGE
+
+    def test_boundary_at_0_7(self):
+        mon = MonitorLayer()
+        assert mon._score_to_level(0.699) == EvaluationLevel.AVERAGE
+        assert mon._score_to_level(0.7) == EvaluationLevel.GOOD

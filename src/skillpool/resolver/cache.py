@@ -1,4 +1,4 @@
-"""Resolver cache — LRU with TTL expiration.
+"""Resolver cache — LRU with TTL expiration and thread safety.
 
 Each cache entry has a TTL (default 3600s). Entries past TTL are treated
 as misses and lazily evicted on access.
@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import threading
 import time
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -21,7 +22,7 @@ class CacheEntry:
 
 
 class LRUCache:
-    """LRU cache with TTL expiration.
+    """LRU cache with TTL expiration and thread-safe operations.
 
     Args:
         max_size: Maximum number of entries.
@@ -34,6 +35,7 @@ class LRUCache:
         self._cache: OrderedDict[str, CacheEntry] = OrderedDict()
         self._hits = 0
         self._misses = 0
+        self._lock = threading.Lock()
 
     @staticmethod
     def make_key(skill_ids: list[str], **kwargs: object) -> str:
@@ -43,51 +45,57 @@ class LRUCache:
 
     def get(self, key: str) -> Optional[Any]:
         """Get a cached value. Returns None on miss or TTL expiry."""
-        entry = self._cache.get(key)
-        if entry is None:
-            self._misses += 1
-            return None
-        # Check TTL
-        if time.monotonic() > entry.expires_at:
-            del self._cache[key]
-            self._misses += 1
-            return None
-        # Move to end (most recently used)
-        self._cache.move_to_end(key)
-        self._hits += 1
-        return entry.value
+        with self._lock:
+            entry = self._cache.get(key)
+            if entry is None:
+                self._misses += 1
+                return None
+            # Check TTL
+            if time.monotonic() > entry.expires_at:
+                del self._cache[key]
+                self._misses += 1
+                return None
+            # Move to end (most recently used)
+            self._cache.move_to_end(key)
+            self._hits += 1
+            return entry.value
 
     def put(self, key: str, value: Any, ttl_seconds: Optional[float] = None) -> None:
         """Store a value with optional per-entry TTL override."""
-        ttl = ttl_seconds if ttl_seconds is not None else self._ttl_seconds
-        entry = CacheEntry(value=value, expires_at=time.monotonic() + ttl)
-        if key in self._cache:
-            self._cache.move_to_end(key)
-        self._cache[key] = entry
-        # Evict oldest if over capacity
-        while len(self._cache) > self._max_size:
-            self._cache.popitem(last=False)
+        with self._lock:
+            ttl = ttl_seconds if ttl_seconds is not None else self._ttl_seconds
+            entry = CacheEntry(value=value, expires_at=time.monotonic() + ttl)
+            if key in self._cache:
+                self._cache.move_to_end(key)
+            self._cache[key] = entry
+            # Evict oldest if over capacity
+            while len(self._cache) > self._max_size:
+                self._cache.popitem(last=False)
 
     def invalidate(self, key: str) -> bool:
         """Remove a specific key. Returns True if key existed."""
-        if key in self._cache:
-            del self._cache[key]
-            return True
-        return False
+        with self._lock:
+            if key in self._cache:
+                del self._cache[key]
+                return True
+            return False
 
     def clear(self) -> None:
         """Clear all entries."""
-        self._cache.clear()
-        self._hits = 0
-        self._misses = 0
+        with self._lock:
+            self._cache.clear()
+            self._hits = 0
+            self._misses = 0
 
     def stats(self) -> dict[str, int]:
         """Return cache hit/miss statistics."""
-        return {"hits": self._hits, "misses": self._misses, "size": len(self._cache)}
+        with self._lock:
+            return {"hits": self._hits, "misses": self._misses, "size": len(self._cache)}
 
     def is_expired(self, key: str) -> bool:
         """Check if a key exists but is expired (without evicting)."""
-        entry = self._cache.get(key)
-        if entry is None:
-            return False
-        return time.monotonic() > entry.expires_at
+        with self._lock:
+            entry = self._cache.get(key)
+            if entry is None:
+                return False
+            return time.monotonic() > entry.expires_at

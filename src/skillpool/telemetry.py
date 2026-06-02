@@ -9,12 +9,16 @@ TelemetryBridge — 反向反馈通道，将运行时信号传回 SkillPool。
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
 from enum import StrEnum
 from pathlib import Path
 from typing import Optional, Callable
 
+from skillpool.config import get_data_dir
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
 
 
 class TelemetryChannel(StrEnum):
@@ -43,7 +47,7 @@ class TelemetryBridge:
     """
 
     def __init__(self, log_dir: Optional[Path] = None):
-        self.log_dir = log_dir or Path.home() / ".skillpool" / "telemetry"
+        self.log_dir = log_dir or get_data_dir() / "telemetry"
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self._hooks: list[Callable] = []
 
@@ -72,8 +76,8 @@ class TelemetryBridge:
         for hook_fn in self._hooks:
             try:
                 hook_fn(event)
-            except Exception:
-                pass  # hook 失败不阻断主流程
+            except Exception as e:
+                logger.warning("Telemetry hook callback failed: %s", e)
 
         return event
 

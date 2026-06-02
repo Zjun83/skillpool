@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -256,6 +257,198 @@ class TestSeverityFromException:
 
     def test_valueerror_is_p2(self):
         assert BugCollector._severity_from_exception(ValueError()) == BugSeverity.P2
+
+
+class TestExceptHook:
+    """Tests for install_excepthook / uninstall_excepthook."""
+
+    def test_install_and_uninstall(self, isolated_collector):
+        """install_excepthook and uninstall_excepthook round-trip."""
+        collector = BugCollector(log_dir=isolated_collector)
+        original = sys.excepthook
+
+        collector.install_excepthook()
+        assert sys.excepthook is not original
+        assert collector._original_excepthook is original
+
+        collector.uninstall_excepthook()
+        assert sys.excepthook is original
+        assert collector._original_excepthook is None
+
+    def test_install_twice_is_noop(self, isolated_collector):
+        """Installing excepthook twice should not overwrite the original."""
+        collector = BugCollector(log_dir=isolated_collector)
+        original = sys.excepthook
+
+        collector.install_excepthook()
+        hook1 = sys.excepthook
+
+        collector.install_excepthook()
+        # Should still be the same hook (no double-wrap)
+        assert sys.excepthook is hook1
+
+        # Cleanup
+        collector.uninstall_excepthook()
+        assert sys.excepthook is original
+
+    def test_uninstall_without_install_is_noop(self, isolated_collector):
+        """Uninstalling without installing should be a no-op."""
+        collector = BugCollector(log_dir=isolated_collector)
+        original = sys.excepthook
+        collector.uninstall_excepthook()
+        assert sys.excepthook is original
+
+
+class TestEnrichWithEnv:
+    """Tests for _enrich attaching environment context."""
+
+    def test_skillpool_env_attached(self, isolated_collector, monkeypatch):
+        """SKILLPOOL_ENV should be attached to bug context."""
+        monkeypatch.setenv("SKILLPOOL_ENV", "production")
+        collector = BugCollector(log_dir=isolated_collector)
+        record = collector.record(
+            severity=BugSeverity.P2,
+            defect_type=DefectType.PARAM_ERROR,
+            message="test",
+        )
+        assert record.context.get("env") == "production"
+
+    def test_no_skillpool_env_no_extra_context(self, isolated_collector, monkeypatch):
+        """Without SKILLPOOL_ENV, no env info should be added."""
+        monkeypatch.delenv("SKILLPOOL_ENV", raising=False)
+        collector = BugCollector(log_dir=isolated_collector)
+        record = collector.record(
+            severity=BugSeverity.P2,
+            defect_type=DefectType.PARAM_ERROR,
+            message="test",
+        )
+        assert "env" not in record.context
+
+    def test_trace_id_auto_generated(self, isolated_collector):
+        """Bug without trace_id should get one auto-generated."""
+        collector = BugCollector(log_dir=isolated_collector)
+        record = collector.record(
+            severity=BugSeverity.P2,
+            defect_type=DefectType.PARAM_ERROR,
+            message="test",
+        )
+        assert record.trace_id != ""
+        assert len(record.trace_id) == 32  # 16 bytes hex
+
+
+class TestBeforePersistHook:
+    """Tests for before_persist hook edge cases."""
+
+    def test_hook_exception_defaults_to_persist(self, isolated_collector):
+        """If before_persist hook raises, record should be persisted by default."""
+        def bad_hook(rec: BugRecord) -> bool:
+            raise RuntimeError("hook crashed")
+
+        collector = BugCollector(
+            log_dir=isolated_collector,
+            before_persist=bad_hook,
+        )
+        collector.record(BugSeverity.P2, DefectType.PARAM_ERROR, "hook crash test")
+
+        # Despite hook error, bug should be persisted
+        log_path = isolated_collector / "bugs.jsonl"
+        assert log_path.exists()
+
+    def test_hook_accept_persists(self, isolated_collector):
+        """before_persist returning True should persist."""
+        def accept(rec: BugRecord) -> bool:
+            return True
+
+        collector = BugCollector(
+            log_dir=isolated_collector,
+            before_persist=accept,
+        )
+        collector.record(BugSeverity.P2, DefectType.PARAM_ERROR, "accepted")
+
+        log_path = isolated_collector / "bugs.jsonl"
+        assert log_path.exists()
+
+
+class TestMapSeverity:
+    """Tests for _map_severity static method."""
+
+    def test_p0_maps_to_critical(self):
+        assert BugCollector._map_severity(BugSeverity.P0) == "CRITICAL"
+
+    def test_p1_maps_to_error(self):
+        assert BugCollector._map_severity(BugSeverity.P1) == "ERROR"
+
+    def test_p2_maps_to_warn(self):
+        assert BugCollector._map_severity(BugSeverity.P2) == "WARN"
+
+
+class TestSampleRateClamping:
+    """Tests for sample_rate clamping to [0.0, 1.0]."""
+
+    def test_negative_clamped_to_zero(self, isolated_collector):
+        collector = BugCollector(log_dir=isolated_collector, sample_rate=-1.0)
+        assert collector._sample_rate == 0.0
+
+    def test_above_one_clamped_to_one(self, isolated_collector):
+        collector = BugCollector(log_dir=isolated_collector, sample_rate=2.0)
+        assert collector._sample_rate == 1.0
+
+
+class TestGetBugsSkillId:
+    """Tests for get_bugs filtering by skill_id."""
+
+    def test_filter_by_skill_id(self, isolated_collector):
+        collector = BugCollector(log_dir=isolated_collector)
+        collector.record(BugSeverity.P2, DefectType.PARAM_ERROR, "a", skill_id="S09")
+        collector.record(BugSeverity.P2, DefectType.PARAM_ERROR, "b", skill_id="S13a")
+        collector.record(BugSeverity.P2, DefectType.PARAM_ERROR, "c", skill_id="S09")
+
+        s09_bugs = collector.get_bugs(skill_id="S09")
+        assert len(s09_bugs) == 2
+        assert all(b.skill_id == "S09" for b in s09_bugs)
+
+    def test_combined_filters(self, isolated_collector):
+        collector = BugCollector(log_dir=isolated_collector)
+        collector.record(BugSeverity.P0, DefectType.TIMEOUT, "a", skill_id="S09")
+        collector.record(BugSeverity.P2, DefectType.TIMEOUT, "b", skill_id="S09")
+        collector.record(BugSeverity.P0, DefectType.TIMEOUT, "c", skill_id="S13a")
+
+        bugs = collector.get_bugs(severity=BugSeverity.P0, skill_id="S09")
+        assert len(bugs) == 1
+        assert bugs[0].message == "a"
+
+
+class TestRecordWithContext:
+    """Tests for record with skill_id and context."""
+
+    def test_record_with_skill_id_and_context(self, isolated_collector):
+        collector = BugCollector(log_dir=isolated_collector)
+        record = collector.record(
+            severity=BugSeverity.P1,
+            defect_type=DefectType.EXECUTION_FAILURE,
+            message="execution failure",
+            skill_id="S09",
+            context={"checkpoint": "L3", "agent": "claude-code"},
+        )
+        assert record.skill_id == "S09"
+        assert record.context["checkpoint"] == "L3"
+        assert record.context["agent"] == "claude-code"
+
+
+class TestMoreExceptionClassification:
+    """Tests for additional exception classifications."""
+
+    def test_oserror_is_resource_exhaustion(self):
+        assert BugCollector._classify_exception(OSError()) == DefectType.RESOURCE_EXHAUSTION
+
+    def test_keyerror_is_param_error(self):
+        assert BugCollector._classify_exception(KeyError()) == DefectType.PARAM_ERROR
+
+    def test_connection_refused_is_resource_exhaustion(self):
+        assert BugCollector._classify_exception(ConnectionRefusedError()) == DefectType.RESOURCE_EXHAUSTION
+
+    def test_oserror_severity_is_p2(self):
+        assert BugCollector._severity_from_exception(OSError()) == BugSeverity.P2
 
 
 class TestConftestHook:

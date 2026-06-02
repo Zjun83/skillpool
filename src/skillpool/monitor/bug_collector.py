@@ -19,6 +19,7 @@ __all__ = [
 ]
 
 import json
+import logging
 import os
 import random
 import sys
@@ -30,7 +31,10 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from skillpool.config import get_data_dir
 from skillpool.utils.time_utils import utc_now
+
+logger = logging.getLogger(__name__)
 
 
 class BugSeverity(StrEnum):
@@ -100,7 +104,7 @@ class BugCollector:
         self._audit = audit_layer
         self._sample_rate = max(0.0, min(1.0, sample_rate))
         self._before_persist = before_persist
-        self._log_dir = log_dir or Path.home() / ".skillpool" / "logs"
+        self._log_dir = log_dir or get_data_dir() / "logs"
         self._bugs: list[BugRecord] = []
         self._original_excepthook: Any = None
         self._rng = random.Random(42)
@@ -179,8 +183,8 @@ class BugCollector:
                     context={"exc_type": exc_type.__name__, "source": "excepthook"},
                 )
                 collector._pipeline(rec)
-            except Exception:
-                pass  # Never let the hook itself crash
+            except Exception as e:
+                logger.warning("BugCollector excepthook failed: %s", e)  # Never let the hook itself crash
             finally:
                 if collector._original_excepthook is not None:
                     collector._original_excepthook(exc_type, exc_value, exc_tb)
@@ -289,7 +293,8 @@ class BugCollector:
         if self._before_persist is not None:
             try:
                 return self._before_persist(record)
-            except Exception:
+            except Exception as e:
+                logger.warning("before_persist hook failed, persisting by default: %s", e)
                 return True  # Hook error -> persist by default
 
         return True
@@ -326,8 +331,8 @@ class BugCollector:
                     metadata=record.to_dict(),
                     trace_id=record.trace_id,
                 )
-            except Exception:
-                pass  # Audit errors should not crash the pipeline
+            except Exception as e:
+                logger.warning("Audit record failed for bug %s: %s", record.bug_id, e)  # Audit errors should not crash the pipeline
 
     @staticmethod
     def _map_severity(severity: BugSeverity) -> str:

@@ -21,11 +21,13 @@ __all__ = [
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+import logging
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from skillpool.config import get_data_dir
 from skillpool.evolver import (
     DefectSeverity,
     EvolverLayer,
@@ -33,6 +35,8 @@ from skillpool.evolver import (
     VerificationStatus,
 )
 from skillpool.monitor.bug_collector import BugCollector, BugSeverity, DefectType
+
+logger = logging.getLogger(__name__)
 
 
 class HealingAction(StrEnum):
@@ -91,7 +95,7 @@ class SelfHealingLoop:
         self._bug_collector = bug_collector
         self._evolver = evolver
         self._audit = audit_layer
-        self._skills_dir = skills_dir or Path.home() / ".skillpool" / "skills"
+        self._skills_dir = skills_dir or get_data_dir() / "skills"
         self._proposals: dict[str, HealingProposal] = {}
         self._proposal_counter: int = 0
         # Pre-evolution YAML snapshots for disk-level rollback
@@ -446,7 +450,8 @@ class SelfHealingLoop:
             result = rm.trigger(request)
             # If no veto triggered, review passes
             return not result.veto_triggered
-        except Exception:
+        except Exception as e:
+            logger.warning("Review infrastructure unavailable for %s, defaulting pass: %s", skill_id, e)
             # Review infrastructure unavailable — default pass
             return True
 

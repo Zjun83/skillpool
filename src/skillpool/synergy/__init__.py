@@ -9,13 +9,17 @@ Part of SkillPool — independent infrastructure, shared by all agents.
 """
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from skillpool.config import get_data_dir
 from skillpool.materializer.models import SynergyEntry
 from skillpool.resolver.models import DagEdge, DagEdgeType
+
+logger = logging.getLogger(__name__)
 
 
 class SynergyEdge(BaseModel):
@@ -46,7 +50,7 @@ class SynergyDetector:
     """
 
     def __init__(self, skills_dir: Path | None = None):
-        self.skills_dir = skills_dir or Path.home() / ".skillpool" / "skills"
+        self.skills_dir = skills_dir or get_data_dir() / "skills"
         self._synergy_edges: list[SynergyEdge] = []
 
     def load_expert_synergies(self) -> list[SynergyEdge]:
@@ -99,7 +103,8 @@ class SynergyDetector:
                                 evidence="expert",
                             )
                             edges.append(edge)
-                except Exception:
+                except Exception as e:
+                    logger.warning("Failed to load synergy entry for %s: %s", skill_dir.name, e)
                     continue
 
         self._synergy_edges = edges

@@ -1,6 +1,7 @@
 """Health check — component health assessment."""
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -10,6 +11,8 @@ from skillpool.health.models import (
     HealthCheckResponse,
     ServingStatus,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class HealthChecker:
@@ -50,7 +53,8 @@ class HealthChecker:
                 try:
                     healthy = check_fn()
                     comp_status = ServingStatus.SERVING if healthy else ServingStatus.NOT_SERVING
-                except Exception:
+                except Exception as e:
+                    logger.warning("Health check failed for component %s: %s", name, e)
                     comp_status = ServingStatus.NOT_SERVING
 
             if comp_status == ServingStatus.NOT_SERVING and config.get("critical", True):

@@ -15,13 +15,17 @@ EmergencyOverride 可以紧急降权 Agent 的 trust_level，
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import StrEnum
 from pathlib import Path
 from typing import Optional
 
+from skillpool.config import get_data_dir
 from skillpool.telemetry import TelemetryBridge
+
+logger = logging.getLogger(__name__)
 
 
 class OverrideTrigger(StrEnum):
@@ -110,7 +114,7 @@ class EmergencyOverride:
         gate_dir: Optional[Path] = None,
     ):
         self.telemetry = telemetry
-        self.gate_dir = gate_dir or Path.home() / ".skillpool" / "gates"
+        self.gate_dir = gate_dir or get_data_dir() / "gates"
         self.gate_dir.mkdir(parents=True, exist_ok=True)
         self._overrides: dict[str, OverrideEvent] = {}  # skill_id → latest event
 
@@ -265,8 +269,8 @@ class EmergencyOverride:
         if path.exists():
             try:
                 return GateFile.from_dict(json.loads(path.read_text()))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to read gate file for %s: %s", skill_id, e)
         return None
 
     def _write_gate_file(self, gate: GateFile) -> None:

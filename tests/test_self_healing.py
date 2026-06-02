@@ -312,3 +312,270 @@ class TestCSDFReadWrite:
 
         # Should still succeed (in-memory only)
         assert result["status"] == "verified"
+
+
+class TestBDDVerifyEdgeCases:
+    """Test _bdd_verify with various bug count scenarios."""
+
+    def test_bdd_fails_when_many_new_bugs_appear(self):
+        """BDD verify should return False when bug count increases after healing."""
+        loop, collector = _make_loop()
+        # Record 3 bugs for PATCH threshold
+        for i in range(3):
+            collector.record(BugSeverity.P2, DefectType.OUTPUT_INVALID, f"o#{i}", skill_id="S13a")
+        proposals = loop.scan_and_propose()
+
+        # Patch _bdd_verify to always return False (simulate new bugs appearing)
+        loop._bdd_verify = lambda skill_id, defect_type, count_before: False
+        result = loop.execute_healing(proposals[0]["proposal_id"])
+        assert result["status"] == "rolled_back"
+        assert result["verification"]["bdd_passed"] is False
+
+    def test_bdd_passes_when_bug_count_stable(self):
+        """BDD verify passes when bug count stays the same."""
+        loop, collector = _make_loop()
+        for i in range(3):
+            collector.record(BugSeverity.P2, DefectType.TIMEOUT, f"t#{i}", skill_id="S09")
+        proposals = loop.scan_and_propose()
+        result = loop.execute_healing(proposals[0]["proposal_id"])
+        assert result["status"] == "verified"
+
+
+class TestFindSkillYaml:
+    """Test _find_skill_yaml path resolution."""
+
+    def test_exact_match(self, tmp_path: Path):
+        """Exact skill_id.yaml should be found."""
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+        yaml_file = skills_dir / "S09.yaml"
+        yaml_file.write_text("id: S09", encoding="utf-8")
+
+        loop, _ = _make_loop()
+        # Override skills_dir to use tmp_path
+        loop._skills_dir = skills_dir
+        result = loop._find_skill_yaml("S09")
+        assert result is not None
+        assert result.name == "S09.yaml"
+
+    def test_prefix_match(self, tmp_path: Path):
+        """Prefix match (skill_id-*.yaml) should be found when exact doesn't exist."""
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+        yaml_file = skills_dir / "S09-recovery-mttr.yaml"
+        yaml_file.write_text("id: S09", encoding="utf-8")
+
+        loop, _ = _make_loop()
+        loop._skills_dir = skills_dir
+        result = loop._find_skill_yaml("S09")
+        assert result is not None
+        assert result.name == "S09-recovery-mttr.yaml"
+
+    def test_no_match_returns_none(self, tmp_path: Path):
+        """No matching YAML should return None."""
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+
+        loop, _ = _make_loop()
+        loop._skills_dir = skills_dir
+        result = loop._find_skill_yaml("nonexistent")
+        assert result is None
+
+    def test_missing_skills_dir_returns_none(self, tmp_path: Path):
+        """Non-existent skills_dir should return None."""
+        skills_dir = tmp_path / "does_not_exist"
+
+        loop, _ = _make_loop()
+        loop._skills_dir = skills_dir
+        result = loop._find_skill_yaml("S09")
+        assert result is None
+
+
+class TestPersistEvolution:
+    """Test _persist_evolution edge cases."""
+
+    def test_invalid_yaml_content_returns_false(self, tmp_path: Path):
+        """Invalid YAML content should return False without crashing."""
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+        yaml_file = skills_dir / "S09.yaml"
+        yaml_file.write_text("}invalid yaml{{", encoding="utf-8")
+
+        audit = AuditLayer()
+        evolver = EvolverLayer(audit_layer=audit)
+        collector = BugCollector(audit_layer=audit)
+        loop = SelfHealingLoop(
+            bug_collector=collector,
+            evolver=evolver,
+            skills_dir=skills_dir,
+        )
+        from skillpool.monitor.self_healing import HealingProposal
+
+        healing = HealingProposal(
+            proposal_id="heal-99",
+            skill_id="S09",
+            defect_type=DefectType.TIMEOUT,
+            upgrade_type=HealingAction.PATCH,
+            bug_count=3,
+            bug_severity=BugSeverity.P2,
+        )
+        result = loop._persist_evolution("S09", healing)
+        assert result is False
+
+    def test_non_dict_yaml_returns_false(self, tmp_path: Path):
+        """YAML that loads as a non-dict should return False."""
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+        yaml_file = skills_dir / "S09.yaml"
+        yaml_file.write_text("- item1\n- item2", encoding="utf-8")
+
+        audit = AuditLayer()
+        evolver = EvolverLayer(audit_layer=audit)
+        collector = BugCollector(audit_layer=audit)
+        loop = SelfHealingLoop(
+            bug_collector=collector,
+            evolver=evolver,
+            skills_dir=skills_dir,
+        )
+        from skillpool.monitor.self_healing import HealingProposal
+
+        healing = HealingProposal(
+            proposal_id="heal-99",
+            skill_id="S09",
+            defect_type=DefectType.TIMEOUT,
+            upgrade_type=HealingAction.PATCH,
+            bug_count=3,
+            bug_severity=BugSeverity.P2,
+        )
+        result = loop._persist_evolution("S09", healing)
+        assert result is False
+
+    def test_no_yaml_file_returns_false(self, tmp_path: Path):
+        """No YAML file for skill should return False."""
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+
+        audit = AuditLayer()
+        evolver = EvolverLayer(audit_layer=audit)
+        collector = BugCollector(audit_layer=audit)
+        loop = SelfHealingLoop(
+            bug_collector=collector,
+            evolver=evolver,
+            skills_dir=skills_dir,
+        )
+        from skillpool.monitor.self_healing import HealingProposal
+
+        healing = HealingProposal(
+            proposal_id="heal-99",
+            skill_id="S99-missing",
+            defect_type=DefectType.TIMEOUT,
+            upgrade_type=HealingAction.PATCH,
+            bug_count=3,
+            bug_severity=BugSeverity.P2,
+        )
+        result = loop._persist_evolution("S99-missing", healing)
+        assert result is False
+
+
+class TestRestoreYamlSnapshot:
+    """Test _restore_yaml_snapshot edge cases."""
+
+    def test_no_snapshot_returns_false(self, tmp_path: Path):
+        """No snapshot for the proposal_id should return False."""
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+
+        loop, _ = _make_loop()
+        loop._skills_dir = skills_dir
+        result = loop._restore_yaml_snapshot("nonexistent-id", "S09")
+        assert result is False
+
+    def test_no_yaml_file_returns_false(self, tmp_path: Path):
+        """Snapshot exists but no YAML file on disk should return False."""
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+
+        loop, _ = _make_loop()
+        loop._skills_dir = skills_dir
+        loop._yaml_snapshots["test-id"] = "original content"
+        result = loop._restore_yaml_snapshot("test-id", "nonexistent")
+        assert result is False
+
+
+class TestScanAndProposeEdgeCases:
+    """Additional edge cases for scan_and_propose."""
+
+    def test_no_audit_layer_does_not_crash(self):
+        """scan_and_propose should work without audit_layer."""
+        collector = BugCollector()
+        evolver = EvolverLayer()
+        loop = SelfHealingLoop(
+            bug_collector=collector,
+            evolver=evolver,
+            audit_layer=None,
+        )
+        for i in range(3):
+            collector.record(BugSeverity.P2, DefectType.TIMEOUT, f"t#{i}", skill_id="S09")
+        proposals = loop.scan_and_propose()
+        assert len(proposals) == 1
+
+    def test_different_skill_ids_generate_separate_proposals(self):
+        """Bugs in different skills should generate separate proposals."""
+        loop, collector = _make_loop()
+        for i in range(3):
+            collector.record(BugSeverity.P2, DefectType.TIMEOUT, f"t#{i}", skill_id="S09")
+        for i in range(3):
+            collector.record(BugSeverity.P2, DefectType.TIMEOUT, f"t#{i}", skill_id="S13a")
+        proposals = loop.scan_and_propose()
+        assert len(proposals) == 2
+        skill_ids = {p["skill_id"] for p in proposals}
+        assert skill_ids == {"S09", "S13a"}
+
+    def test_proposal_ids_are_sequential(self):
+        """Proposal IDs should be sequential (heal-1, heal-2, ...)."""
+        loop, collector = _make_loop()
+        for i in range(3):
+            collector.record(BugSeverity.P2, DefectType.TIMEOUT, f"t#{i}", skill_id="S09")
+        for i in range(3):
+            collector.record(BugSeverity.P2, DefectType.EXECUTION_FAILURE, f"e#{i}", skill_id="S09")
+        proposals = loop.scan_and_propose()
+        ids = [p["proposal_id"] for p in proposals]
+        assert ids[0] == "heal-1"
+        assert ids[1] == "heal-2"
+
+
+class TestExecuteHealingEdgeCases:
+    """Additional edge cases for execute_healing."""
+
+    def test_wrong_state_returns_reason(self):
+        """Executing a proposal not in PROPOSED state returns explanation."""
+        loop, collector = _make_loop()
+        for i in range(3):
+            collector.record(BugSeverity.P2, DefectType.TIMEOUT, f"t#{i}", skill_id="S09")
+        proposals = loop.scan_and_propose()
+        pid = proposals[0]["proposal_id"]
+
+        # Manually set to EXECUTING
+        loop._proposals[pid].status = HealingStatus.EXECUTING
+        result = loop.execute_healing(pid)
+        assert "reason" in result
+        assert "executing" in result["reason"]
+
+    def test_healing_status_summary_tracks_states(self):
+        """get_healing_status should correctly track proposal states."""
+        loop, collector = _make_loop()
+        # P0 -> needs_human
+        collector.record(BugSeverity.P0, DefectType.PERMISSION_BREACH, "breach", skill_id="S06")
+        # 3 P2 -> patch
+        for i in range(3):
+            collector.record(BugSeverity.P2, DefectType.TIMEOUT, f"t#{i}", skill_id="S09")
+
+        proposals = loop.scan_and_propose()
+        # Execute the PATCH proposal
+        patch = [p for p in proposals if p["upgrade_type"] == "PATCH"][0]
+        loop.execute_healing(patch["proposal_id"])
+
+        status = loop.get_healing_status()
+        assert status["total_proposals"] == 2
+        assert "verified" in status["by_status"]
+        assert "needs_human" in status["by_status"]

@@ -21,6 +21,7 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from skillpool.config import get_data_dir
 from skillpool.combiner.models import (
     CombinationLifecycleState,
     SkillCombination,
@@ -83,7 +84,7 @@ class CombinationLifecycleManager:
     """
 
     def __init__(self, data_dir: Path | None = None):
-        self.data_dir = data_dir or Path.home() / ".skillpool" / "combinations"
+        self.data_dir = data_dir or get_data_dir() / "combinations"
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self._store_path = self.data_dir / "combinations.jsonl"
         self._combinations: dict[str, SkillCombination] = {}
@@ -102,7 +103,8 @@ class CombinationLifecycleManager:
                 try:
                     combo = SkillCombination(**json.loads(line))
                     self._combinations[combo.combination_id] = combo
-                except Exception:
+                except Exception as e:
+                    logger.warning("Failed to parse combination record: %s", e)
                     continue
         self._loaded = True
 
