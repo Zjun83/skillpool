@@ -36,13 +36,14 @@ asyncio_mode = "auto"
 source = ["skillpool"]
 branch = true
 omit = [
-    "skillpool/cli.py",           # Click CLI — tested via subprocess
-    "skillpool/__main__.py",      # Entry point
-    "skillpool/adapters/*",       # Adapter stubs (not yet implemented)
-    "skillpool/bridge/*",         # Bridge module (WIP)
-    "skillpool/csdf.py",          # CSDF standalone (covered via materializer)
-    "skillpool/quality.py",       # Quality module (placeholder)
-    "skillpool/synergy/detector.py",  # 2-line re-export
+    "*/skillpool/cli.py",           # Click CLI — tested via subprocess
+    "*/skillpool/__main__.py",      # Entry point
+    "*/skillpool/adapters/*",       # Adapter stubs (not yet implemented)
+    "*/skillpool/bridge/*",         # Bridge module (WIP)
+    "*/skillpool/csdf.py",          # CSDF standalone (covered via materializer)
+    "*/skillpool/quality.py",       # Quality module (placeholder)
+    "*/skillpool/synergy/detector.py",  # 2-line re-export
+    "*/skillpool/mcp_server.py",    # FastMCP server — tested via E2E, not unit-cov
 ]
 
 [tool.coverage.report]

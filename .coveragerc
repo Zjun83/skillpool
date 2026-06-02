@@ -1,0 +1,27 @@
+[run]
+source = skillpool
+branch = true
+omit =
+    */skillpool/cli.py
+    */skillpool/__main__.py
+    */skillpool/adapters/*
+    */skillpool/bridge/*
+    */skillpool/csdf.py
+    */skillpool/quality.py
+    */skillpool/synergy/detector.py
+    */skillpool/mcp_server.py
+
+[report]
+fail_under = 90
+omit =
+    */skillpool/cli.py
+    */skillpool/__main__.py
+    */skillpool/adapters/*
+    */skillpool/bridge/*
+    */skillpool/csdf.py
+    */skillpool/quality.py
+    */skillpool/synergy/detector.py
+    */skillpool/mcp_server.py
+exclude_lines =
+    if TYPE_CHECKING:
+    raise NotImplementedError
