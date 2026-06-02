@@ -31,6 +31,7 @@ import skillpool.mcp_server as _mod
 from skillpool.mcp_server import (
     _compute_skill_graph,
     _compute_skill_list,
+    assess_paradigm,
     combination_create,
     combination_get,
     combination_list,
@@ -42,6 +43,7 @@ from skillpool.mcp_server import (
     skill_definition,
     skill_get,
     skill_lifecycle_check,
+    skill_match,
     skill_search,
     skill_status,
 )
@@ -466,3 +468,124 @@ class TestMainBranches:
             with patch.object(_mod.mcp, "run") as mock_run:
                 main()
                 mock_run.assert_called_once_with(transport="stdio")
+
+
+class TestCombinationTools:
+    """Tests for combination_* MCP tools — direct function calls."""
+
+    def test_combination_create_returns_result(self):
+        """combination_create should return a result dict."""
+        result = combination_create(
+            primary="S09",
+            enhancers=["S13a"],
+            agent_type="claude-code",
+            source="human_specified",
+        )
+        assert "combination_id" in result
+        assert result["primary"] == "S09"
+
+    def test_combination_get_nonexistent(self):
+        """combination_get for nonexistent combo should return error."""
+        result = combination_get(combination_id="nonexistent-combo")
+        assert "error" in result
+
+    def test_combination_list_default(self):
+        """combination_list with no filters should return results."""
+        result = combination_list()
+        assert "count" in result
+        assert "combinations" in result
+
+    def test_combination_transition_invalid_state(self):
+        """combination_transition with invalid state should return error."""
+        result = combination_transition(
+            combination_id="nonexistent",
+            to_state="INVALID_STATE",
+            agent_type="claude-code",
+        )
+        assert "error" in result
+
+
+class TestSkillLifecycleTool:
+    """Tests for skill_lifecycle_check MCP tool."""
+
+    def test_lifecycle_check_default(self):
+        """lifecycle_check with defaults should return results."""
+        result = skill_lifecycle_check()
+        assert "deprecation_checks" in result
+        assert "combination_checks" in result
+
+    def test_lifecycle_check_specific_skill(self):
+        """lifecycle_check for specific skill should return results."""
+        result = skill_lifecycle_check(skill_id="S09")
+        assert "deprecation_checks" in result
+
+
+class TestEmergencyOverridesTool:
+    """Tests for get_emergency_overrides MCP tool."""
+
+    def test_get_overrides_no_file(self, tmp_path):
+        """get_emergency_overrides when no overrides file exists."""
+        with patch.object(_mod, "_SKILLPOOL_DIR", tmp_path):
+            result = get_emergency_overrides()
+            assert "overrides" in result
+            assert result["count"] == 0
+
+    def test_get_overrides_with_skill_filter(self, tmp_path):
+        """get_emergency_overrides with skill_id filter."""
+        with patch.object(_mod, "_SKILLPOOL_DIR", tmp_path):
+            result = get_emergency_overrides(skill_id="S09")
+            assert "overrides" in result
+
+
+class TestSkillMatchTool:
+    """Tests for skill_match MCP tool."""
+
+    def test_skill_match_basic(self):
+        """skill_match should return a result dict."""
+        result = skill_match(
+            task_description="check code resilience",
+            agent_type="claude-code",
+        )
+        assert "task" in result
+        assert result["agent"] == "claude-code"
+
+
+class TestReportUsageTool:
+    """Tests for report_usage MCP tool."""
+
+    def test_report_usage_minimal(self):
+        """report_usage with minimal args should succeed."""
+        result = report_usage(
+            skill_name="S09",
+            session_id="test-session",
+            agent_type="claude-code",
+        )
+        assert "skill_name" in result
+        assert result["skill_name"] == "S09"
+
+    def test_report_usage_with_scores(self):
+        """report_usage with four-dimension scores should record gain."""
+        result = report_usage(
+            skill_name="S09",
+            session_id="test-session",
+            agent_type="claude-code",
+            effectiveness=8.0,
+            efficiency=7.0,
+            quality=9.0,
+            gain=2.5,
+        )
+        assert result["gain_recorded"] is True
+
+
+class TestAssessParadigmTool:
+    """Tests for assess_paradigm MCP tool."""
+
+    def test_assess_paradigm_basic(self):
+        """assess_paradigm should return paradigm assessment."""
+        result = assess_paradigm(
+            paradigm="bdd",
+            agent_type="claude-code",
+        )
+        assert "paradigm" in result
+        assert "agent_type" in result
+        assert result["agent_type"] == "claude-code"
