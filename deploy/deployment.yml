@@ -4,7 +4,7 @@
 # ──────────────────────────────────────────────────────────────────
 
 app_name: skillpool
-app_version: "4.1.0"
+app_version: "4.3.0"
 app_user: skillpool
 app_group: skillpool
 app_port: 8000

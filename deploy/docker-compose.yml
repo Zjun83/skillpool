@@ -7,7 +7,7 @@ services:
     build:
       context: ../
       dockerfile: deploy/Dockerfile
-    image: skillpool:4.1.0
+    image: skillpool:4.3.0
     container_name: skillpool
     restart: unless-stopped
     ports:
