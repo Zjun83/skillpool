@@ -23,8 +23,11 @@ import json
 import os
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
+from skillpool.config import get_data_dir
 from skillpool.utils.time_utils import utc_now
 
 
@@ -94,6 +97,9 @@ class AuditRecord:
     # ── Geo (optional) ──
     geo_location: str = ""
 
+    # ── Trace provenance ──
+    trace_source: str = ""  # "w3c_passthrough" | "skillpool_internal" | "test"
+
     # ── Backward compat aliases ──
     @property
     def hash(self) -> str:
@@ -144,7 +150,7 @@ def log_event(
     source_component: str = "SkillPool",
     duration_ms: float = 0.0,
     metadata: dict[str, Any] | None = None,
-    trace_id: str = "",
+    trace_id: str | None = None,
     request_id: str = "",
     session_id: str = "",
     agent_id: str = "",
@@ -192,10 +198,18 @@ def log_event(
     }, sort_keys=True)
     input_hash = hashlib.sha256(payload.encode()).hexdigest()
 
+    # Determine trace provenance
+    if trace_id:
+        resolved_trace_id = trace_id
+        trace_source = "w3c_passthrough"
+    else:
+        resolved_trace_id = os.urandom(16).hex()
+        trace_source = "skillpool_internal"
+
     record = AuditRecord(
         audit_id=f"audit-{event_id}",
         event_id=event_id,
-        trace_id=trace_id or os.urandom(16).hex(),
+        trace_id=resolved_trace_id,
         span_id=span_id,
         parent_span_id=parent_span_id,
         event_type="skill_pool_event",
@@ -224,6 +238,7 @@ def log_event(
         retention_class=kwargs.pop("retention_class", "hot"),
         compliance_tags=kwargs.pop("compliance_tags", ""),
         geo_location=kwargs.pop("geo_location", ""),
+        trace_source=kwargs.pop("trace_source", trace_source),
         signature="",
         chain_index=0,
         previous_hash="",
@@ -268,11 +283,14 @@ class AuditLayer:
 
     GENESIS_HASH = "0" * 64
 
-    def __init__(self, available: bool = True, max_entries: int = 10000) -> None:
+    def __init__(self, available: bool = True, max_entries: int = 10000, data_dir: Path | None = None) -> None:
         self._available = available
         self._records: list[AuditRecord] = []
         self._last_hash = self.GENESIS_HASH
         self._max_entries = max_entries
+        self._data_dir = data_dir or get_data_dir()
+        self._jsonl_path = self._data_dir / "audit" / "audit.jsonl"
+        self._load_from_jsonl()
 
     def _rotate(self) -> None:
         """Rotate audit log when entries exceed max_entries.
@@ -389,6 +407,7 @@ class AuditLayer:
         self._last_hash = record.current_hash
 
         self._rotate()
+        self._write_to_jsonl(record)
         return record.audit_id
 
     def log_event_record(self, action: str, **kwargs: Any) -> AuditRecord:
@@ -432,6 +451,7 @@ class AuditLayer:
         self._records.append(record)
         self._last_hash = record.current_hash
 
+        self._write_to_jsonl(record)
         return record
 
     def get_records(self, object_id: str | None = None) -> list[AuditRecord]:
@@ -490,6 +510,85 @@ class AuditLayer:
 
         return True
 
+    def _write_to_jsonl(self, record: AuditRecord) -> None:
+        """Append an audit record to JSONL file with fsync for durability."""
+        try:
+            self._jsonl_path.parent.mkdir(parents=True, exist_ok=True)
+            import dataclasses
+            d = dataclasses.asdict(record)
+            # Convert datetime objects to ISO strings
+            et = d.get("event_time")
+            if isinstance(et, datetime):
+                d["event_time"] = isoformat_z(et)
+            line = json.dumps(d, ensure_ascii=False, sort_keys=True) + "\n"
+            with open(self._jsonl_path, "a", encoding="utf-8") as f:
+                f.write(line)
+                f.flush()
+                os.fsync(f.fileno())
+        except OSError:
+            pass  # Disk persistence is best-effort
+
+    def _load_from_jsonl(self) -> None:
+        """Load audit records from JSONL file on startup, rebuilding hash chain."""
+        if not self._jsonl_path.exists():
+            return
+        try:
+            with open(self._jsonl_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    data = json.loads(line)
+                    record = AuditRecord(
+                        audit_id=data.get("audit_id", ""),
+                        event_id=data.get("event_id", ""),
+                        trace_id=data.get("trace_id", ""),
+                        span_id=data.get("span_id", ""),
+                        parent_span_id=data.get("parent_span_id", ""),
+                        event_type=data.get("event_type", "skill_pool_event"),
+                        event_time=data.get("event_time"),
+                        created_at=data.get("created_at", ""),
+                        updated_at=data.get("updated_at", ""),
+                        duration_ms=data.get("duration_ms", 0.0),
+                        actor=data.get("actor", "system"),
+                        agent_id=data.get("agent_id", ""),
+                        session_id=data.get("session_id", ""),
+                        tenant_id=data.get("tenant_id", "default"),
+                        source_component=data.get("source_component", "SkillPool"),
+                        action=data.get("action", ""),
+                        resource_type=data.get("resource_type", "skill"),
+                        resource_id=data.get("resource_id", ""),
+                        request_id=data.get("request_id", ""),
+                        correlation_id=data.get("correlation_id", ""),
+                        policy_decision=data.get("policy_decision", "allow"),
+                        decision=data.get("decision", ""),
+                        result=data.get("result", "success"),
+                        reason=data.get("reason", ""),
+                        severity=data.get("severity", "INFO"),
+                        previous_hash=data.get("previous_hash", ""),
+                        current_hash=data.get("current_hash", ""),
+                        chain_index=data.get("chain_index", 0),
+                        signature=data.get("signature", ""),
+                        input_hash=data.get("input_hash", ""),
+                        output_hash=data.get("output_hash", ""),
+                        metadata_json=data.get("metadata_json", "{}"),
+                        retention_class=data.get("retention_class", "hot"),
+                        compliance_tags=data.get("compliance_tags", ""),
+                        geo_location=data.get("geo_location", ""),
+                        trace_source=data.get("trace_source", ""),
+                    )
+                    self._records.append(record)
+                    if record.current_hash:
+                        self._last_hash = record.current_hash
+            # Enforce max_entries after load
+            if len(self._records) > self._max_entries:
+                cutoff = len(self._records) - self._max_entries
+                self._records = self._records[cutoff:]
+                if self._records:
+                    self._last_hash = self._records[-1].current_hash
+        except (json.JSONDecodeError, OSError):
+            pass  # Disk load is best-effort
+
     def export_otel_traces(self) -> list[dict[str, Any]]:
         """
         Export records in OpenTelemetry-compatible format.
@@ -502,6 +601,12 @@ class AuditLayer:
         traces = []
         for record in self._records:
             event_time = record.event_time
+            if isinstance(event_time, str):
+                # Loaded from JSONL — parse back to datetime
+                try:
+                    event_time = datetime.fromisoformat(event_time.replace("Z", "+00:00"))
+                except (ValueError, AttributeError):
+                    event_time = datetime.now(UTC)
             if event_time.tzinfo is None:
                 event_time = event_time.replace(tzinfo=timezone.utc)
 
