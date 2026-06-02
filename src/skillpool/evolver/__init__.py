@@ -34,9 +34,14 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 import hashlib
+import logging
 import secrets
 
 import yaml
+
+from skillpool.config import get_data_dir
+
+logger = logging.getLogger(__name__)
 
 
 class DefectSeverity(StrEnum):
@@ -182,8 +187,8 @@ class EvolverLayer:
 
     def __init__(self, audit_layer=None, skills_dir: Path | None = None, evolver_dir: Path | None = None) -> None:
         self._audit = audit_layer
-        self._skills_dir = skills_dir or Path.home() / ".skillpool" / "skills"
-        self._evolver_dir = evolver_dir or Path.home() / ".skillpool" / "evolver"
+        self._skills_dir = skills_dir or get_data_dir() / "skills"
+        self._evolver_dir = evolver_dir or get_data_dir() / "evolver"
         self._proposals: dict[str, EvolutionProposal] = {}
         self._defect_accumulator = DefectAccumulator()
         self._evolution_queue: list[dict] = []
@@ -610,8 +615,8 @@ class EvolverLayer:
                 skill_file = out_dir / f"{result.skill.id}.md"
                 skill_file.write_text(result.skill.markdown, encoding="utf-8")
                 return True
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Rematerialization failed for %s: %s", yaml_path, e)
         return False
 
     # === VERIFY Phase (V4.1) ===
@@ -723,16 +728,26 @@ class EvolverLayer:
     def _perform_rollback(self, proposal_id: str) -> None:
         """Perform rollback for failed verification (safety constraint #3).
 
-        Restores skill data from the pre-evolution snapshot. The snapshot
-        contains the complete skill definition dict saved before evolution.
+        Restores skill CSDF YAML from the pre-evolution snapshot,
+        then re-materializes the original skill definition.
         """
         snapshot = self._snapshots.get(proposal_id)
         if snapshot and "data" in snapshot:
-            # Restore the skill data from snapshot
             restored_data = snapshot["data"]
             skill_id = restored_data.get("id", "")
-            if skill_id and skill_id in self._skills:
-                self._skills[skill_id] = restored_data
+            if skill_id:
+                # Find and restore the YAML file
+                yaml_path = self._find_skill_yaml(skill_id)
+                if yaml_path is not None:
+                    try:
+                        yaml_path.write_text(
+                            yaml.dump(restored_data, default_flow_style=False, allow_unicode=True, sort_keys=False),
+                            encoding="utf-8",
+                        )
+                        # Re-materialize the restored skill
+                        self._rematerialize(skill_id, yaml_path)
+                    except OSError:
+                        pass  # Best-effort rollback
         if self._audit:
             self._audit.append(
                 action="evolution_rollback",
