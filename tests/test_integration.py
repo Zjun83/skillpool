@@ -22,8 +22,8 @@ from skillpool.review.models import CheckpointLevel, ReviewTriggerRequest, Revie
 class TestAuditCostIntegration:
     """AuditLayer replaces AuditHashChain in CostManager."""
 
-    def test_cost_manager_with_audit_layer(self):
-        audit = AuditLayer()
+    def test_cost_manager_with_audit_layer(self, tmp_path):
+        audit = AuditLayer(data_dir=tmp_path)
         cm = CostManager(audit_layer=audit)
         record = CostRecord(agent_id="evolver_v4", cost_usd=0.05)
         result = cm.report_cost(record)
@@ -41,8 +41,8 @@ class TestAuditCostIntegration:
 class TestEvolverReviewIntegration:
     """EvolverLayer receives veto results from ReviewManager."""
 
-    def test_review_feeds_evolver_on_veto(self):
-        audit = AuditLayer()
+    def test_review_feeds_evolver_on_veto(self, tmp_path):
+        audit = AuditLayer(data_dir=tmp_path)
         evolver = EvolverLayer(audit_layer=audit)
         manager = ReviewManager(evolver=evolver)
 
@@ -122,8 +122,8 @@ class TestMonitorHealthIntegration:
 class TestRegistryResolverIntegration:
     """Registry provides skill metadata to SkillResolver."""
 
-    def test_resolver_with_registry(self):
-        audit = AuditLayer()
+    def test_resolver_with_registry(self, tmp_path):
+        audit = AuditLayer(data_dir=tmp_path)
         registry = Registry(audit_layer=audit)
 
         # Register a skill

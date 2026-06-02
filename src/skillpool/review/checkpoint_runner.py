@@ -2,12 +2,16 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from pathlib import Path
 from typing import Callable, Optional
 
 import yaml
 
+from skillpool.config import get_data_dir
 from skillpool.review.models import CheckpointLevel
+
+logger = logging.getLogger(__name__)
 
 # Dimensions per checkpoint level
 SHADOW_DIMENSIONS = ("D1", "D2", "D4", "D6", "D8", "D9", "D12")
@@ -34,7 +38,7 @@ DIMENSION_SKILLS: dict[str, list[str]] = {
 REQUIRED_CSDF_FIELDS = {"id", "name", "version", "dimension", "description"}
 
 # Default skills directory
-_DEFAULT_SKILLS_DIR = Path.home() / ".skillpool" / "skills"
+_DEFAULT_SKILLS_DIR = get_data_dir() / "skills"
 
 
 class CheckpointRunner:
@@ -142,8 +146,8 @@ class CheckpointRunner:
             elif result.threat_level.value == "warning":
                 score += 0.5
             # CRITICAL means is_safe=False → no bonus
-        except Exception:
-            pass  # Scanner unavailable → no bonus, no penalty
+        except Exception as e:
+            logger.warning("Security scanner unavailable, skipping scan bonus: %s", e)
 
         # Bonus: explicit security fields in CSDF
         if data.get("security_scan_required"):

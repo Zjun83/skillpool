@@ -17,7 +17,9 @@ from pathlib import Path
 from typing import Any, Callable
 
 
-_DEFAULT_LOG_DIR = Path.home() / ".skillpool" / "logs"
+from skillpool.config import get_data_dir
+
+_DEFAULT_LOG_DIR = get_data_dir() / "logs"
 _DEFAULT_LOG_FILE = _DEFAULT_LOG_DIR / "runtime_audit.jsonl"
 
 

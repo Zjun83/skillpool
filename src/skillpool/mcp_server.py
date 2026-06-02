@@ -146,7 +146,9 @@ _PROFILES: dict[str, AgentCapabilityProfile] = {
     "openclaw": OPENCLAW_PROFILE,
 }
 
-_SKILLPOOL_DIR = Path.home() / ".skillpool"
+from skillpool.config import get_data_dir
+
+_SKILLPOOL_DIR = get_data_dir()
 _SKILLS_DIR = _SKILLPOOL_DIR / "skills"
 
 # Resource cache — TTL-based LRU for skill definitions/rules/manifests
@@ -1303,7 +1305,7 @@ def skill_match(task_description: str, agent_type: str, include_combinations: bo
             {"id": c.skill_id, "score": c.score, "layer": c.layer, "reason": c.reason[:100]}
             for c in routing_result.candidates[:10]
         ],
-        "dag_matches": [{"id": m.skill_id, "name": m.skill_name, "score": m.score} for m in matches[:10]],
+        "dag_matches": [{"id": m.skill_id, "name": m.name, "score": m.score} for m in matches[:10]],
         "total_candidates": len(skill_ids),
     }
 
@@ -1320,8 +1322,8 @@ def skill_match(task_description: str, agent_type: str, include_combinations: bo
                 if combos:
                     best = max(combos, key=lambda c: c.current_weight())
                     combo_lifecycle_states[e.skill_id] = CombinationLifecycleState(best.state).name
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to load combination lifecycle states: %s", e)
 
         result["combinations"] = [
             {

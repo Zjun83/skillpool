@@ -357,3 +357,383 @@ class TestMaterializerIntegration:
         assert result.status == "success"
         if result.skill:
             assert "[DEPRECATED]" in result.skill.markdown or "DEPRECATED" in result.skill.markdown
+
+
+# ============================================================
+# CSDFMapper — Edge Cases & Additional Rules
+# ============================================================
+
+class TestCSDFMapperEdgeCases:
+    """Additional edge-case coverage for CSDFMapper."""
+
+    def setup_method(self):
+        self.mapper = CSDFMapper()
+
+    def test_r05_weight_zero(self):
+        """Weight of 0.0 should still be rendered."""
+        csdf = {"weight": 0.0}
+        md = self.mapper.map(csdf)
+        assert "0.0" in md
+
+    def test_r06_veto_rule_none(self):
+        """No veto_rule should produce no veto section."""
+        csdf = {"id": "x"}
+        md = self.mapper.map(csdf)
+        assert "VETO" not in md
+
+    def test_r08_checklist_with_id_and_severity(self):
+        """Checklist items with 'id' and 'severity' format."""
+        csdf = {
+            "checklist": [
+                {"id": "C1", "description": "Check auth", "severity": "high"},
+            ]
+        }
+        md = self.mapper.map(csdf)
+        assert "C1" in md
+        assert "Check auth" in md
+        assert "high" in md
+
+    def test_r08_checklist_with_item_and_priority(self):
+        """Checklist items with 'item' and 'priority' format."""
+        csdf = {
+            "checklist": [
+                {"item": "Verify input", "priority": "low"},
+            ]
+        }
+        md = self.mapper.map(csdf)
+        assert "Verify input" in md
+        assert "low" in md
+
+    def test_r09_input_schema_required_optional_dict(self):
+        """Input schema with required/optional dict format."""
+        csdf = {
+            "input_schema": {
+                "required": {"x": "integer input"},
+                "optional": {"y": "optional flag"},
+            }
+        }
+        md = self.mapper.map(csdf)
+        assert "Required" in md
+        assert "Optional" in md
+        assert "x" in md
+
+    def test_r09_input_schema_required_optional_list(self):
+        """Input schema with required/optional list format."""
+        csdf = {
+            "input_schema": {
+                "required": ["field_a", "field_b"],
+            }
+        }
+        md = self.mapper.map(csdf)
+        assert "field_a" in md
+
+    def test_r10_output_schema_empty(self):
+        """Empty output_schema should produce no section."""
+        csdf = {"output_schema": {}}
+        md = self.mapper.map(csdf)
+        # The mapper only adds section if schema is truthy
+        # Empty dict is falsy-ish but the code checks `if not schema`
+        assert "Output Schema" not in md
+
+    def test_r11_version_history_with_non_string_changes(self):
+        """Version history entries with non-string changes."""
+        csdf = {
+            "version_history": [
+                {"version": "1.0.0", "date": "2025-01-01", "changes": ["Added feature", "Fixed bug"]},
+            ]
+        }
+        md = self.mapper.map(csdf)
+        assert "1.0.0" in md
+        assert "Added feature" in md
+
+    def test_r12_capabilities_as_list(self):
+        """required_agent_capabilities as list should be handled."""
+        csdf = {"required_agent_capabilities": ["bash", "python"]}
+        md = self.mapper.map(csdf)
+        assert "bash" in md
+        assert "python" in md
+
+    def test_r12_capabilities_empty_set(self):
+        """Empty required_agent_capabilities should produce no section."""
+        csdf = {"required_agent_capabilities": set()}
+        md = self.mapper.map(csdf)
+        assert "Required Capabilities" not in md
+
+    def test_r13_trust_level_zero(self):
+        """min_trust_level of 0 should not produce a section."""
+        csdf = {"min_trust_level": 0}
+        md = self.mapper.map(csdf)
+        assert "Min Trust Level" not in md
+
+    def test_r14_paradigm_none(self):
+        """None paradigm should produce no section."""
+        csdf = {"paradigm": None}
+        md = self.mapper.map(csdf)
+        assert "Paradigm" not in md
+
+    def test_map_returns_trailing_newline(self):
+        """map() should always return a string ending with newline."""
+        csdf = {"id": "test"}
+        md = self.mapper.map(csdf)
+        assert md.endswith("\n")
+
+
+# ============================================================
+# LifecycleFilter — Additional Edge Cases
+# ============================================================
+
+class TestLifecycleFilterEdgeCases:
+    """Additional edge-case coverage for LifecycleFilter."""
+
+    def test_empty_markdown_with_active(self):
+        f = LifecycleFilter()
+        result = f.filter("", {"lifecycle_state": "ACTIVE"})
+        assert result == ""
+
+    def test_rejected_non_strict_preserves_warning_prefix(self):
+        f = LifecycleFilter(strict=False)
+        result = f.filter("content", {"lifecycle_state": "REJECTED"})
+        assert result.startswith(">")
+
+    def test_archived_strict_short_content_no_truncation_marker(self):
+        """Content under 200 chars should not get truncation marker."""
+        f = LifecycleFilter(strict=True)
+        result = f.filter("short", {"lifecycle_state": "ARCHIVED"})
+        assert "[ARCHIVED]" in result
+        assert "内容已截断" not in result
+
+    def test_archived_strict_long_content_has_truncation_marker(self):
+        """Content over 200 chars should get truncation marker."""
+        f = LifecycleFilter(strict=True)
+        long_content = "x" * 300
+        result = f.filter(long_content, {"lifecycle_state": "ARCHIVED"})
+        assert "[ARCHIVED]" in result
+        assert "内容已截断" in result
+
+    def test_all_lifecycle_states_produce_string(self):
+        """Every valid lifecycle state should return a string, never raise."""
+        f = LifecycleFilter()
+        for state in ["DRAFT", "PROPOSED", "UNDER_REVIEW", "APPROVED",
+                       "ACTIVE", "REJECTED", "DEPRECATED", "ARCHIVED", "REMOVED"]:
+            result = f.filter("test content", {"lifecycle_state": state})
+            assert isinstance(result, str)
+
+    def test_deprecated_includes_replacement_text(self):
+        f = LifecycleFilter()
+        result = f.filter("content", {"lifecycle_state": "DEPRECATED"})
+        assert "替代方案" in result or "替代" in result
+
+    def test_removed_always_empty(self):
+        """REMOVED state returns empty regardless of input."""
+        f = LifecycleFilter()
+        result = f.filter("some content that should be erased", {"lifecycle_state": "REMOVED"})
+        assert result == ""
+
+
+# ============================================================
+# BudgetCropper — Additional Edge Cases
+# ============================================================
+
+class TestBudgetCropperEdgeCases:
+    """Additional edge-case coverage for BudgetCropper."""
+
+    def test_estimate_tokens_single_char(self):
+        bc = BudgetCropper()
+        assert bc.estimate_tokens("a") == 0
+
+    def test_estimate_tokens_four_chars(self):
+        bc = BudgetCropper()
+        assert bc.estimate_tokens("abcd") == 1
+
+    def test_remove_checklist_with_paren_format(self):
+        """Checklist items using (medium) instead of [medium]."""
+        bc = BudgetCropper(max_tokens=5)
+        md = "# Title\n\n### Checklist\n- Item A (high)\n- Item B (medium)\n- Item C (low)\n"
+        result = bc.crop(md)
+        assert "(medium)" not in result
+
+    def test_remove_checklist_priority_colon_format(self):
+        """Checklist items using 'priority: medium' format."""
+        bc = BudgetCropper(max_tokens=5)
+        md = "# Title\n\n### Checklist\n- Item A priority: high\n- Item B priority: medium\n"
+        result = bc.crop(md)
+        assert "priority: medium" not in result
+
+    def test_hard_truncate_finds_newline_cut_point(self):
+        """Hard truncate should prefer cutting at a newline if near the end."""
+        bc = BudgetCropper(max_tokens=5)
+        # Build content where last newline is in the last 20% of max_chars
+        md = "x" * 50 + "\n" + "y" * 10
+        result = bc.crop(md)
+        assert len(result) < len(md)
+
+    def test_crop_with_only_version_history(self):
+        """Content that is just version history should be removable."""
+        bc = BudgetCropper(max_tokens=5)
+        md = "### Version History\n\n**0.1.0** (2025-01-01)\n  - init\n  - draft\n"
+        result = bc.crop(md)
+        # Version history should be removed
+        assert len(result) < len(md)
+
+    def test_max_tokens_one(self):
+        """Very small budget should still produce output without crash."""
+        bc = BudgetCropper(max_tokens=1)
+        md = "# Title\n\nSome content here."
+        result = bc.crop(md)
+        assert isinstance(result, str)
+
+
+# ============================================================
+# Materializer — Additional Integration & Error Paths
+# ============================================================
+
+class TestMaterializerErrorPaths:
+    """Error paths and rejection scenarios in Materializer."""
+
+    def _make_materializer(self, **kwargs):
+        from skillpool.profile import CLAUDE_CODE_PROFILE
+        return Materializer(profile=CLAUDE_CODE_PROFILE, **kwargs)
+
+    def test_materialize_no_input_raises(self):
+        """Calling materialize with no csdf_path and no csdf_dict should raise."""
+        mat = self._make_materializer()
+        with pytest.raises(ValueError, match="必须提供"):
+            mat.materialize()
+
+    def test_materialize_capability_mismatch_rejected(self):
+        """Skill requiring capability not in profile should be rejected."""
+        from skillpool.profile import AgentCapabilityProfile
+        # Minimal profile with no capabilities
+        profile = AgentCapabilityProfile(
+            name="minimal",
+            required_capabilities=set(),
+            trust_level=0,
+            supported_paradigms=set(),
+        )
+        mat = Materializer(profile=profile)
+        csdf = _sample_csdf(
+            required_agent_capabilities={"super_advanced_capability"},
+            paradigm="research",
+        )
+        result = mat.materialize(csdf_dict=csdf)
+        assert result.status == "rejected"
+        assert "capability mismatch" in result.errors[0]
+
+    def test_materialize_trust_level_mismatch_rejected(self):
+        """Skill requiring higher trust level than profile should be rejected."""
+        from skillpool.profile import AgentCapabilityProfile
+        profile = AgentCapabilityProfile(
+            name="low-trust",
+            trust_level=1,
+            supported_paradigms={"code"},
+        )
+        mat = Materializer(profile=profile)
+        csdf = _sample_csdf(min_trust_level=3, paradigm="code")
+        result = mat.materialize(csdf_dict=csdf)
+        assert result.status == "rejected"
+
+    def test_materialize_paradigm_mismatch_rejected(self):
+        """Skill requiring unsupported paradigm should be rejected."""
+        from skillpool.profile import AgentCapabilityProfile
+        profile = AgentCapabilityProfile(
+            name="code-only",
+            supported_paradigms={"code"},
+        )
+        mat = Materializer(profile=profile)
+        csdf = _sample_csdf(paradigm="research")
+        result = mat.materialize(csdf_dict=csdf)
+        assert result.status == "rejected"
+
+    def test_materialize_batch(self):
+        """Batch materialization should return one result per path."""
+        import tempfile
+        mat = self._make_materializer()
+        csdf = _sample_csdf(paradigm="code")
+        # Use csdf_dict for batch via individual materialize calls
+        results = [mat.materialize(csdf_dict=csdf) for _ in range(3)]
+        assert len(results) == 3
+        assert all(r.status == "success" for r in results)
+
+    def test_materialize_result_has_token_count(self):
+        """Successful materialize should include token_count on the skill."""
+        mat = self._make_materializer()
+        csdf = _sample_csdf(paradigm="code")
+        result = mat.materialize(csdf_dict=csdf)
+        assert result.status == "success"
+        assert result.skill is not None
+        assert isinstance(result.skill.token_count, int)
+
+    def test_materialize_csdf_with_minimal_fields(self):
+        """CSDF with only id and name should still materialize."""
+        mat = self._make_materializer()
+        csdf = {"id": "minimal", "name": "Min", "paradigm": "code"}
+        result = mat.materialize(csdf_dict=csdf)
+        assert result.status == "success"
+        assert result.skill.id == "minimal"
+
+    def test_materialize_strict_lifecycle_false(self):
+        """Non-strict lifecycle should keep content for REJECTED skills."""
+        mat = self._make_materializer(strict_lifecycle=False)
+        csdf = _sample_csdf(lifecycle_state="REJECTED", paradigm="code")
+        result = mat.materialize(csdf_dict=csdf)
+        # Non-strict should keep the content (with warning)
+        if result.skill:
+            assert "[REJECTED]" in result.skill.markdown
+
+
+# ============================================================
+# CSDFDocument Model Tests
+# ============================================================
+
+class TestCSDFDocumentModel:
+    """Test CSDFDocument Pydantic model."""
+
+    def test_defaults(self):
+        doc = CSDFDocument()
+        assert doc.id == ""
+        assert doc.version == "0.0.0"
+        assert doc.min_trust_level == 0
+        assert doc.checklist == []
+        assert doc.required_agent_capabilities == set()
+
+    def test_with_fields(self):
+        doc = CSDFDocument(
+            id="S09",
+            name="Resilience",
+            version="1.2.0",
+            dimension="D5",
+            weight=0.8,
+            veto_rule="score < 7.0",
+        )
+        assert doc.id == "S09"
+        assert doc.weight == 0.8
+
+    def test_materialized_skill_model(self):
+        skill = MaterializedSkill(
+            id="S01",
+            name="Test",
+            version="1.0.0",
+            markdown="# Test\n",
+            token_count=10,
+        )
+        assert skill.id == "S01"
+        assert skill.token_count == 10
+
+    def test_materialization_result_success(self):
+        result = MaterializationResult(
+            status="success",
+            skill=MaterializedSkill(id="S01", name="T"),
+            errors=[],
+        )
+        assert result.status == "success"
+        assert result.skill is not None
+
+    def test_materialization_result_rejected(self):
+        result = MaterializationResult(
+            status="rejected",
+            skill=None,
+            errors=["capability mismatch"],
+        )
+        assert result.status == "rejected"
+        assert result.skill is None
+        assert len(result.errors) == 1

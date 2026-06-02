@@ -1,6 +1,7 @@
 """SkillResolver — skill chain resolution engine."""
 from __future__ import annotations
 
+import threading
 import time
 from typing import Optional
 
@@ -27,16 +28,19 @@ from skillpool.resolver.rate_limiter import RateLimiter
 
 # Simulated skill registry for resolver (production: backed by Registry)
 _SKILL_REGISTRY: dict[str, dict] = {}
+_REGISTRY_LOCK = threading.Lock()
 
 
 def register_skill(skill_id: str, data: dict) -> None:
     """Register a skill in the resolver's local registry."""
-    _SKILL_REGISTRY[skill_id] = data
+    with _REGISTRY_LOCK:
+        _SKILL_REGISTRY[skill_id] = data
 
 
 def clear_registry() -> None:
     """Clear the resolver's local registry."""
-    _SKILL_REGISTRY.clear()
+    with _REGISTRY_LOCK:
+        _SKILL_REGISTRY.clear()
 
 
 class SkillResolver:

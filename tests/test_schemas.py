@@ -216,6 +216,205 @@ name: "Missing required fields"
             validate_csdf_file(bad_schema)
 
 
+# --- Tests for validate_contract method (lines 67-85) ---
+
+class TestValidateContract:
+    """Tests for CSDFSkill.validate_contract() — GovernSpec contract validation.
+
+    Note: Pydantic validates types at model construction time, so the isinstance
+    checks in validate_contract() (lines 69-70, 72-73, 80-81) are defensive.
+    To reach those lines, we use model_construct() which bypasses Pydantic
+    validation and sets fields directly.
+    """
+
+    def _make_skill_via_construct(self, **overrides) -> CSDFSkill:
+        """Build a CSDFSkill via model_construct to bypass Pydantic validation.
+
+        This allows setting fields to types that Pydantic would reject,
+        which is needed to test the isinstance guards in validate_contract().
+        """
+        defaults = {
+            "id": "S99",
+            "name": "Test Skill",
+            "version": "1.0.0",
+            "dimension": SkillDimension.D3,
+            "description": "A test skill.",
+            "checklist": [],
+            "permissions": [],
+            "boundaries": [],
+            "verification_steps": [],
+        }
+        defaults.update(overrides)
+        return CSDFSkill.model_construct(**defaults)
+
+    # --- Permissions type check (lines 68-70) ---
+
+    def test_validate_contract_valid_permissions(self, valid_csdf_dict: dict) -> None:
+        """Valid string permissions should return no errors."""
+        valid_csdf_dict["permissions"] = ["read:files", "write:files"]
+        skill = CSDFSkill.model_validate(valid_csdf_dict)
+        errors = skill.validate_contract()
+        assert all("permissions" not in e for e in errors)
+
+    def test_validate_contract_empty_permissions(self, valid_csdf_dict: dict) -> None:
+        """Empty permissions list should return no errors."""
+        valid_csdf_dict["permissions"] = []
+        skill = CSDFSkill.model_validate(valid_csdf_dict)
+        errors = skill.validate_contract()
+        assert all("permissions" not in e for e in errors)
+
+    def test_validate_contract_invalid_permission_type(self) -> None:
+        """Non-string permission should produce error (lines 69-70)."""
+        # Use model_construct to bypass Pydantic type enforcement
+        skill = self._make_skill_via_construct(permissions=["valid", 123, None])
+        errors = skill.validate_contract()
+        perm_errors = [e for e in errors if "permissions" in e]
+        assert len(perm_errors) == 2
+        assert any("permissions[1]" in e and "expected str" in e and "int" in e for e in perm_errors)
+        assert any("permissions[2]" in e and "expected str" in e and "NoneType" in e for e in perm_errors)
+
+    # --- Boundaries type check (lines 71-74) ---
+
+    def test_validate_contract_empty_boundaries(self, valid_csdf_dict: dict) -> None:
+        """Empty boundaries list should return no errors."""
+        valid_csdf_dict["boundaries"] = []
+        skill = CSDFSkill.model_validate(valid_csdf_dict)
+        errors = skill.validate_contract()
+        assert all("boundaries" not in e for e in errors)
+
+    def test_validate_contract_valid_boundaries(self, valid_csdf_dict: dict) -> None:
+        """Valid boundaries with type and value keys should return no errors."""
+        valid_csdf_dict["boundaries"] = [
+            {"type": "path", "value": "/tmp"},
+            {"type": "network", "value": "localhost:8080"},
+        ]
+        skill = CSDFSkill.model_validate(valid_csdf_dict)
+        errors = skill.validate_contract()
+        assert all("boundaries" not in e for e in errors)
+
+    def test_validate_contract_boundary_not_dict(self) -> None:
+        """Non-dict boundary should produce error and skip key checks (lines 72-74)."""
+        skill = self._make_skill_via_construct(boundaries=["not a dict", 123])
+        errors = skill.validate_contract()
+        boundary_errors = [e for e in errors if "boundaries" in e]
+        assert len(boundary_errors) == 2
+        assert any("boundaries[0]" in e and "expected dict" in e and "str" in e for e in boundary_errors)
+        assert any("boundaries[1]" in e and "expected dict" in e and "int" in e for e in boundary_errors)
+
+    # --- Boundaries missing keys (lines 75-78) ---
+
+    def test_validate_contract_boundary_missing_type(self, valid_csdf_dict: dict) -> None:
+        """Boundary missing 'type' key should produce error (lines 75-76)."""
+        valid_csdf_dict["boundaries"] = [{"value": "/tmp"}]  # Missing 'type'
+        skill = CSDFSkill.model_validate(valid_csdf_dict)
+        errors = skill.validate_contract()
+        assert any("boundaries[0]" in e and "missing 'type'" in e for e in errors)
+
+    def test_validate_contract_boundary_missing_value(self, valid_csdf_dict: dict) -> None:
+        """Boundary missing 'value' key should produce error (lines 77-78)."""
+        valid_csdf_dict["boundaries"] = [{"type": "path"}]  # Missing 'value'
+        skill = CSDFSkill.model_validate(valid_csdf_dict)
+        errors = skill.validate_contract()
+        assert any("boundaries[0]" in e and "missing 'value'" in e for e in errors)
+
+    def test_validate_contract_boundary_missing_both_keys(self, valid_csdf_dict: dict) -> None:
+        """Boundary missing both keys should produce two errors."""
+        valid_csdf_dict["boundaries"] = [{}]  # Empty dict — valid to Pydantic but fails contract
+        skill = CSDFSkill.model_validate(valid_csdf_dict)
+        errors = skill.validate_contract()
+        boundary_errors = [e for e in errors if "boundaries[0]" in e]
+        assert len(boundary_errors) == 2
+        assert any("missing 'type'" in e for e in boundary_errors)
+        assert any("missing 'value'" in e for e in boundary_errors)
+
+    # --- Verification steps type check (lines 79-82) ---
+
+    def test_validate_contract_empty_verification_steps(self, valid_csdf_dict: dict) -> None:
+        """Empty verification_steps list should return no errors."""
+        valid_csdf_dict["verification_steps"] = []
+        skill = CSDFSkill.model_validate(valid_csdf_dict)
+        errors = skill.validate_contract()
+        assert all("verification_steps" not in e for e in errors)
+
+    def test_validate_contract_valid_verification_steps(self, valid_csdf_dict: dict) -> None:
+        """Valid verification_steps with 'check' key should return no errors."""
+        valid_csdf_dict["verification_steps"] = [
+            {"check": "verify_tls_version"},
+            {"check": "check_certificate_expiry", "args": {"days": 30}},
+        ]
+        skill = CSDFSkill.model_validate(valid_csdf_dict)
+        errors = skill.validate_contract()
+        assert all("verification_steps" not in e for e in errors)
+
+    def test_validate_contract_verification_step_not_dict(self) -> None:
+        """Non-dict verification_step should produce error and skip key check (lines 80-82)."""
+        skill = self._make_skill_via_construct(verification_steps=["not a dict", None])
+        errors = skill.validate_contract()
+        step_errors = [e for e in errors if "verification_steps" in e]
+        assert len(step_errors) == 2
+        assert any("verification_steps[0]" in e and "expected dict" in e and "str" in e for e in step_errors)
+        assert any("verification_steps[1]" in e and "expected dict" in e and "NoneType" in e for e in step_errors)
+
+    # --- Verification steps missing check key (lines 83-85) ---
+
+    def test_validate_contract_verification_step_missing_check(self, valid_csdf_dict: dict) -> None:
+        """Verification step missing 'check' key should produce error (lines 83-85)."""
+        valid_csdf_dict["verification_steps"] = [{"action": "do_something"}]  # Missing 'check'
+        skill = CSDFSkill.model_validate(valid_csdf_dict)
+        errors = skill.validate_contract()
+        assert any("verification_steps[0]" in e and "missing 'check'" in e for e in errors)
+
+    # --- Combined / integration tests ---
+
+    def test_validate_contract_multiple_errors(self) -> None:
+        """Multiple contract violations should all be reported."""
+        # Use model_construct for type violations; use Pydantic for key violations
+        skill = self._make_skill_via_construct(
+            permissions=[123],
+            boundaries=[{}],  # Missing both keys
+            verification_steps=["invalid"],
+        )
+        errors = skill.validate_contract()
+        assert len(errors) == 4  # 1 perm + 2 boundary + 1 verification
+        assert any("permissions[0]" in e for e in errors)
+        assert any("boundaries[0]" in e and "missing 'type'" in e for e in errors)
+        assert any("boundaries[0]" in e and "missing 'value'" in e for e in errors)
+        assert any("verification_steps[0]" in e for e in errors)
+
+    def test_validate_contract_returns_empty_list_for_valid_contract(self, valid_csdf_dict: dict) -> None:
+        """A fully valid contract should return an empty error list."""
+        valid_csdf_dict["permissions"] = ["read:all", "write:temp"]
+        valid_csdf_dict["boundaries"] = [
+            {"type": "path", "value": "/tmp"},
+            {"type": "memory", "value": "512MB"},
+        ]
+        valid_csdf_dict["verification_steps"] = [
+            {"check": "verify_permissions"},
+            {"check": "check_boundaries"},
+        ]
+        skill = CSDFSkill.model_validate(valid_csdf_dict)
+        errors = skill.validate_contract()
+        assert errors == []
+
+    def test_validate_contract_mixed_valid_and_invalid(self, valid_csdf_dict: dict) -> None:
+        """Mix of valid and invalid entries should report only the invalid ones."""
+        # Only test key-level issues through Pydantic validation
+        valid_csdf_dict["permissions"] = ["valid", "also_valid"]
+        valid_csdf_dict["boundaries"] = [
+            {"type": "path", "value": "/tmp"},  # Valid
+            {"type": "network"},  # Missing value
+        ]
+        valid_csdf_dict["verification_steps"] = [
+            {"check": "step1"},  # Valid
+            {"action": "step2"},  # Missing check
+        ]
+        skill = CSDFSkill.model_validate(valid_csdf_dict)
+        errors = skill.validate_contract()
+        assert len(errors) == 2
+        assert any("boundaries[1]" in e and "missing 'value'" in e for e in errors)
+        assert any("verification_steps[1]" in e and "missing 'check'" in e for e in errors)
+
+
 # --- Integration test with real skill file ---
 
 class TestRealSkillFiles:

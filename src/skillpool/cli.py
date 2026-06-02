@@ -6,17 +6,19 @@ from pathlib import Path
 
 import click
 
-DEFAULT_SKILLPOOL_DIR = Path.home() / ".skillpool"
+from skillpool.config import get_data_dir
+
+DEFAULT_SKILLPOOL_DIR = get_data_dir()
 
 
 def _find_skillpool_dir() -> Path:
-    """Locate .skillpool directory (cwd first, then home)."""
+    """Locate .skillpool directory (cwd first, then env/home)."""
     cwd_dir = Path.cwd() / ".skillpool"
     if cwd_dir.exists():
         return cwd_dir
-    home_dir = Path.home() / ".skillpool"
-    if home_dir.exists():
-        return home_dir
+    env_dir = get_data_dir()
+    if env_dir.exists():
+        return env_dir
     return cwd_dir
 
 
@@ -525,7 +527,7 @@ def audit_runtime(duration: int, log_file: str | None):
         click.echo(f"\n[audit-runtime] No monitored events captured in {duration}s.")
 
     if log_path is None:
-        default_log = Path.home() / ".skillpool" / "logs" / "runtime_audit.jsonl"
+        default_log = get_data_dir() / "logs" / "runtime_audit.jsonl"
         click.echo(f"[audit-runtime] Full log: {default_log}")
     else:
         click.echo(f"[audit-runtime] Full log: {log_path}")

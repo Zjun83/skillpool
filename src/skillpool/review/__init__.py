@@ -1,6 +1,7 @@
 """ReviewManager — orchestrates the multi-dimension review pipeline."""
 from __future__ import annotations
 
+import logging
 import time
 import uuid
 
@@ -17,6 +18,8 @@ from skillpool.review.checkpoint_runner import CheckpointRunner
 from skillpool.review.suspect_marker import SuspectMarker
 from skillpool.review.async_queue import AsyncReviewQueue
 from skillpool.telemetry import TelemetryBridge
+
+logger = logging.getLogger(__name__)
 
 
 class ReviewManager:
@@ -88,7 +91,8 @@ class ReviewManager:
                 level=request.checkpoint,
                 skills=request.affected_skills,
             )
-        except Exception:
+        except Exception as e:
+            logger.error("Checkpoint run failed for review %s: %s", review_id, e)
             self._queue.set_status(review_id, ReviewStatus.FAILED)
             return ReviewTriggerResponse(
                 review_id=review_id,

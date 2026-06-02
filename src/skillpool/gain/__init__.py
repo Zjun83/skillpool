@@ -14,6 +14,7 @@ Part of SkillPool — independent infrastructure, shared by all agents.
 from __future__ import annotations
 
 import json
+import logging
 import math
 import random
 from datetime import datetime, timezone
@@ -22,7 +23,10 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from skillpool.config import get_data_dir
 from skillpool.utils.time_utils import utc_now
+
+logger = logging.getLogger(__name__)
 
 
 class GainScores(BaseModel):
@@ -72,7 +76,7 @@ class GainTracker:
     """
 
     def __init__(self, data_dir: Path | None = None):
-        self.data_dir = data_dir or Path.home() / ".skillpool" / "gain"
+        self.data_dir = data_dir or get_data_dir() / "gain"
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self._executions: list[SkillExecution] = []
         self._loaded = False
@@ -89,7 +93,8 @@ class GainTracker:
                     continue
                 try:
                     self._executions.append(SkillExecution(**json.loads(line)))
-                except Exception:
+                except Exception as e:
+                    logger.warning("Failed to parse execution record: %s", e)
                     continue
         self._loaded = True
 

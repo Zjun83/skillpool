@@ -18,6 +18,8 @@ from typing import Optional
 import httpx
 from pydantic import BaseModel, Field
 
+from skillpool.config import get_data_dir
+
 logger = logging.getLogger(__name__)
 
 # Ollama embedding endpoint — read from env to handle port conflicts
@@ -64,7 +66,7 @@ class IntentRouter:
         ollama_url: str = OLLAMA_EMBED_URL,
         ollama_model: str = OLLAMA_MODEL,
     ):
-        self.skills_dir = skills_dir or Path.home() / ".skillpool" / "skills"
+        self.skills_dir = skills_dir or get_data_dir() / "skills"
         self.ollama_url = ollama_url
         self.ollama_model = ollama_model
         self._skill_index: dict[str, dict] = {}
@@ -104,7 +106,8 @@ class IntentRouter:
         try:
             resp = httpx.get(f"{base_url}/api/tags", timeout=3.0)
             return resp.status_code == 200
-        except Exception:
+        except Exception as e:
+            logger.debug("Ollama connection failed at %s: %s", base_url, e)
             return False
 
     def _embed(self, text: str) -> list[float] | None:
@@ -119,8 +122,8 @@ class IntentRouter:
             )
             data = resp.json()
             return data.get("embeddings", [[]])[0]
-        except Exception:
-            logger.debug("Ollama embedding failed, falling back to keyword matching")
+        except Exception as e:
+            logger.debug("Ollama embedding failed, falling back to keyword matching: %s", e)
             return None
 
     def _build_index(self) -> None:
@@ -170,8 +173,8 @@ class IntentRouter:
                     parts.append(f"dimension:{data['dimension']}")
                 if data.get("name"):
                     parts.append(str(data["name"]))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to parse YAML metadata from %s: %s", yaml_file, e)
         return parts
 
     def route(self, intent: str, top_k: int = 5) -> RoutingResult:
@@ -368,7 +371,8 @@ class IntentRouter:
                     data = yaml.safe_load(yaml_file.read_text())
                     if isinstance(data, dict):
                         results.append((yaml_file, data))
-                except Exception:
+                except Exception as e:
+                    logger.debug("Failed to load skill YAML %s: %s", yaml_file, e)
                     continue
         # Flat YAML: skills/<skill_id>.yaml
         flat_yaml = self.skills_dir / f"{skill_id}.yaml"
@@ -378,8 +382,8 @@ class IntentRouter:
                 data = yaml.safe_load(flat_yaml.read_text())
                 if isinstance(data, dict):
                     results.append((flat_yaml, data))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to load flat YAML %s: %s", flat_yaml, e)
         return results
 
     @staticmethod

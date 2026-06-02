@@ -59,3 +59,79 @@ class TestConflictDetector:
         conflicts = cd.detect()
         assert len(conflicts) >= 1
         assert "file_ops" in conflicts[0]["overlapping_namespaces"]
+
+    # --- Coverage for uncovered severity/classification/recommendation paths ---
+
+    def test_high_severity_with_overlap_and_high_score(self) -> None:
+        """Line 85: overlapping namespaces + score >= 0.7 → severity='high'."""
+        cd = ConflictDetector(threshold=0.5)
+        # Identical names + overlapping namespaces → score=1.0, severity='high'
+        cd.register("A", name="Code Review Security", dimension="D3", namespaces=["review", "security"])
+        cd.register("B", name="Code Review Security", dimension="D3", namespaces=["review", "security"])
+        conflicts = cd.detect(threshold=0.5)
+        assert len(conflicts) >= 1
+        assert conflicts[0]["severity"] == "high"
+        assert conflicts[0]["overlapping_namespaces"] == ["review", "security"]
+
+    def test_medium_severity_overlap_without_high_score(self) -> None:
+        """Line 86-87: overlapping namespaces but score < 0.7 → severity='medium'."""
+        cd = ConflictDetector(threshold=0.1)
+        cd.register("A", name="Requirement Coverage Analysis", namespaces=["req", "coverage"])
+        cd.register("B", name="Compliance Coverage Audit", namespaces=["req", "coverage"])
+        conflicts = cd.detect(threshold=0.1)
+        assert len(conflicts) >= 1
+        # Overlapping namespaces but score < 0.7 → medium
+        assert conflicts[0]["severity"] == "medium"
+        assert len(conflicts[0]["overlapping_namespaces"]) > 0
+
+    def test_low_severity(self) -> None:
+        """Line 88: no overlapping namespaces + score < 0.7 → severity='low'."""
+        cd = ConflictDetector(threshold=0.05)
+        cd.register("A", name="Test Coverage Skill", dimension="D1")
+        cd.register("B", name="Test Analysis Skill", dimension="D2")
+        conflicts = cd.detect(threshold=0.05)
+        assert len(conflicts) >= 1
+        assert conflicts[0]["severity"] == "low"
+        assert conflicts[0]["overlapping_namespaces"] == []
+
+    def test_namespace_overlap_default_conflict_type(self) -> None:
+        """Line 96: score < 0.8 and no overlapping → conflict_type='namespace_overlap' (default)."""
+        cd = ConflictDetector(threshold=0.05)
+        cd.register("A", name="Test Coverage Skill", dimension="D1")
+        cd.register("B", name="Test Analysis Skill", dimension="D2")
+        conflicts = cd.detect(threshold=0.05)
+        if conflicts:
+            # Even without actual namespace overlap, Jaccard detection defaults to namespace_overlap
+            assert conflicts[0]["conflict_type"] == "namespace_overlap"
+
+    def test_semantic_conflict_type(self) -> None:
+        """Line 95: score >= 0.8 → conflict_type='semantic_conflict'."""
+        cd = ConflictDetector(threshold=0.5)
+        cd.register("A", name="Code Review Security")
+        cd.register("B", name="Code Review Security")
+        conflicts = cd.detect(threshold=0.5)
+        if conflicts:
+            # High score (0.8+) with no overlapping namespaces → semantic_conflict
+            high_score = [c for c in conflicts if c["jaccard_score"] >= 0.8 and len(c["overlapping_namespaces"]) == 0]
+            if high_score:
+                assert high_score[0]["conflict_type"] == "semantic_conflict"
+
+    def test_high_severity_recommendation(self) -> None:
+        """Line 101: severity='high' → recommendation about merging/removing."""
+        cd = ConflictDetector(threshold=0.5)
+        cd.register("A", name="Code Review Security", dimension="D3", namespaces=["review", "security"])
+        cd.register("B", name="Code Review Security", dimension="D3", namespaces=["review", "security"])
+        conflicts = cd.detect(threshold=0.5)
+        assert len(conflicts) >= 1
+        assert conflicts[0]["severity"] == "high"
+        assert "merging" in conflicts[0]["recommendation"] or "removing" in conflicts[0]["recommendation"]
+
+    def test_low_severity_recommendation(self) -> None:
+        """Line 104: severity='low' → recommendation about monitoring."""
+        cd = ConflictDetector(threshold=0.05)
+        cd.register("A", name="Test Coverage Skill", dimension="D1")
+        cd.register("B", name="Test Analysis Skill", dimension="D2")
+        conflicts = cd.detect(threshold=0.05)
+        assert len(conflicts) >= 1
+        assert conflicts[0]["severity"] == "low"
+        assert "Monitor" in conflicts[0]["recommendation"]

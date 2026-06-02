@@ -22,12 +22,13 @@ from typing import Any, Optional
 
 import yaml
 
+from skillpool.config import get_data_dir
 from skillpool.materializer import Materializer
 from skillpool.materializer.csdf_loader import load_csdf
 from skillpool.materializer.models import MaterializationResult
 from skillpool.profile import CLAUDE_CODE_PROFILE, AgentCapabilityProfile
 
-_SKILLS_DIR = Path.home() / ".skillpool" / "skills"
+_SKILLS_DIR = get_data_dir() / "skills"
 
 _VALID_TIERS = {"L0", "L1", "L2"}
 
