@@ -131,9 +131,17 @@ class TestSignatureVerification:
         assert "signature_check" in result.checks_passed
         assert any("dev tier" in w.lower() or "skipped" in w.lower() for w in result.warnings)
 
-    def test_prod_tier_returns_warning(self):
-        """Prod tier: signature check returns WARNING."""
+    def test_prod_tier_blocks_unsigned(self):
+        """Prod tier: signature check returns CRITICAL (blocks materialization)."""
         scanner = SecurityScanner(evidence_tier="prod")
+        result = scanner.verify_signature(Path("/tmp/fake"))
+        assert result.threat_level == ThreatLevel.CRITICAL
+        assert result.blockers
+        assert "signature_check" in result.checks_passed
+
+    def test_ci_tier_returns_warning(self):
+        """CI tier: signature check returns WARNING."""
+        scanner = SecurityScanner(evidence_tier="ci")
         result = scanner.verify_signature(Path("/tmp/fake"))
         assert result.threat_level == ThreatLevel.WARNING
         assert "signature_check" in result.checks_passed
@@ -291,3 +299,168 @@ class TestFullCheck:
         scanner = SecurityScanner()
         result = scanner.full_check("safe: true", Path("/tmp/test"))
         assert "signature_check" in result.checks_passed
+
+
+class TestVerifySignatureEnvVar:
+    """Tests for SKILLPOOL_EVIDENCE_TIER env var override."""
+
+    def test_env_var_prod_overrides_default(self, monkeypatch):
+        """SKILLPOOL_EVIDENCE_TIER=prod should override default dev behavior."""
+        monkeypatch.setenv("SKILLPOOL_EVIDENCE_TIER", "prod")
+        scanner = SecurityScanner()  # No evidence_tier arg, defaults to None
+        result = scanner.verify_signature(Path("/tmp/fake"))
+        # Env var = prod → CRITICAL (blocks materialization)
+        assert result.threat_level == ThreatLevel.CRITICAL
+        assert result.blockers
+
+    def test_env_var_ci_overrides_default(self, monkeypatch):
+        """SKILLPOOL_EVIDENCE_TIER=ci should override default dev behavior."""
+        monkeypatch.setenv("SKILLPOOL_EVIDENCE_TIER", "ci")
+        scanner = SecurityScanner()
+        result = scanner.verify_signature(Path("/tmp/fake"))
+        assert result.threat_level == ThreatLevel.WARNING
+
+    def test_env_var_dev_explicit(self, monkeypatch):
+        """SKILLPOOL_EVIDENCE_TIER=dev should allow signature skip."""
+        monkeypatch.setenv("SKILLPOOL_EVIDENCE_TIER", "dev")
+        scanner = SecurityScanner()
+        result = scanner.verify_signature(Path("/tmp/fake"))
+        assert result.threat_level == ThreatLevel.SAFE
+        assert any("dev" in w.lower() or "skipped" in w.lower() for w in result.warnings)
+
+    def test_explicit_tier_overrides_env_var(self, monkeypatch):
+        """Explicit evidence_tier arg should take precedence over env var."""
+        monkeypatch.setenv("SKILLPOOL_EVIDENCE_TIER", "prod")
+        scanner = SecurityScanner(evidence_tier="dev")
+        result = scanner.verify_signature(Path("/tmp/fake"))
+        # Explicit tier=dev overrides env=prod → SAFE
+        assert result.threat_level == ThreatLevel.SAFE
+
+
+class TestYamlSafetyAdditionalTags:
+    """Additional YAML safety edge cases."""
+
+    def test_python_object_subclass_detected(self):
+        """!!python/object/subclass should be flagged."""
+        scanner = SecurityScanner()
+        content = "!!python/object/subclass:os._Environ\n{}"
+        result = scanner.check_yaml_safety(content)
+        assert result.threat_level == ThreatLevel.CRITICAL
+        assert any("subclass" in b for b in result.blockers)
+
+    def test_multiple_dangerous_tags_in_one_content(self):
+        """Content with multiple dangerous tags should flag all."""
+        scanner = SecurityScanner()
+        content = "a: !!python/object:foo.Bar\nb: !!python/name:os.system"
+        result = scanner.check_yaml_safety(content)
+        assert result.threat_level == ThreatLevel.CRITICAL
+        assert len(result.blockers) >= 2
+
+    def test_safe_yaml_with_equals_sign(self):
+        """YAML with regular content containing '!!' but not dangerous tags."""
+        scanner = SecurityScanner()
+        # Regular YAML — no dangerous tags even though it has !!python syntax-like text
+        content = "description: This skill does not use !!python tags"
+        result = scanner.check_yaml_safety(content)
+        # "!!python" substring appears, but not as a YAML tag prefix
+        # The check only looks for exact tag prefixes like "!!python/object"
+        assert result.threat_level == ThreatLevel.SAFE
+
+
+class TestDangerousPatternsComprehensive:
+    """Comprehensive tests for all dangerous pattern detections."""
+
+    def test_os_popen_detected(self):
+        """os.popen() should be flagged as WARNING."""
+        scanner = SecurityScanner()
+        content = "```python\nos.popen('whoami')\n```"
+        result = scanner.scan_dangerous_patterns(content)
+        assert result.threat_level in (ThreatLevel.WARNING, ThreatLevel.CRITICAL)
+        assert any("os.popen" in w or "os.popen" in b for w, b in [(w, "") for w in result.warnings] + [(b, b) for b in result.blockers])
+
+    def test_import_detected(self):
+        """__import__() should be flagged."""
+        scanner = SecurityScanner()
+        content = "```python\n__import__('os')\n```"
+        result = scanner.scan_dangerous_patterns(content)
+        assert result.threat_level in (ThreatLevel.WARNING, ThreatLevel.CRITICAL)
+        assert any("__import__" in w for w in result.warnings) or any("__import__" in b for b in result.blockers)
+
+    def test_shutil_rmtree_detected(self):
+        """shutil.rmtree() should be flagged."""
+        scanner = SecurityScanner()
+        content = "```python\nshutil.rmtree('/tmp/x')\n```"
+        result = scanner.scan_dangerous_patterns(content)
+        assert result.threat_level in (ThreatLevel.WARNING, ThreatLevel.CRITICAL)
+
+    def test_os_remove_detected(self):
+        """os.remove() should be flagged."""
+        scanner = SecurityScanner()
+        content = "```python\nos.remove('/tmp/secret')\n```"
+        result = scanner.scan_dangerous_patterns(content)
+        assert result.threat_level in (ThreatLevel.WARNING, ThreatLevel.CRITICAL)
+
+    def test_os_unlink_detected(self):
+        """os.unlink() should be flagged."""
+        scanner = SecurityScanner()
+        content = "```python\nos.unlink('/tmp/secret')\n```"
+        result = scanner.scan_dangerous_patterns(content)
+        assert result.threat_level in (ThreatLevel.WARNING, ThreatLevel.CRITICAL)
+
+    def test_compile_detected(self):
+        """compile() should be flagged (not re.compile)."""
+        scanner = SecurityScanner()
+        content = "```python\ncompile('code', 'file', 'exec')\n```"
+        result = scanner.scan_dangerous_patterns(content)
+        assert result.threat_level in (ThreatLevel.WARNING, ThreatLevel.CRITICAL)
+        assert any("compile" in w for w in result.warnings) or any("compile" in b for b in result.blockers)
+
+    def test_file_write_detected(self):
+        """open() with write mode should be flagged."""
+        scanner = SecurityScanner()
+        content = "```python\nwith open('out.txt', 'w') as f:\n    f.write('data')\n```"
+        result = scanner.scan_dangerous_patterns(content)
+        assert result.threat_level in (ThreatLevel.WARNING, ThreatLevel.CRITICAL)
+
+    def test_safe_open_read_not_flagged(self):
+        """open() in read mode should NOT be flagged."""
+        scanner = SecurityScanner()
+        content = "```python\nwith open('in.txt', 'r') as f:\n    data = f.read()\n```"
+        result = scanner.scan_dangerous_patterns(content)
+        assert result.threat_level == ThreatLevel.SAFE
+
+
+class TestFullCheckAggregation:
+    """Additional tests for full_check aggregation logic."""
+
+    def test_full_check_without_skill_path_no_signature(self):
+        """full_check without skill_path should not include signature check."""
+        scanner = SecurityScanner()
+        result = scanner.full_check("name: test\nversion: 1.0\n")
+        assert "yaml_syntax" in result.checks_passed
+        assert "pattern_scan" in result.checks_passed
+        assert "signature_check" not in result.checks_passed
+
+    def test_full_check_critical_yaml_overrides_safe_patterns(self):
+        """YAML critical finding should dominate over safe patterns."""
+        scanner = SecurityScanner()
+        content = "!!python/object:evil.Class\n```python\nprint('hello')\n```"
+        result = scanner.full_check(content)
+        assert result.threat_level == ThreatLevel.CRITICAL
+        assert not result.is_safe
+
+    def test_full_check_dev_tier_safe_overall(self):
+        """Dev tier content that is safe in both checks should be overall safe."""
+        scanner = SecurityScanner()
+        content = "name: test\n```python\nx = 1\n```"
+        result = scanner.full_check(content, Path("/tmp/test"))
+        assert result.is_safe
+        assert len(result.checks_passed) == 3
+
+    def test_full_check_prod_tier_blocks_even_safe_content(self):
+        """Prod tier should block on signature even if content is safe."""
+        scanner = SecurityScanner(evidence_tier="prod")
+        content = "name: safe-skill\nversion: 1.0"
+        result = scanner.full_check(content, Path("/tmp/test"))
+        assert result.threat_level == ThreatLevel.CRITICAL
+        assert not result.is_safe

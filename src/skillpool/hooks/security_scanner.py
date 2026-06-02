@@ -233,7 +233,8 @@ class SecurityScanner:
 
         Tier-dependent behavior:
         - dev: placeholder passes with informational note
-        - ci/prod: returns WARNING (strict mode, needs real cosign/sigstore)
+        - prod: BLOCKS materialization — requires cosign/sigstore signature
+        - ci: WARNING (strict mode, signature required but may use test key)
         """
         import os
 
@@ -243,9 +244,16 @@ class SecurityScanner:
         result = SecurityCheckResult(threat_level=ThreatLevel.SAFE)
         result.checks_passed.append("signature_check")
 
-        if tier in ("ci", "prod"):
+        if tier == "prod":
+            # Production: signature is REQUIRED — block if not verified
+            result.blockers.append(
+                "Signature verification REQUIRED in prod tier — "
+                "configure cosign/sigstore before deployment"
+            )
+            result.threat_level = ThreatLevel.CRITICAL
+        elif tier == "ci":
             result.warnings.append(
-                "Signature verification is a placeholder — "
+                "Signature verification is a placeholder in CI — "
                 "production deployment requires cosign/sigstore"
             )
             result.threat_level = ThreatLevel.WARNING
