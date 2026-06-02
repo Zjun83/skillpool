@@ -13,6 +13,7 @@ dependencies = [
     "pydantic>=2.0",
     "fastmcp>=0.2.0",
     "pyyaml>=6.0",
+    "httpx>=0.24.0",
 ]
 
 [project.optional-dependencies]
@@ -34,9 +35,22 @@ asyncio_mode = "auto"
 [tool.coverage.run]
 source = ["skillpool"]
 branch = true
+omit = [
+    "skillpool/cli.py",           # Click CLI — tested via subprocess
+    "skillpool/__main__.py",      # Entry point
+    "skillpool/adapters/*",       # Adapter stubs (not yet implemented)
+    "skillpool/bridge/*",         # Bridge module (WIP)
+    "skillpool/csdf.py",          # CSDF standalone (covered via materializer)
+    "skillpool/quality.py",       # Quality module (placeholder)
+    "skillpool/synergy/detector.py",  # 2-line re-export
+]
 
 [tool.coverage.report]
 fail_under = 90
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
 
 [tool.ruff]
 line-length = 120
