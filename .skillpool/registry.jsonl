@@ -1,3 +1,0 @@
-{"name":"code-review","version":"1.0.0","status":"active","registered_at":"2025-01-01T00:00:00Z","quality_score":0.85,"dimensions":{"completeness":0.90,"accuracy":0.85,"usability":0.80,"maintainability":0.85}}
-{"name":"debugging","version":"1.0.0","status":"active","registered_at":"2025-01-01T00:00:00Z","quality_score":0.78,"dimensions":{"completeness":0.80,"accuracy":0.75,"usability":0.78,"maintainability":0.80}}
-{"name":"testing","version":"1.0.0","status":"active","registered_at":"2025-01-01T00:00:00Z","quality_score":0.82,"dimensions":{"completeness":0.85,"accuracy":0.80,"usability":0.82,"maintainability":0.80}}
