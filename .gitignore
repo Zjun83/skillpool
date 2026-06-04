@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+*.egg
+
+# Coverage
+.coverage
+coverage.json
+htmlcov/
+
+# Test artifacts
+test_write.txt
+_test_write.txt
+.skillpool-test-report.md
+.skillpool-test-results.jsonl
+mcp_functional_test.py
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+*.whl
+*.tar.gz
+
+# SkillPool runtime
+.skillpool/registry.jsonl
+
+# Temp
+*.log
+.archives/
+.claude/

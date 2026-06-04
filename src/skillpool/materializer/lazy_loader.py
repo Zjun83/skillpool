@@ -244,22 +244,22 @@ class LazySkillLoader:
         if "L2" not in cache:
             mat = Materializer(profile=self._profile)
             result: MaterializationResult = mat.materialize(csdf_dict=csdf)
+            l2_data = {
+                **cache["L1"],
+                "_tier": "L2",
+            }
+            # Preserve raw markdown body for directory-based skills
+            if "_markdown_body" in csdf:
+                l2_data["_markdown_body"] = csdf["_markdown_body"]
             if result.status == "success" and result.skill is not None:
-                cache["L2"] = {
-                    **cache["L1"],
-                    "markdown": result.skill.markdown,
-                    "token_count": result.skill.token_count,
-                    "_tier": "L2",
-                }
+                l2_data["markdown"] = result.skill.markdown
+                l2_data["token_count"] = result.skill.token_count
             else:
                 logger.warning("L2 materialization failed for %s: %s", skill_id, result.errors)
-                cache["L2"] = {
-                    **cache["L1"],
-                    "markdown": "",
-                    "token_count": 0,
-                    "_materialization_errors": result.errors,
-                    "_tier": "L2",
-                }
+                l2_data["markdown"] = ""
+                l2_data["token_count"] = 0
+                l2_data["_materialization_errors"] = result.errors
+            cache["L2"] = l2_data
 
     @staticmethod
     def _validate_tier(tier: str) -> None:

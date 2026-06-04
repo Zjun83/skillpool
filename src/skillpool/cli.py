@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import tempfile
 from pathlib import Path
 
 import click
@@ -470,6 +471,111 @@ def review(checkpoint: str):
             click.echo(f"  VETO {v.rule}: {v.decision} ({v.reason})")
 
 
+# ── Gate ────────────────────────────────────────────────────────────
+
+
+@main.group()
+def gate():
+    """4D paradigm gate management — assess, transition, status."""
+
+
+@gate.command()
+@click.argument("task_description")
+@click.option("--policy", "policy_path", type=click.Path(exists=True), default=None,
+              help="Path to gate.policy YAML file")
+@click.option("--files", "changed_files", default=None,
+              help="Comma-separated list of changed files")
+def assess(task_description: str, policy_path: str | None, changed_files: str | None):
+    """Assess task complexity and set gate level.
+
+    Example: skillpool gate assess "new feature for core module" --policy gate.policy
+    """
+    from skillpool.gate_policy.state_machine import GateStateMachine
+    from skillpool.gate_policy.parser import load_gate_policy
+
+    policy = None
+    if policy_path:
+        policy = load_gate_policy(Path(policy_path))
+
+    files_list = changed_files.split(",") if changed_files else []
+    gate_path = Path(tempfile.gettempdir()) / "skillpool_gate.json"
+    sm = GateStateMachine(gate_path)
+
+    level = sm.assess(task_description, files_list, policy)
+    click.echo(f"Assessed level: {level}")
+    click.echo(f"Current phase: {sm.state.current_phase}")
+    if sm.state.assessed_at:
+        click.echo(f"Assessed at: {sm.state.assessed_at}")
+
+
+@gate.command()
+@click.argument("target_phase")
+@click.option("--state-path", type=click.Path(), default=None,
+              help="Path to gate.json file")
+def transition(target_phase: str, state_path: str | None):
+    """Transition gate to target phase.
+
+    Valid phases: IDLE, ASSESSING, DOCSDD, SDD, BDD, TDD, REVIEW, COMPLETE
+
+    Example: skillpool gate transition DOCSDD
+    """
+    from skillpool.gate_policy.state_machine import GateStateMachine
+    from skillpool.gate_policy.parser import GatePolicyError
+
+    gate_path = Path(state_path) if state_path else Path(tempfile.gettempdir()) / "skillpool_gate.json"
+    sm = GateStateMachine(gate_path)
+
+    try:
+        result = sm.transition(target_phase)
+        click.echo(f"Transitioned to: {result.current_phase}")
+        click.echo(f"Phase history: {len(result.phase_history)} transitions")
+    except GatePolicyError as e:
+        click.echo(f"Error [{e.error_code}]: {e.detail}", err=True)
+        raise SystemExit(1)
+
+
+@gate.command("status")
+@click.option("--state-path", type=click.Path(), default=None,
+              help="Path to gate.json file")
+def gate_status(state_path: str | None):
+    """Show current gate state.
+
+    Example: skillpool gate status
+    """
+    from skillpool.gate_policy.state_machine import GateStateMachine
+
+    gate_path = Path(state_path) if state_path else Path(tempfile.gettempdir()) / "skillpool_gate.json"
+    sm = GateStateMachine(gate_path)
+    s = sm.state
+
+    click.echo(f"Current phase: {s.current_phase}")
+    click.echo(f"Assessed level: {s.assessed_level or 'N/A'}")
+    click.echo(f"Incremental mode: {s.incremental_mode}")
+    click.echo(f"Phase history: {len(s.phase_history)} transitions")
+    if s.changed_files:
+        click.echo(f"Changed files: {', '.join(s.changed_files)}")
+    if s.review_checkpoint.triggered:
+        click.echo(f"Review checkpoint: triggered (level={s.review_checkpoint.checkpoint_level})")
+    click.echo(f"Artifacts: {len([v for v in s.artifacts.values() if v])} complete / {len(s.artifacts)} total")
+
+
+@gate.command("reset")
+@click.option("--state-path", type=click.Path(), default=None,
+              help="Path to gate.json file")
+def gate_reset(state_path: str | None):
+    """Reset gate state to IDLE (preserves created_at).
+
+    Example: skillpool gate reset
+    """
+    from skillpool.gate_policy.state_machine import GateStateMachine
+
+    gate_path = Path(state_path) if state_path else Path(tempfile.gettempdir()) / "skillpool_gate.json"
+    sm = GateStateMachine(gate_path)
+    result = sm.reset()
+    click.echo(f"Gate reset to: {result.current_phase}")
+    click.echo(f"Preserved created_at: {result.metadata.created_at}")
+
+
 # ── MCP ───────────────────────────────────────────────────────────
 
 
@@ -531,3 +637,58 @@ def audit_runtime(duration: int, log_file: str | None):
         click.echo(f"[audit-runtime] Full log: {default_log}")
     else:
         click.echo(f"[audit-runtime] Full log: {log_path}")
+
+
+# ---------------------------------------------------------------------------
+# cost command group
+# ---------------------------------------------------------------------------
+
+
+@main.group()
+def cost() -> None:
+    """Cost estimation and budget management."""
+
+
+@cost.command()
+@click.argument("skill_id")
+@click.option("--skill-length", type=int, default=0, help="Character count of skill definition")
+@click.option("--review-level", type=click.Choice(["L0", "L1", "L2", "L3+L2+"]), default="L1", help="Complexity review level")
+@click.option("--include-review-checkpoint/--no-review-checkpoint", default=False, help="Include review checkpoint overhead")
+@click.option("--emergency-bypass-path", type=str, default=None, help="Path to emergency_overrides.json")
+def estimate(
+    skill_id: str,
+    skill_length: int,
+    review_level: str,
+    include_review_checkpoint: bool,
+    emergency_bypass_path: str | None,
+) -> None:
+    """Estimate session cost for a skill execution (P50 pricing).
+
+    Uses conservative $0.003/1K tokens pricing model.
+    """
+    from skillpool.cost.token_governor import TokenGovernor, PRESET_AGENT_CONFIGS
+
+    governor = TokenGovernor(PRESET_AGENT_CONFIGS)
+    result = governor.estimate_session_cost(
+        skill_id=skill_id,
+        skill_length=skill_length,
+        review_level=review_level,
+        include_review_checkpoint=include_review_checkpoint,
+        emergency_bypass_path=emergency_bypass_path,
+    )
+    click.echo(f"Skill: {result.skill_id}")
+    click.echo(f"Skill Length: {result.skill_length} chars")
+    click.echo(f"Token Count: {result.token_count}")
+    click.echo(f"Base Cost: ${result.base_cost_usd:.6f}")
+    if result.l2_review_overhead_usd > 0:
+        click.echo(f"L2 Review Overhead: ${result.l2_review_overhead_usd:.6f}")
+    if result.l3_review_overhead_usd > 0:
+        click.echo(f"L3 Review Overhead: ${result.l3_review_overhead_usd:.6f}")
+    if result.review_checkpoint_overhead_usd > 0:
+        click.echo(f"Review Checkpoint Overhead: ${result.review_checkpoint_overhead_usd:.6f}")
+    click.echo(f"Total Cost: ${result.total_cost_usd:.6f}")
+    click.echo(f"Price: ${result.price_per_1k_tokens}/1K tokens (P50)")
+    if not result.gate_passed:
+        click.echo(f"Gate: BLOCKED — {result.gate_block_reason}")
+    if result.emergency_bypass_active:
+        click.echo("Emergency Bypass: ACTIVE")

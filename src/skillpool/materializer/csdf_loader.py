@@ -90,4 +90,24 @@ def _parse_directory_skill(
     frontmatter["type"] = "directory"
     frontmatter["_skill_dir"] = str(skill_dir)
 
+    # Store the markdown body (content after frontmatter) for directory-based skills
+    # This allows skill_definition() to return the full SKILL.md content
+    if text.startswith("---"):
+        end = text.find("---", 3)
+        if end > 0:
+            # Extract body after the closing ---
+            body = text[end + 3 :].lstrip("\n")
+            if body:
+                frontmatter["_markdown_body"] = body
+
+    # Merge manifest.yaml if present (contains synergies, dependencies, etc.)
+    manifest_path = skill_dir / "manifest.yaml"
+    if manifest_path.exists():
+        manifest_data = _parse_yaml(manifest_path)
+        if manifest_data and isinstance(manifest_data, dict):
+            # manifest fields override frontmatter defaults, but don't clobber id/type
+            for k, v in manifest_data.items():
+                if k not in ("id", "type"):
+                    frontmatter.setdefault(k, v)
+
     return frontmatter

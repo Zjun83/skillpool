@@ -89,3 +89,23 @@ class BudgetStatus(BaseModel):
     consumed_pct: float = 0.0
     projected_month_end_usd: float = 0.0
     per_agent_limits: list[AgentConfig] = Field(default_factory=list)
+
+
+class CostEstimate(BaseModel):
+    """Session cost estimation result.
+
+    V4.2: P50 conservative pricing model for cost estimation.
+    Combines skill execution cost + review overhead + checkpoint overhead.
+    """
+    skill_id: str
+    skill_length: int = Field(description="Character count of skill definition")
+    token_count: int = Field(description="Estimated token count")
+    base_cost_usd: float = Field(description="Skill execution cost (P50 pricing)")
+    l2_review_overhead_usd: float = Field(default=0.0, description="L2 checkpoint review overhead")
+    l3_review_overhead_usd: float = Field(default=0.0, description="L3+L2+ checkpoint review overhead")
+    review_checkpoint_overhead_usd: float = Field(default=0.0, description="Review checkpoint overhead")
+    total_cost_usd: float = Field(description="Total estimated cost")
+    price_per_1k_tokens: float = Field(default=0.003, description="P50 pricing: $0.003/1K tokens")
+    gate_passed: bool = Field(default=True, description="Gate validation result")
+    gate_block_reason: str | None = Field(default=None, description="Gate block reason if failed")
+    emergency_bypass_active: bool = Field(default=False, description="Emergency bypass status")

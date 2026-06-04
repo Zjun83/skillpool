@@ -8,8 +8,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Optional
+from pathlib import Path
+from typing import Any, Optional
 
+from skillpool.gate_policy.parser import GatePolicyConfig, GatePolicyError, load_gate_policy
+from skillpool.gate_policy.state_machine import GateStateMachine
 from skillpool.profile import AgentCapabilityProfile
 from skillpool.telemetry import TelemetryBridge
 
@@ -96,6 +99,14 @@ class GateResult:
     conditions: list[str] = field(default_factory=list)
 
 
+@dataclass
+class GatePolicyResult(GateResult):
+    """Gate result with policy-based phase information."""
+    policy_level: Optional[str] = None
+    skip_phases: list[str] = field(default_factory=list)
+    state: Optional[Any] = None
+
+
 class GateManager:
     """Skill 执行门禁管理器。
 
@@ -174,6 +185,80 @@ class GateManager:
 
         self._emit_gate_event(csdf, result)
         return result
+
+    def check_with_policy(
+        self,
+        csdf: dict,
+        policy_path: Path | None = None,
+        changed_files: list[str] | None = None,
+    ) -> GatePolicyResult:
+        """Gate check with policy-based phase enforcement.
+
+        Args:
+            csdf: CSDF skill definition dict.
+            policy_path: Path to gate.policy file.
+            changed_files: Optional list of changed files for incremental mode.
+
+        Returns:
+            GatePolicyResult with policy_level, skip_phases, and state.
+        """
+        # Run standard gate check first
+        base = self.check(csdf)
+
+        policy_level: str | None = None
+        skip_phases: list[str] = []
+        state = None
+
+        if policy_path:
+            try:
+                policy = load_gate_policy(policy_path)
+            except GatePolicyError:
+                return GatePolicyResult(
+                    decision=base.decision,
+                    reason=base.reason,
+                    complexity=base.complexity,
+                    conditions=base.conditions,
+                    policy_level=None,
+                    skip_phases=[],
+                    state=None,
+                )
+
+            # Create state machine and assess
+            state_path = policy_path.parent / "gate.json"
+            sm = GateStateMachine(state_path)
+            sm.set_policy(policy)
+
+            task_desc = csdf.get("description", csdf.get("id", "unknown"))
+            if changed_files is None:
+                changed_files = []
+
+            try:
+                assessed = sm.assess(task_desc, changed_files, policy)
+            except GatePolicyError:
+                assessed = None
+
+            if assessed:
+                policy_level = assessed
+                # Resolve skip_phases from policy for changed files
+                if changed_files:
+                    all_skip: set[str] = set()
+                    for f in changed_files:
+                        from skillpool.gate_policy.parser import resolve_level_for_path
+                        resolution = resolve_level_for_path(f, policy)
+                        all_skip.update(resolution.skip_phases)
+                    skip_phases = sorted(all_skip)
+
+            state = sm.state
+
+        return GatePolicyResult(
+            decision=base.decision,
+            reason=base.reason,
+            complexity=base.complexity,
+            conditions=base.conditions,
+            policy_level=policy_level,
+            skip_phases=skip_phases,
+            state=state,
+        )
 
     def _emit_gate_event(self, csdf: dict, result: GateResult) -> None:
         """发射门禁遥测事件。"""

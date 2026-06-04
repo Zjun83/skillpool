@@ -266,10 +266,12 @@ def skill_definition(skill_id: str) -> str:
     # Part of SkillPool — independent infrastructure, shared by all agents
     try:
         data = _lazy_loader.load(skill_id, tier="L2")
-        if "markdown" in data and data["markdown"]:
-            return data["markdown"]
+        # For directory-based skills, prefer the raw SKILL.md body over
+        # the Materializer-generated summary (which only uses frontmatter fields)
         if "_markdown_body" in data and data["_markdown_body"]:
             return data["_markdown_body"]
+        if "markdown" in data and data["markdown"]:
+            return data["markdown"]
         # Materialization failed — return partial info
         name = data.get("name", skill_id)
         return f"# {name}\n\nContent unavailable (materialization errors: {data.get('_materialization_errors', [])})"
@@ -305,12 +307,16 @@ def skill_manifest(skill_id: str) -> dict:
 
     return {
         "id": csdf.get("id", skill_id),
+        "name": csdf.get("name", ""),
         "version": csdf.get("version", ""),
+        "description": csdf.get("description", ""),
+        "dimension": csdf.get("dimension", ""),
         "dependencies": csdf.get("dependencies", []),
         "conflicts": csdf.get("conflicts", []),
         "requires": csdf.get("requires", []),
+        "synergies": csdf.get("synergies", []),
+        "values": csdf.get("values", []),
         "veto_rule": csdf.get("veto_rule", ""),
-        "dimension": csdf.get("dimension", ""),
         "weight": csdf.get("weight", 0),
     }
 
@@ -470,6 +476,70 @@ def gate_check(csdf: dict, profile_name: str) -> dict:
             "complexity_level": None,
             "complexity_total": None,
             "conditions": [],
+        }
+
+
+@mcp.tool()
+def gate_check_with_policy(
+    csdf: dict,
+    profile_name: str,
+    policy_path: str = "",
+    changed_files: Optional[list[str]] = None,
+) -> dict:
+    """Gate check with policy-based 4D phase enforcement.
+
+    Extends gate_check with gate.policy integration for:
+    - Path-based complexity level resolution
+    - Incremental mode (git diff changed files)
+    - Phase gate artifact validation
+    - Emergency bypass awareness
+
+    On timeout or error, returns DENY (safe-deny default).
+
+    Args:
+        csdf: CSDF skill definition dict
+        profile_name: Agent profile name — MUST be one of: claude-code, codex, hermes, openclaw
+        policy_path: Path to gate.policy YAML file
+        changed_files: Optional list of changed files for incremental mode
+    """
+    # Part of SkillPool — independent infrastructure, shared by all agents
+    try:
+        profile = _get_profile(profile_name)
+        gate = GateManager(profile=profile)
+
+        from pathlib import Path as _Path
+        pp = _Path(policy_path) if policy_path else None
+
+        result = gate.check_with_policy(
+            csdf,
+            policy_path=pp,
+            changed_files=changed_files,
+        )
+
+        state_dict = None
+        if result.state:
+            state_dict = result.state.model_dump(mode="json")
+
+        return {
+            "decision": str(result.decision),
+            "reason": result.reason,
+            "complexity_level": result.complexity.level if result.complexity else None,
+            "complexity_total": result.complexity.total if result.complexity else None,
+            "conditions": result.conditions,
+            "policy_level": result.policy_level,
+            "skip_phases": result.skip_phases,
+            "state": state_dict,
+        }
+    except Exception as e:
+        return {
+            "decision": "DENY",
+            "reason": f"gate_check_with_policy error (safe-deny): {type(e).__name__}: {e}",
+            "complexity_level": None,
+            "complexity_total": None,
+            "conditions": [],
+            "policy_level": None,
+            "skip_phases": [],
+            "state": None,
         }
 
 
@@ -1765,6 +1835,48 @@ def get_emergency_overrides(skill_id: str = "") -> dict:
     return {"overrides": {}, "count": 0}
 
 
+@mcp.tool()
+def cost_estimate(
+    skill_id: str,
+    skill_length: int = 0,
+    review_level: str = "L1",
+    include_review_checkpoint: bool = False,
+    emergency_bypass_path: str = "",
+) -> dict:
+    """Estimate session cost for a skill execution using P50 conservative pricing.
+
+    Uses $0.003/1K tokens pricing model. Combines skill execution cost
+    + L2/L3 review overhead + review checkpoint overhead.
+
+    Args:
+        skill_id: Skill identifier (e.g. "dev-4d-sdd").
+        skill_length: Character count of skill definition (fallback if skill_get unavailable).
+        review_level: Complexity level (L0/L1/L2/L3+L2+).
+        include_review_checkpoint: Whether to include review checkpoint overhead.
+        emergency_bypass_path: Path to emergency_overrides.json file.
+    """
+    # Part of SkillPool — independent infrastructure, shared by all agents
+    try:
+        from skillpool.cost.token_governor import TokenGovernor, PRESET_AGENT_CONFIGS
+        from skillpool.cost.models import CostEstimate
+
+        governor = TokenGovernor(PRESET_AGENT_CONFIGS)
+        result = governor.estimate_session_cost(
+            skill_id=skill_id,
+            skill_length=skill_length,
+            review_level=review_level,
+            include_review_checkpoint=include_review_checkpoint,
+            emergency_bypass_path=emergency_bypass_path or None,
+        )
+        return result.model_dump()
+    except Exception as e:
+        return {
+            "error": f"cost_estimate error: {type(e).__name__}: {e}",
+            "skill_id": skill_id,
+            "total_cost_usd": 0.0,
+        }
+
+
 # ═══════════════════════════════════════════════════════════════════
 # Entry point
 # ═══════════════════════════════════════════════════════════════════
@@ -1772,14 +1884,24 @@ def get_emergency_overrides(skill_id: str = "") -> dict:
 
 def main():
     """Entry point for skillpool-mcp CLI command."""
-    import sys
-    # Parse --agent-type if provided (for logging/metadata; tools receive agent_type per-call)
-    for arg in sys.argv[1:]:
-        if arg == "--help":
-            print("Usage: skillpool-mcp [--agent-type TYPE]")
-            print("  Tools receive agent_type per-call; no global default.")
-            sys.exit(0)
-    mcp.run(transport="stdio")
+    import argparse
+    parser = argparse.ArgumentParser(description="SkillPool MCP Server")
+    parser.add_argument("--agent-type", help="Agent type for logging/metadata (tools receive agent_type per-call)")
+    parser.add_argument("--transport", choices=["stdio", "sse", "streamable-http"], default="stdio",
+                        help="MCP transport protocol (default: stdio)")
+    parser.add_argument("--port", type=int, default=8101,
+                        help="HTTP port for streamable-http transport (default: 8101)")
+    parser.add_argument("--host", default="127.0.0.1",
+                        help="HTTP host for streamable-http transport (default: 127.0.0.1)")
+    args = parser.parse_args()
+
+    if args.transport in ("streamable-http", "sse"):
+        import uvicorn
+        logger.info("Starting SkillPool MCP on %s:%d (%s)", args.host, args.port, args.transport)
+        app = mcp.http_app()
+        uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+    else:
+        mcp.run(transport=args.transport)
 
 
 if __name__ == "__main__":
