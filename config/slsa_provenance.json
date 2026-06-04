@@ -1,0 +1,26 @@
+{
+  "_type": "https://in-toto.io/Statement/v0.1",
+  "predicateType": "https://slsa.dev/provenance/v1.0",
+  "subject": [],
+  "predicate": {
+    "buildDefinition": {
+      "buildType": "https://github.com/actions/workflow",
+      "externalParameters": {
+        "workflow": "ci.yml",
+        "ref": "refs/heads/main"
+      },
+      "internalParameters": {},
+      "resolvedDependencies": []
+    },
+    "runDetails": {
+      "builder": {
+        "id": "https://github.com/sigstore/cosign"
+      },
+      "metadata": {
+        "invocationId": "",
+        "startedOn": "",
+        "finishedOn": ""
+      }
+    }
+  }
+}

@@ -7,7 +7,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [4.3.0] - 2026-05-31
+## [Unreleased] — 2026-06-03
+
+### Changed — 架构级：MCP 传输从 stdio 切换到 Streamable HTTP
+
+- **SkillPool MCP 传输协议变更**: stdio → Streamable HTTP `:8101`。根因：stdio 模式下每个 Agent spawn 独立进程，进程间状态隔离违背"Pool"设计初衷（独立系统基础设施需全局共享状态）；WSL2 环境下多 Agent 同时 spawn 导致内存累积触发 OOM。HTTP 模式单进程共享，配合 systemd cgroup 限制（MemoryHigh=256M/MemoryMax=512M/MemorySwapMax=0），内存稳定 ~180MB
+- **mcp_server.py main() 重构**: 从硬编码 `sys.argv` 解析改为 `argparse`，支持 `--transport {stdio|sse|streamable-http}`、`--port`、`--host` CLI 参数。HTTP 模式使用 `mcp.http_app()` + `uvicorn.run()` 直接启动 ASGI 服务
+- **所有 Agent MCP 配置同步**: Claude Code (.mcp.json)、Codex (config.toml)、Hermes (config.yaml)、SkillPool repo (.mcp.json) 四处配置均从 `command: skillpool-mcp` (stdio) 切换到 `url: http://127.0.0.1:8101/mcp` (streamable-http)
+
+### Added — 部署运维
+
+- **skillpool-mcp-http systemd user service**: `~/.config/systemd/user/skillpool-mcp-http.service`，托管 HTTP 模式 MCP Server。Restart=on-failure + 5s cooldown + 300s burst limit。日志输出到 journal（避免 MCP 协议污染 stdout）
+- **Ollama embedding 本地化**: Zhipu Embedding API → BGE-M3 本地模型 (Ollama)，消除外部 API 依赖和延迟
+- **mcp-exec HTTP transport 支持**: 支持 socket/http/stdio 三种传输模式
+
+### Deprecated
+
+- **系统级 skillpool-mcp.service** (`/etc/systemd/system/skillpool-mcp.service`): disabled。该 service 使用 stdio 模式，systemd 无法提供 stdin 输入导致进程启动后立即退出。由 user 级 skillpool-mcp-http.service (HTTP 模式) 替代
+- **vMCP Gateway skillpool 路由**: mcp-gateway-skillpool.service 已 disabled（2026-06-01）。SkillPool MCP Server 直接在 :8101 提供服务，不再需要 gateway 代理
+- **12-dim-review 命名**: 正式更名为 multi-dim-review（2026-05-30），盲点文件名 12dim → multidim
+
+### Fixed
+
+- **skill_list 只遍历 skills/ 子目录**: 排除系统管理目录（如 backups/、archive/），避免列出非技能内容
+- **FastMCP streamable_http_app() 不存在**: `fastmcp` 包的 `FastMCP` 没有 `streamable_http_app()` 方法（该方法存在于 `mcp.server.fastmcp.FastMCP`），改用 `mcp.http_app()` + `uvicorn.run()` 直接启动
+- **FastMCL Settings 不可变**: Pydantic v2 frozen model 不允许修改 port/host 属性，改用 argparse 参数 + uvicorn 直接传入 host/port
+
+### 运行问题记录
+
+#### 2026-06-02: SkillPool HTTP 模式 WSL2 OOM 事件
+- **现象**: skillpool-mcp HTTP 模式启动后 ~12s 被 WSL2 OOM Killer SIGKILL
+- **根因**: WSL2 动态内存分配不主动释放；Claude Code CLI 占用 18.7GB/21GB 总内存；HTTP MCP Server 作为后台进程在内存压力下被优先杀死
+- **解决**: 创建 systemd user service + cgroup 限制（MemoryHigh=256M/MemoryMax=512M/MemorySwapMax=0/OOMScoreAdjust=-500）；.wslconfig 启用 `autoMemoryReclaim=gradual` + `swap=0`
+- **教训**: WSL2 OOM 不是 MCP 协议缺陷，是环境适配问题；stdio 多进程累积比 HTTP 单进程更危险
+
+#### 2026-06-03: stdio MCP Server systemd 托管失败
+- **现象**: systemd 启动 skillpool-mcp (stdio) 后进程立即退出（exit code 0）
+- **根因**: stdio MCP Server 读取 stdin，systemd 不提供 stdin 输入 → 进程读到 EOF 后正常退出。这是 stdio 传输的预期行为，不是 bug
+- **解决**: 改用 HTTP 模式 systemd user service，HTTP 传输不依赖 stdin
+- **教训**: stdio 传输不适合 systemd 常驻服务托管；HTTP/SSE 传输才是生产部署的正确选择
+
+---
+
+## [4.3.1] - 2026-06-01
+
+### Added — Phase 9: MCP 动态强制 + 两层治理 + OOM 稳定性 + 技能飞轮
+
+- **MCP 动态强制**: 请求级技能权限校验，Agent 调用 tool 时自动检查技能授权
+- **Combination 生命周期**: 组合技能注册/查询/解散完整生命周期管理
+- **语义路由**: 基于 PPR 的技能推荐，3 层 fallback（Python push / CSR / sknetwork）
+- **OOM 稳定性**: 进程级 `resource.setrlimit` + asyncio Semaphore 并发限制
+- **技能飞轮**: BugCollector → SelfHealingLoop → Evolver 闭环自动进化
+- **CycloneDX 1.5 SBOM 生成**: `scripts/gen_sbom.py`
+- **集中配置模块**: `src/skillpool/config.py` 统一管理环境变量（`SKILLPOOL_EVIDENCE_TIER` 等）
+- **Audit JSONL 持久化**: 审计记录 JSONL 文件持久化 + trace_id 溯源链
+- **SkillPoolLogger 工厂**: `get_skillpool_logger()` 统一日志入口
+- **并发安全**: 关键模块 threading.Lock + 原子操作保护
+- **Hermes 适配器**: frontmatter 解析 + 技能目录结构
+- **Codex 启动 Hook**: 自动注册技能到 Registry
+
+### Fixed
+
+- **Evolver 回滚缺陷**: 回滚时未恢复 YAML 文件，现已调用 `Evolver.verify_evolution()` 触发真实回滚
+- **静默异常吞噬**: 替换 bare `except: pass` 为 proper logging
+- **SecurityScanner 签名强制**: 环境感知（dev 跳过签名，prod 强制）
+- **Coverage 配置**: 添加 `.coveragerc` 排除测试/辅助文件
+- **httpx 依赖声明**: pyproject.toml 添加缺失的 httpx 依赖
+- **_extract_code_blocks 多块提取**: 修复正则绕过（未闭合围栏、嵌套、CRLF），行切片 -1 bug
+- **skill_match 测试导入**: 修复测试文件 import 路径
+
+### Changed
+
+- **测试基线**: 1144 tests passing (V4.3.0: 998 → +146 Phase 9 tests)
+- **Dockerfile**: 更新到 V4.3.0 基础镜像
 
 ### Added — MCP Architecture Refactor
 
@@ -190,6 +262,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Rewritten from scratch with modern Python patterns
 
+[Unreleased]: https://github.com/user/skillpool/compare/v4.3.1...HEAD
+[4.3.1]: https://github.com/user/skillpool/compare/v4.3.0...v4.3.1
 [4.3.0]: https://github.com/your-org/skillpool/compare/v4.2.0...v4.3.0
 [4.2.0]: https://github.com/your-org/skillpool/compare/v4.1.0...v4.2.0
 [4.1.0]: https://github.com/your-org/skillpool/compare/v4.0.0...v4.1.0

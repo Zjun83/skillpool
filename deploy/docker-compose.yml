@@ -11,16 +11,16 @@ services:
     container_name: skillpool
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8101:8101"
     environment:
       SKILLPOOL_HOST: "0.0.0.0"
-      SKILLPOOL_PORT: "8000"
+      SKILLPOOL_PORT: "8101"
       SKILLPOOL_DATA_DIR: "/data"
       SKILLPOOL_LOG_LEVEL: "INFO"
     volumes:
       - skillpool-data:/data
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8101/health')"]
       interval: 30s
       timeout: 5s
       retries: 3

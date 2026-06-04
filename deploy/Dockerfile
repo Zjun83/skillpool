@@ -12,7 +12,7 @@ WORKDIR /build
 COPY pyproject.toml ./
 COPY src/ src/
 
-RUN pip install --no-cache-dir --upgrade pip build && \
+RUN pip install --no-cache-dir --upgrade pip build setuptools wheel && \
     python -m build --wheel --no-isolation
 
 # ── Stage 2: Runtime ──
@@ -32,18 +32,18 @@ RUN mkdir -p /data && chown skillpool:skillpool /data
 
 # Environment defaults
 ENV SKILLPOOL_HOST=0.0.0.0 \
-    SKILLPOOL_PORT=8000 \
+    SKILLPOOL_PORT=8101 \
     SKILLPOOL_DATA_DIR=/data \
     SKILLPOOL_LOG_LEVEL=INFO
 
 # Health check endpoint
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8101/health')" || exit 1
 
 USER skillpool
 
-EXPOSE 8000
+EXPOSE 8101
 
 VOLUME ["/data"]
 
-ENTRYPOINT ["skillpool-mcp"]
+ENTRYPOINT ["skillpool-mcp", "--transport", "streamable-http", "--host", "0.0.0.0", "--port", "8101"]

@@ -1,18 +1,17 @@
 {
   "mcpServers": {
     "clawmem": {
-      "url": "http://127.0.0.1:9000/mcp/clawmem"
+      "url": "http://127.0.0.1:7439/mcp"
     },
     "agent-search": {
-      "url": "http://127.0.0.1:9000/mcp/agent-search"
+      "url": "http://127.0.0.1:8102/mcp"
     },
     "skillpool": {
-      "command": "skillpool-mcp",
-      "args": [],
+      "url": "http://127.0.0.1:8101/mcp",
       "env": {}
     },
     "codex-guard": {
-      "url": "http://127.0.0.1:9000/mcp/codex-guard"
+      "url": "http://127.0.0.1:8103/mcp"
     },
     "amp": {
       "command": "/root/hermes-agent/.venv/bin/python3",

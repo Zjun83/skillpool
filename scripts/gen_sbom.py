@@ -1,87 +1,74 @@
-"""Generate CycloneDX 1.5 JSON SBOM from pip environment.
-
-Usage: python scripts/gen_sbom.py [--output sbom.json]
-"""
+#!/usr/bin/env python3
+"""Generate CycloneDX 1.5 JSON SBOM for SkillPool."""
 from __future__ import annotations
 
 import json
 import subprocess
 import sys
-from datetime import datetime, timezone
+import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 
 
-def generate_sbom(output_path: str = "sbom.json") -> str:
-    """Generate CycloneDX 1.5 JSON SBOM."""
-    # Get installed packages
+def get_dependencies() -> list[dict]:
+    """Extract dependencies from pip list."""
     result = subprocess.run(
         [sys.executable, "-m", "pip", "list", "--format=json"],
         capture_output=True, text=True,
     )
     packages = json.loads(result.stdout)
-
-    # Get project metadata
-    import importlib.metadata
-    try:
-        meta = importlib.metadata.metadata("skillpool")
-        pkg_version = meta.get("Version", "4.3.0")
-        pkg_name = meta.get("Name", "skillpool")
-    except importlib.metadata.PackageNotFoundError:
-        pkg_version = "4.3.0"
-        pkg_name = "skillpool"
-
-    components = []
+    deps = []
     for pkg in packages:
-        name = pkg["name"]
-        version = pkg["version"]
-        if name.lower() == "skillpool":
-            continue  # Root component, not a dependency
-        purl = f"pkg:pypi/{name}@{version}"
-        components.append({
+        if pkg["name"].lower().startswith("skillpool"):
+            continue
+        deps.append({
+            "bom-ref": f"pkg:pypi/{pkg['name'].lower()}@{pkg['version']}",
             "type": "library",
-            "name": name,
-            "version": version,
-            "purl": purl,
-            "bom-ref": purl,
+            "name": pkg["name"],
+            "version": pkg["version"],
+            "purl": f"pkg:pypi/{pkg['name'].lower()}@{pkg['version']}",
         })
+    return deps
+
+
+def generate_sbom(output_path: str | None = None) -> dict:
+    """Generate CycloneDX 1.5 JSON SBOM."""
+    try:
+        import importlib.metadata
+        version = importlib.metadata.version("skillpool")
+    except Exception:
+        version = "0.0.0"
+
+    components = get_dependencies()
 
     sbom = {
         "$schema": "https://cyclonedx.org/schema/bom-1.5.schema.json",
         "bomFormat": "CycloneDX",
         "specVersion": "1.5",
-        "serialNumber": f"urn:uuid:{_uuid()}",
+        "serialNumber": f"urn:uuid:{uuid.uuid4()}",
         "version": 1,
         "metadata": {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "component": {
+                "bom-ref": "pkg:pypi/skillpool",
                 "type": "application",
-                "name": pkg_name,
-                "version": pkg_version,
-                "bom-ref": f"pkg:pypi/{pkg_name}@{pkg_version}",
+                "name": "skillpool",
+                "version": version,
             },
-            "tools": [
-                {
-                    "name": "skillpool-gen-sbom",
-                    "version": "1.0.0",
-                },
-            ],
+            "tools": [{"vendor": "SkillPool", "name": "gen_sbom", "version": "1.0.0"}],
         },
         "components": components,
     }
 
-    output = Path(output_path)
-    output.write_text(json.dumps(sbom, indent=2, ensure_ascii=False), encoding="utf-8")
-    return str(output)
+    if output_path:
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w") as f:
+            json.dump(sbom, f, indent=2)
+        print(f"SBOM written to {output_path} ({len(components)} components)")
 
-
-def _uuid() -> str:
-    import uuid
-    return str(uuid.uuid4())
+    return sbom
 
 
 if __name__ == "__main__":
-    out = "sbom.json"
-    if len(sys.argv) > 2 and sys.argv[1] == "--output":
-        out = sys.argv[2]
-    path = generate_sbom(out)
-    print(f"SBOM written to {path}")
+    output = sys.argv[1] if len(sys.argv) > 1 else "sbom.json"
+    generate_sbom(output)
