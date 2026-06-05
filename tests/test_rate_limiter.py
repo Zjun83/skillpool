@@ -1,5 +1,4 @@
 """Tests for RateLimiter — sliding window rate limiter."""
-import pytest
 
 from skillpool.resolver.rate_limiter import RateLimiter
 

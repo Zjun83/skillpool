@@ -19,17 +19,15 @@ import os
 # Ensure dev evidence tier BEFORE importing mcp_server
 os.environ.setdefault("SKILLPOOL_EVIDENCE_TIER", "dev")
 
-import pytest
 import pytest_asyncio
 
+from fastmcp.client import Client
 from skillpool.mcp_server import mcp
 
 
 @pytest_asyncio.fixture
 async def client():
     """Create an in-memory MCP client connected to the SkillPool server."""
-    from fastmcp.client import Client
-
     async with Client(mcp) as c:
         yield c
 
@@ -66,10 +64,9 @@ class TestSkillSummaryResource:
 
     async def test_summary_has_more_fields_than_l0(self, client: Client) -> None:
         """L1 summary should have more fields than L0 metadata."""
-        import json
         # L0 via skill://list
         list_result = await client.read_resource("skill://list")
-        list_text = getattr(list_result[0], "text", str(list_result[0]))
+        _list_text = getattr(list_result[0], "text", str(list_result[0]))
         # L1 via skill://S09/summary
         summ_result = await client.read_resource("skill://S09/summary")
         summ_text = getattr(summ_result[0], "text", str(summ_result[0]))
@@ -182,7 +179,6 @@ class TestSkillManifestResource:
             assert "dependencies" in data
 
     async def test_manifest_unknown_skill(self, client: Client) -> None:
-        import json
         result = await client.read_resource("skill://NONEXISTENT_MAN/manifest.yaml")
         text = getattr(result[0], "text", str(result[0]))
         assert "not found" in text.lower() or "error" in text.lower()
@@ -201,7 +197,6 @@ class TestSkillExecutionResource:
             assert data["execution_type"] == "prompt"
 
     async def test_execution_unknown_skill(self, client: Client) -> None:
-        import json
         result = await client.read_resource("skill://NONEXISTENT_EXEC/x-execution")
         text = getattr(result[0], "text", str(result[0]))
         assert "not found" in text.lower() or "error" in text.lower()
@@ -415,7 +410,7 @@ class TestLazyLoaderTiers:
         # L0 via skill://list
         l0_result = await client.read_resource("skill://list")
         l0_text = getattr(l0_result[0], "text", str(l0_result[0]))
-        l0_data = json.loads(l0_text) if l0_text.startswith("[") else []
+        _l0_data = json.loads(l0_text) if l0_text.startswith("[") else []
         l0_size = len(l0_text)
 
         # L1 via skill://S09/summary
@@ -589,7 +584,6 @@ class TestCrossEndpointIntegration:
 
     async def test_full_skill_lifecycle_via_mcp(self, client: Client) -> None:
         """Exercise a complete skill interaction path: list → summary → definition → gate → scan."""
-        import json
         # 1. List skills
         list_result = await client.read_resource("skill://list")
         assert len(list_result) > 0

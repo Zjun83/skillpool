@@ -20,8 +20,6 @@ Targeted gaps:
 from __future__ import annotations
 
 import json
-import os
-import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -135,7 +133,7 @@ class TestSkillStatusException:
 class TestHealthCheckGatewayError:
     def test_gateway_unreachable_exception(self):
         """Lines 822-823: httpx connection failure."""
-        with patch("skillpool.mcp_server.health_check") as mock_hc:
+        with patch("skillpool.mcp_server.health_check") as _mock_hc:
             # Simulate the health_check behavior when gateway is unreachable
             # by directly testing the exception path
             pass
@@ -309,7 +307,7 @@ class TestReportUsageGaps:
                 discovered_combo.state = CombinationLifecycleState.DISCOVERED
                 mgr.record_execution.return_value = discovered_combo
                 mgr.transition.return_value = MagicMock(success=True)
-                result = report_usage(
+                _result = report_usage(
                     skill_name="S09",
                     session_id="sess-disc",
                     agent_type="claude-code",

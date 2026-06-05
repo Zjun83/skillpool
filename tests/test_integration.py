@@ -3,12 +3,11 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
 
 from skillpool.audit import AuditLayer
 from skillpool.cost import CostManager
 from skillpool.cost.models import CostRecord
-from skillpool.evolver import EvolverLayer, DefectSeverity
+from skillpool.evolver import EvolverLayer
 from skillpool.health import HealthManager
 from skillpool.monitor import MonitorLayer
 from skillpool.registry import Registry
@@ -106,7 +105,7 @@ class TestMonitorHealthIntegration:
         hm.register_component("resolver", check_fn=lambda: True, critical=True)
         hm.register_component("vpls", check_fn=lambda: False, critical=True)
 
-        response = hm.check_health()
+        _response = hm.check_health()
 
         # Monitor should have recorded health metrics
         metrics = monitor.get_metrics()

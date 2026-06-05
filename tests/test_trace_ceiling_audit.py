@@ -1,5 +1,4 @@
 """Tests for TraceCeiling and AuditHashChain."""
-import pytest
 
 from skillpool.cost.trace_ceiling import TraceCeiling
 from skillpool.cost.audit_hash import AuditHashChain

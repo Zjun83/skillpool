@@ -1,5 +1,4 @@
 """Tests for Health Check + Degradation Manager (4-level schema-aligned)."""
-import pytest
 
 from skillpool.health import HealthManager
 from skillpool.health.check import HealthChecker

@@ -1,7 +1,6 @@
 """Tests for ParadigmRegistry — 4D 范式 Skill 注册 + 查询。"""
 from __future__ import annotations
 
-from pathlib import Path
 
 import pytest
 
@@ -253,5 +252,4 @@ class TestEmergencyOverride:
         assert level == OverrideLevel.KILL
 
     def test_get_override_level_none(self, registry: ParadigmRegistry) -> None:
-        from skillpool.paradigm import OverrideLevel
         assert registry.get_override_level("nonexistent") is None

@@ -199,7 +199,6 @@ class TestReviewTraceIdPropagation:
 
     def test_review_response_schema_fields(self):
         """Scenario: ReviewTriggerResponse includes schema-aligned fields."""
-        from skillpool.review.veto_evaluator import VetoEvaluator
         manager = ReviewManager()
         request = ReviewTriggerRequest(
             trigger=ReviewTrigger.MANUAL,

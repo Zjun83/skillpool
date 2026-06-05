@@ -85,5 +85,5 @@ class VetoEvaluator:
         if rule == VetoRule.V4:
             return f"Improve engineering feasibility (D11) by {gap:.1f} points"
         if rule == VetoRule.V5:
-            return f"Review protocol timeliness (D10) — risk notice, not blocking"
+            return "Review protocol timeliness (D10) — risk notice, not blocking"
         return "Address identified dimension gap"

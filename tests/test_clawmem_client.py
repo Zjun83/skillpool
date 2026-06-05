@@ -1,7 +1,6 @@
 """Tests for ClawMemClient — ClawMem integration for dual-write."""
 from __future__ import annotations
 
-import pytest
 
 from skillpool.clawmem_client import ClawMemClient, ClawMemStatus, ClawMemWriteResult
 

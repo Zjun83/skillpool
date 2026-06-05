@@ -5,23 +5,20 @@ This is more thorough than direct function calls because it exercises the MCP se
 """
 from __future__ import annotations
 
-import asyncio
 import os
 
 # Ensure dev evidence tier BEFORE importing mcp_server (Registry reads env at import time)
 os.environ.setdefault("SKILLPOOL_EVIDENCE_TIER", "dev")
 
-import pytest
 import pytest_asyncio
 
+from fastmcp.client import Client
 from skillpool.mcp_server import mcp
 
 
 @pytest_asyncio.fixture
 async def client():
     """Create an in-memory MCP client connected to the SkillPool server."""
-    from fastmcp.client import Client
-
     async with Client(mcp) as c:
         yield c
 

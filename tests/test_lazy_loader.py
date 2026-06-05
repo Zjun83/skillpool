@@ -98,7 +98,7 @@ class TestUpgrade:
     def test_upgrade_l0_to_l1(self, loader):
         if not (_SKILLS_DIR / "S09-resilience-degradation.yaml").exists():
             pytest.skip("S09 YAML not available")
-        l0 = loader.load("S09", tier="L0")
+        _l0 = loader.load("S09", tier="L0")
         l1 = loader.upgrade("S09", "L0", "L1")
         assert l1["_tier"] == "L1"
 

@@ -16,8 +16,7 @@ import sys
 import time
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, field
-from statistics import mean, quantiles
+from dataclasses import dataclass
 
 # ── Agent profiles ─────────────────────────────────────────
 
@@ -141,7 +140,7 @@ def send_mcp_requests(profile: AgentProfile, round_id: int) -> list[dict]:
 
 def main():
     total_requests = TOTAL_ROUNDS * 3 * 1  # Each agent makes 1 request per round (rotating)
-    print(f"E2E Multi-Agent Integration Test")
+    print("E2E Multi-Agent Integration Test")
     print(f"  Agents: {[p.name for p in PROFILES]}")
     print(f"  Rounds per agent: {TOTAL_ROUNDS}")
     print(f"  Concurrency: {CONCURRENCY}")
@@ -242,7 +241,7 @@ def main():
         # Show failure details
         failures = [r for r in all_results if not r["success"]]
         if failures:
-            print(f"\nFailure details (first 5):")
+            print("\nFailure details (first 5):")
             for f in failures[:5]:
                 print(f"  {f['id']}: {f.get('error', f.get('response', {}).get('error', 'unknown'))}")
         sys.exit(1)

@@ -1,8 +1,6 @@
 """Tests for skillpool.telemetry — TelemetryChannel, TelemetryEvent, TelemetryBridge."""
 
 import json
-import time
-from pathlib import Path
 
 import pytest
 
@@ -98,7 +96,7 @@ class TestTelemetryBridge:
 
     def test_init_creates_log_dir(self, tmp_path):
         log_dir = tmp_path / "telem"
-        bridge = TelemetryBridge(log_dir=log_dir)
+        _bridge = TelemetryBridge(log_dir=log_dir)
         assert log_dir.is_dir()
 
     def test_emit_returns_event(self, tmp_path):

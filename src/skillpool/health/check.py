@@ -7,7 +7,6 @@ from typing import Optional
 
 from skillpool.health.models import (
     ComponentHealth,
-    DegradationLevel,
     HealthCheckResponse,
     ServingStatus,
 )

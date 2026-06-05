@@ -7,13 +7,12 @@ Targeted gaps from:
 """
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
 from skillpool.monitor.telemetry_bridge import TelemetryBridge
-from skillpool.monitor.self_healing import SelfHealingLoop, HealingAction, HealingStatus
+from skillpool.monitor.self_healing import SelfHealingLoop, HealingAction
 from skillpool.monitor.bug_collector import BugCollector, BugSeverity, DefectType
 from skillpool.evolver import EvolverLayer
 

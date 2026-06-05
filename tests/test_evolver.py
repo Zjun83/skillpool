@@ -1,7 +1,6 @@
 """Tests for Evolver Layer — Evolution recommendations with defect accumulation."""
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -12,9 +11,7 @@ from skillpool.evolver import (
     DefectRecord,
     DefectSeverity,
     EvolutionAction,
-    EvolutionProposal,
     EvolverLayer,
-    VerificationReport,
     VerificationStatus,
 )
 
@@ -229,7 +226,7 @@ class TestEvolverLayer:
         from skillpool.audit import AuditLayer
         audit = AuditLayer()
         evolver = EvolverLayer(audit_layer=audit)
-        defect = evolver.record_defect(
+        _defect = evolver.record_defect(
             skill_id="s1", version="1.0",
             severity=DefectSeverity.MINOR, description="bug"
         )

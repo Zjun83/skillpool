@@ -16,27 +16,19 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 
 from skillpool.audit import AuditLayer
 from skillpool.registry import (
-    AuditUnavailableError,
-    IllegalStateTransitionError,
-    PolicyDeniedError,
     Registry,
-    SandboxRequiredError,
-    SkillNotFoundError,
     SkillRecord,
     SUPPLY_CHAIN_PROFILES,
-    SupplyChainEvidenceMissingError,
 )
 from skillpool.registry.models import (
     RegisterSkillRequest,
     SkillMetadata,
     SkillStatus,
-    StateTransitionRequest,
 )
 
 
@@ -464,7 +456,7 @@ class TestEvidenceAlternateFieldNames:
             security={"sbom_ref": "sbom", "provenance_ref": "p", "source_ref": "src", "signature_ref": "sig"},
         )
         req = RegisterSkillRequest(skill_metadata=meta)
-        resp = reg.register_candidate(req)
+        _resp = reg.register_candidate(req)
         record = reg.get_skill("s1")
         assert "source pin" in record.evidence
 
@@ -477,7 +469,7 @@ class TestEvidenceAlternateFieldNames:
             security={"sbom_ref": "sbom", "provenance_ref": "p", "source": "src", "signature_ref": "sig"},
         )
         req = RegisterSkillRequest(skill_metadata=meta)
-        resp = reg.register_candidate(req)
+        _resp = reg.register_candidate(req)
         record = reg.get_skill("s1")
         assert "source pin" in record.evidence
 
@@ -490,7 +482,7 @@ class TestEvidenceAlternateFieldNames:
             security={"sbom_ref": "sbom", "provenance_ref": "p", "source_pin": "s", "digest": "sha256:abc"},
         )
         req = RegisterSkillRequest(skill_metadata=meta)
-        resp = reg.register_candidate(req)
+        _resp = reg.register_candidate(req)
         record = reg.get_skill("s1")
         assert "signature" in record.evidence
 
@@ -503,6 +495,6 @@ class TestEvidenceAlternateFieldNames:
             security={"sbom_ref": "sbom", "provenance_ref": "p", "source_pin": "s", "signature": "sig-data"},
         )
         req = RegisterSkillRequest(skill_metadata=meta)
-        resp = reg.register_candidate(req)
+        _resp = reg.register_candidate(req)
         record = reg.get_skill("s1")
         assert "signature" in record.evidence

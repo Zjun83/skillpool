@@ -29,7 +29,6 @@ import yaml
 
 from skillpool.config import get_data_dir
 from skillpool.evolver import (
-    DefectSeverity,
     EvolverLayer,
     EvolutionProposal,
     VerificationStatus,

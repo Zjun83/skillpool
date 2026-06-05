@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
 
 import pytest
 
@@ -565,7 +564,7 @@ class TestExcepthookIntegration:
         """KeyboardInterrupt should not be collected."""
         collector = BugCollector(log_dir=isolated_collector)
         collector.install_excepthook()
-        original_hook = collector._original_excepthook
+        _original_hook = collector._original_excepthook
         try:
             hook = sys.excepthook
             hook(KeyboardInterrupt, KeyboardInterrupt(), None)

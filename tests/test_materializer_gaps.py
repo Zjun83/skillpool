@@ -149,7 +149,7 @@ class TestLazySkillLoaderGaps:
         loader = LazySkillLoader(skills_dir=skills_dir)
         # Load the skill to populate cache
         try:
-            data = loader.load("test-skill", tier="L0")
+            _data = loader.load("test-skill", tier="L0")
         except ValueError:
             pytest.skip("Skill not loadable in test environment")
             return

@@ -37,6 +37,17 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
 
+from skillpool.monitor.telemetry_bridge import TelemetryBridge
+from skillpool.monitor.bug_collector import BugCollector as BugCollector
+from skillpool.monitor.bug_collector import BugRecord, BugSeverity, DefectType
+from skillpool.monitor.defect_classifier import DefectClassifier, DefectType as DefectTypeDetailed
+from skillpool.monitor.self_healing import (
+    HealingAction,
+    HealingProposal,
+    HealingStatus,
+    SelfHealingLoop,
+)
+
 
 class MetricType(StrEnum):
     """Metric types."""
@@ -524,15 +535,3 @@ class MonitorLayer:
             "total_requests": budget["total_requests"],
             "failed_requests": budget["failed_requests"],
         }
-
-
-from skillpool.monitor.telemetry_bridge import TelemetryBridge
-from skillpool.monitor.bug_collector import BugCollector as BugCollector
-from skillpool.monitor.bug_collector import BugRecord, BugSeverity, DefectType
-from skillpool.monitor.defect_classifier import DefectClassifier, DefectType as DefectTypeDetailed
-from skillpool.monitor.self_healing import (
-    HealingAction,
-    HealingProposal,
-    HealingStatus,
-    SelfHealingLoop,
-)

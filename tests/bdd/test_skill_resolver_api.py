@@ -1,9 +1,8 @@
 """BDD tests for Skill Resolver — mapping to skill-resolver-api.feature scenarios."""
-import pytest
 
 from skillpool.resolver import SkillResolver, register_skill, clear_registry
 from skillpool.resolver.models import SkillResolveRequest
-from skillpool.resolver.skill_graph import SkillGraph, CycleDetected
+from skillpool.resolver.skill_graph import SkillGraph
 from skillpool.resolver.circuit_breaker import CircuitBreaker, CircuitState
 from skillpool.resolver.rate_limiter import RateLimiter
 

@@ -14,9 +14,8 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import StrEnum
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 

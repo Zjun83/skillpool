@@ -324,14 +324,14 @@ def inspect(skill_id: str):
             click.echo(f"  Weight:  {csdf.get('weight', 0)}")
             click.echo(f"  Veto:    {csdf.get('veto_rule', 'none')}")
             if csdf.get("_is_directory_skill"):
-                click.echo(f"  Type:    directory")
+                click.echo("  Type:    directory")
                 click.echo(f"  Tags:    {', '.join(csdf.get('tags', []))}")
                 click.echo(f"  Category: {csdf.get('category', 'N/A')}")
             return
 
     if record is None:
         click.echo(f"Skill '{skill_id}' not found")
-        click.echo(f"  Hint: Check available skills with 'skillpool status'")
+        click.echo("  Hint: Check available skills with 'skillpool status'")
         return
 
     click.echo(f"Skill: {record.metadata.name}")
@@ -403,7 +403,7 @@ def evolve(skill_id: str, upgrade_type: str, updates: str | None):
         click.echo(f"  Proposal: {proposal.proposal_id}")
         click.echo(f"  YAML updated: {result['yaml_updated']}")
         if result.get("materialized"):
-            click.echo(f"  Re-materialized: yes")
+            click.echo("  Re-materialized: yes")
     else:
         click.echo(f"Evolution failed: {result.get('error', result['status'])}")
 
@@ -432,12 +432,12 @@ def heal(proposal_id: str):
         click.echo(f"Healing proposal '{proposal_id}' not found.")
         click.echo("Run a scan first to generate proposals.")
     elif result["status"] == "needs_human":
-        click.echo(f"MAJOR upgrade requires human approval.")
+        click.echo("MAJOR upgrade requires human approval.")
     elif result["status"] == "verified":
         click.echo(f"Healed: {result['proposal_id']}")
         click.echo(f"  BDD passed: {result['verification']['bdd_passed']}")
         if result['verification'].get('yaml_updated') or result['verification'].get('yaml_restored'):
-            click.echo(f"  YAML changes persisted: yes")
+            click.echo("  YAML changes persisted: yes")
     elif result["status"] == "rolled_back":
         click.echo(f"Healing rolled back: {result['proposal_id']}")
         click.echo(f"  Reason: {result['verification']['reason']}")

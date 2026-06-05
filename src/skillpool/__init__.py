@@ -21,7 +21,7 @@ from skillpool.telemetry import TelemetryBridge as CoreTelemetryBridge
 def __getattr__(name: str):
     """Lazy import for graph module (numpy/scipy are optional dependencies)."""
     if name in ("personalized_pagerank", "reverse_ppr"):
-        from skillpool.graph import personalized_pagerank, reverse_ppr
+        from skillpool.graph import personalized_pagerank, reverse_ppr  # noqa: F401
         return locals().get(name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 

@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -128,7 +127,7 @@ class SynergyDetector:
         This is the main entry point for cold-start synergy setup.
         """
         edges = self.load_expert_synergies()
-        dag_edges = self.to_dag_edges()
+        _dag_edges = self.to_dag_edges()
 
         return SynergyDetectionResult(
             edges_created=len(edges),
@@ -226,7 +225,7 @@ class SynergyDetector:
         try:
             from skillpool.registry import Registry
 
-            registry = Registry()
+            _registry = Registry()
             # Registry stores skills with metadata; check for synergy annotations
             # Currently, Registry doesn't store CSDF synergies directly,
             # so this returns None to trigger filesystem read.

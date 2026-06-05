@@ -555,7 +555,7 @@ class TestReviewManager:
 
     def test_recommendation_major_on_v1(self, tmp_path: Path):
         """V1 (security) veto should produce MAJOR recommendation."""
-        evaluator = VetoEvaluator()
+        _evaluator = VetoEvaluator()
         # We need a runner that produces D3 < 7.0 but others high
         runner = _SelectiveLowRunner(low_dimensions={"D3": 6.0})
         telemetry = TelemetryBridge(log_dir=tmp_path / "telem")

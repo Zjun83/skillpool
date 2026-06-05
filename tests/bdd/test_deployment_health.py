@@ -1,5 +1,4 @@
 """BDD tests for Deployment Health Checks — mapping to deployment-health-checks.feature scenarios."""
-import pytest
 
 from skillpool.health import HealthManager
 from skillpool.health.check import HealthChecker

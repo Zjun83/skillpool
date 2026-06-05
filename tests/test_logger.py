@@ -4,7 +4,6 @@ from __future__ import annotations
 import io
 import json
 
-import pytest
 
 from skillpool.utils.logger import (
     ConsoleRenderer,
@@ -145,7 +144,7 @@ class TestSkillPoolLogger:
         assert len(lines) == 4
 
     def test_bind_context(self):
-        stream = io.StringIO()
+        _stream = io.StringIO()
         logger = SkillPoolLogger(name="test", renderer=JSONRenderer())
         bound = logger.bind(skill_id="S09")
         assert bound._bound == {"skill_id": "S09"}

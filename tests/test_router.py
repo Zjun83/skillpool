@@ -1,8 +1,6 @@
 """Tests for IntentRouter — intent-to-skill routing with L1-L4 layers."""
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
 
 import pytest
 

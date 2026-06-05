@@ -1,7 +1,6 @@
 """Tests for Registry Layer — Skill metadata and lifecycle governance."""
 from __future__ import annotations
 
-import json
 import tempfile
 from pathlib import Path
 

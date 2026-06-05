@@ -20,7 +20,6 @@ import logging
 import os
 import tempfile
 from pathlib import Path
-from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -189,7 +188,7 @@ class GateStateMachine:
                 levels.add(resolution.level)
             # Pick highest
             level_order = {"L0": 0, "L1": 1, "L2": 2, "L3+L2+": 3}
-            assessed = max(levels, key=lambda l: level_order.get(l, 0))
+            assessed = max(levels, key=lambda lvl: level_order.get(lvl, 0))
         else:
             # Simple keyword-based assessment as fallback
             assessed = _keyword_assess(task_description)
@@ -346,7 +345,7 @@ class GateStateMachine:
             expires_at = data.get("expires_at")
             if not expires_at:
                 return False  # No expiry set → bypass active indefinitely
-            from datetime import datetime, timezone
+            from datetime import datetime
             expiry = datetime.fromisoformat(expires_at)
             now = utc_now()
             if now >= expiry:

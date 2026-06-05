@@ -5,14 +5,11 @@ import pytest
 
 from skillpool.resolver import SkillResolver, register_skill, clear_registry
 from skillpool.resolver.models import (
-    ConflictSeverity,
     ConflictType,
     DagEdgeType,
     Domain,
     ResolveStatus,
-    ResolveStrategy,
     SkillResolveRequest,
-    SkillResolveResponse,
 )
 from skillpool.resolver.skill_graph import SkillGraph, CycleDetected
 
@@ -444,20 +441,17 @@ class TestSkillGraphEdgeCases:
     """Edge cases for SkillGraph operations."""
 
     def test_empty_graph_topological_sort(self):
-        from skillpool.resolver.skill_graph import SkillGraph
         g = SkillGraph()
         order = g.topological_sort()
         assert order == []
 
     def test_single_node(self):
-        from skillpool.resolver.skill_graph import SkillGraph
         g = SkillGraph()
         g.add_node("S01")
         order = g.topological_sort()
         assert order == ["S01"]
 
     def test_cycle_detection(self):
-        from skillpool.resolver.skill_graph import SkillGraph, CycleDetected
         g = SkillGraph()
         g.add_edge("A", "B")
         g.add_edge("B", "A")
@@ -465,20 +459,17 @@ class TestSkillGraphEdgeCases:
             g.topological_sort()
 
     def test_has_cycle_method(self):
-        from skillpool.resolver.skill_graph import SkillGraph
         g = SkillGraph()
         g.add_edge("A", "B")
         g.add_edge("B", "A")
         assert g.has_cycle() is True
 
     def test_no_cycle(self):
-        from skillpool.resolver.skill_graph import SkillGraph
         g = SkillGraph()
         g.add_edge("A", "B")
         assert g.has_cycle() is False
 
     def test_subgraph(self):
-        from skillpool.resolver.skill_graph import SkillGraph
         g = SkillGraph()
         g.add_edge("A", "B", weight=0.8)
         g.add_edge("B", "C", weight=0.6)
@@ -489,21 +480,18 @@ class TestSkillGraphEdgeCases:
         assert edges[0] == ("A", "B", 0.8)
 
     def test_get_dependencies(self):
-        from skillpool.resolver.skill_graph import SkillGraph
         g = SkillGraph()
         g.add_edge("S01", "S05a", weight=0.8)
         deps = g.get_dependencies("S05a")
         assert "S01" in deps
 
     def test_get_dependents(self):
-        from skillpool.resolver.skill_graph import SkillGraph
         g = SkillGraph()
         g.add_edge("S01", "S05a", weight=0.8)
         deps = g.get_dependents("S01")
         assert "S05a" in deps
 
     def test_get_dependencies_no_deps(self):
-        from skillpool.resolver.skill_graph import SkillGraph
         g = SkillGraph()
         g.add_node("S01")
         deps = g.get_dependencies("S01")

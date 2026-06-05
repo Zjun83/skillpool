@@ -1,6 +1,4 @@
 """Sprint 5: Integration test — end-to-end workflow."""
-import pytest
-from pathlib import Path
 
 from skillpool.lifecycle import SkillLifecycleState, validate_transition
 from skillpool.profile import CLAUDE_CODE_PROFILE, CODEX_PROFILE, HERMES_PROFILE
@@ -8,8 +6,8 @@ from skillpool.materializer import Materializer
 from skillpool.materializer.mapper import CSDFMapper
 from skillpool.materializer.budget_cropper import BudgetCropper
 from skillpool.materializer.lifecycle_filter import LifecycleFilter
-from skillpool.telemetry import TelemetryBridge, TelemetryChannel, TelemetryEvent
-from skillpool.gate import GateManager, ComplexityAssessor, GateDecision
+from skillpool.telemetry import TelemetryBridge, TelemetryChannel
+from skillpool.gate import GateManager, GateDecision
 from skillpool.paradigm import ParadigmRegistry, Paradigm
 
 
@@ -49,7 +47,7 @@ def test_full_pipeline():
 
     mapped = mapper.map(csdf)
     filtered = lifecycle_filter.filter(mapped, csdf)
-    cropped = cropper.crop(filtered)
+    _cropped = cropper.crop(filtered)
 
     # 5. Log telemetry
     bridge = TelemetryBridge()

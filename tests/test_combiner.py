@@ -2,10 +2,7 @@
 from __future__ import annotations
 
 import json
-import tempfile
-from datetime import datetime, timedelta
-from pathlib import Path
-from unittest.mock import patch
+from datetime import timedelta
 
 import pytest
 
@@ -221,7 +218,7 @@ class TestCombinationLifecycleManager:
             manager.record_execution(combo1.combination_id, gain=1.5)
         manager.try_promote(combo1.combination_id)
 
-        combo2 = manager.create_combination("review", ["simplify"])
+        _combo2 = manager.create_combination("review", ["simplify"])
         # combo2 is still DISCOVERED
 
         promoted = manager.get_promoted_combinations("review")
@@ -229,8 +226,8 @@ class TestCombinationLifecycleManager:
         assert promoted[0].combination_id == combo1.combination_id
 
     def test_get_combinations_for_skill(self, manager):
-        combo1 = manager.create_combination("review", ["karpathy"])
-        combo2 = manager.create_combination("security", ["review"])
+        _combo1 = manager.create_combination("review", ["karpathy"])
+        _combo2 = manager.create_combination("security", ["review"])
 
         combos = manager.get_combinations_for_skill("review")
         assert len(combos) == 2
@@ -592,7 +589,7 @@ class TestCombinationLifecycleManagerExtended:
         )
         for i in range(6):
             manager.record_execution(combo.combination_id, gain=-0.5)
-        result = manager.try_promote(combo.combination_id)
+        _result = manager.try_promote(combo.combination_id)
 
         loaded = manager.get_combination(combo.combination_id)
         assert loaded.rejection_reason != ""

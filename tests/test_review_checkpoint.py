@@ -8,7 +8,6 @@ Focuses on:
 """
 from __future__ import annotations
 
-import textwrap
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -18,26 +17,19 @@ import yaml
 from skillpool.review import ReviewManager
 from skillpool.review.checkpoint_runner import (
     ALL_DIMENSIONS,
-    BASELINE_DIMENSIONS,
     CheckpointRunner,
     DIMENSION_SKILLS,
-    REQUIRED_CSDF_FIELDS,
-    SHADOW_DIMENSIONS,
 )
 from skillpool.review.models import (
     CheckpointLevel,
     ReviewStatus,
     ReviewTrigger,
     ReviewTriggerRequest,
-    ReviewTriggerResponse,
-    SuspectSkill,
     UpgradeRecommendation,
     VetoDetail,
     VetoRule,
 )
 from skillpool.review.async_queue import AsyncReviewQueue
-from skillpool.review.suspect_marker import SuspectMarker
-from skillpool.review.veto_evaluator import VetoEvaluator
 from skillpool.telemetry import TelemetryBridge
 
 
@@ -331,7 +323,7 @@ class TestCheckpointRunnerUnknownLevel:
     def test_unknown_level_returns_all_dimensions(self):
         runner = CheckpointRunner(seed=42, skills_dir=Path("/nonexistent"))
         # Use a string that is not a valid CheckpointLevel
-        fake_level = "L99"
+        _fake_level = "L99"
         # _dimensions_for_level accepts CheckpointLevel but we can test
         # the fallback by passing a mock
         mock_level = MagicMock(spec=CheckpointLevel)

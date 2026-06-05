@@ -2,7 +2,6 @@
 Tests for Skill Lifecycle State Machine
 """
 
-import pytest
 from skillpool.lifecycle import (
     SkillLifecycleState,
     validate_transition,

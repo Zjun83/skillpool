@@ -18,9 +18,8 @@ from __future__ import annotations
 import logging
 import threading
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
-import yaml
 
 from skillpool.config import get_data_dir
 from skillpool.materializer import Materializer

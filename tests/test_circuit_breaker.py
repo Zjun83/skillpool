@@ -1,5 +1,4 @@
 """Tests for CircuitBreaker — 3-state circuit breaker."""
-import pytest
 
 from skillpool.resolver.circuit_breaker import CircuitBreaker, CircuitState
 

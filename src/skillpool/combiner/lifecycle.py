@@ -18,7 +18,7 @@ import fcntl
 import json
 import logging
 import tempfile
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 from skillpool.config import get_data_dir
@@ -429,11 +429,6 @@ class CombinationLifecycleManager:
                 pass
 
         return None
-
-    def get_combination(self, combination_id: str) -> SkillCombination | None:
-        """Get a combination by ID."""
-        self._ensure_loaded()
-        return self._combinations.get(combination_id)
 
     def get_combination(self, combination_id: str) -> SkillCombination | None:
         """Get a combination by ID. Returns None if not found."""

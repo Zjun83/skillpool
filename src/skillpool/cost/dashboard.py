@@ -4,7 +4,6 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from skillpool.cost.models import (
-    AgentConfig,
     AgentCost,
     CostDashboardResponse,
     CostQuery,
@@ -151,7 +150,7 @@ class CostDashboard:
             return []
 
         delta_map = {"5m": timedelta(minutes=5), "1h": timedelta(hours=1), "1d": timedelta(days=1)}
-        delta = delta_map.get(granularity, timedelta(hours=1))
+        _delta = delta_map.get(granularity, timedelta(hours=1))
 
         buckets: dict[str, dict] = {}
         for r in records:

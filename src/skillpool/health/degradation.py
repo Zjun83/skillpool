@@ -8,7 +8,7 @@ Levels (aligned with cross-system-interfaces.yaml §5.2):
 """
 from __future__ import annotations
 
-from skillpool.health.models import DegradationLevel, ServingStatus
+from skillpool.health.models import DegradationLevel
 
 
 class DegradationManager:

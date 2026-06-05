@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
@@ -203,7 +203,7 @@ class TokenGovernor:
                     data = json.loads(bypass_path.read_text())
                     expires_at = data.get("expires_at")
                     if expires_at:
-                        from datetime import datetime, timezone
+                        from datetime import datetime
                         expiry = datetime.fromisoformat(expires_at)
                         if utc_now() < expiry:
                             emergency_bypass_active = True

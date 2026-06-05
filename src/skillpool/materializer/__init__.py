@@ -15,7 +15,7 @@ from typing import Optional
 from skillpool.materializer.models import (
     MaterializationResult,
     MaterializedSkill,
-    CSDFDocument,
+    CSDFDocument as CSDFDocument,
 )
 from skillpool.materializer.mapper import CSDFMapper
 from skillpool.materializer.lifecycle_filter import LifecycleFilter

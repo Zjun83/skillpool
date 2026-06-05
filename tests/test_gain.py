@@ -180,7 +180,7 @@ class TestGainTrackerInit:
         """If data_dir doesn't exist, it's created."""
         new_dir = tmp_path / "new_gain"
         assert not new_dir.exists()
-        t = GainTracker(data_dir=new_dir)
+        _t = GainTracker(data_dir=new_dir)
         assert new_dir.exists()
 
     def test_initial_state(self, tracker):

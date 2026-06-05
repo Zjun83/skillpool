@@ -13,7 +13,6 @@ import textwrap
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 
 from skillpool.utils.runtime_audit import RuntimeAuditHook, _serialize_args
 
@@ -306,7 +305,7 @@ class TestAuditHandlerInProcess:
         handler("open", ("/tmp/test.txt", "r"))
 
         assert log_file.exists()
-        lines = [l for l in log_file.read_text().strip().split("\n") if l]
+        lines = [line for line in log_file.read_text().strip().split("\n") if line]
         assert len(lines) >= 1
         parsed = json.loads(lines[0])
         assert "event" in parsed

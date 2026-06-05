@@ -1,16 +1,12 @@
 """Unit tests for GateManager and ComplexityAssessor."""
-import pytest
 from skillpool.gate import (
     ComplexityAssessor,
     ComplexityScore,
     GateDecision,
     GateManager,
-    GateResult,
 )
 from skillpool.profile import CLAUDE_CODE_PROFILE, CODEX_PROFILE, HERMES_PROFILE
 from skillpool.telemetry import TelemetryBridge
-from pathlib import Path
-import tempfile
 
 
 # ---- Fixtures ----

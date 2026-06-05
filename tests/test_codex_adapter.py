@@ -2,9 +2,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 
 from skillpool.adapters.codex_adapter import CodexAdapter
 from skillpool.csdf import CSDFDocument
@@ -172,7 +171,7 @@ class TestCodexAdapterOnStartup:
         adapter._skills_dir = skills_dir
 
         with patch.object(Path, "home", return_value=tmp_path):
-            results = adapter.on_startup()
+            _results = adapter.on_startup()
 
         # Should have created ~/.codex/skills/
         assert (tmp_path / ".codex" / "skills").exists()

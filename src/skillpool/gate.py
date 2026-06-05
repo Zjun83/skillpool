@@ -11,7 +11,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Optional
 
-from skillpool.gate_policy.parser import GatePolicyConfig, GatePolicyError, load_gate_policy
+from skillpool.gate_policy.parser import GatePolicyError, load_gate_policy
 from skillpool.gate_policy.state_machine import GateStateMachine
 from skillpool.profile import AgentCapabilityProfile
 from skillpool.telemetry import TelemetryBridge

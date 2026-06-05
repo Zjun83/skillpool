@@ -9,11 +9,9 @@ Part of SkillPool — independent infrastructure, shared by all agents.
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
 from pathlib import Path
-from typing import Optional
 
 import httpx
 from pydantic import BaseModel, Field
@@ -93,7 +91,7 @@ class IntentRouter:
             if self._try_ollama_base(alt_base):
                 # Update URL to working port
                 self.ollama_url = self.ollama_url.replace(":11434", ":11435")
-                logger.info(f"Ollama auto-detected on port 11435 (11434 unavailable)")
+                logger.info("Ollama auto-detected on port 11435 (11434 unavailable)")
                 self._ollama_available = True
                 return True
 

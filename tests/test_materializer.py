@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import pytest
 
-from skillpool.lifecycle import SkillLifecycleState
 from skillpool.materializer.models import CSDFDocument, MaterializedSkill, MaterializationResult
 from skillpool.materializer.mapper import CSDFMapper
 from skillpool.materializer.lifecycle_filter import LifecycleFilter
@@ -646,7 +645,6 @@ class TestMaterializerErrorPaths:
 
     def test_materialize_batch(self):
         """Batch materialization should return one result per path."""
-        import tempfile
         mat = self._make_materializer()
         csdf = _sample_csdf(paradigm="code")
         # Use csdf_dict for batch via individual materialize calls

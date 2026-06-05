@@ -11,7 +11,7 @@ ParadigmRegistry — 4D 范式 Skill 注册 + 查询。
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import Optional

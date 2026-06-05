@@ -6,11 +6,10 @@ decorated by FastMCP, not async coroutines). Module-level singletons
 """
 from __future__ import annotations
 
-import json
 import os
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -18,7 +17,6 @@ import skillpool.mcp_server as _mod
 from skillpool.mcp_server import (
     SkillPoolLoggingMiddleware,
     TimingMiddleware,
-    _PROFILES,
     _cached_resource,
     _get_profile,
     _load_csdf,
@@ -62,9 +60,7 @@ from skillpool.mcp_server import (
     mcp,
     main,
 )
-from skillpool.gate import GateDecision
-from skillpool.evolver import DefectSeverity
-from skillpool.audit import AuditLayer, AuditRecord
+from skillpool.audit import AuditLayer
 
 
 # ═══════════════════════════════════════════════════════════════════

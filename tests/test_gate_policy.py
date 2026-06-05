@@ -36,12 +36,9 @@ from skillpool.gate_policy.parser import (
     resolve_level_for_path,
 )
 from skillpool.gate_policy.state_machine import (
-    GateCheckResult,
-    GateStateFile,
     GateStateMachine,
 )
 from skillpool.gate_policy.incremental import (
-    ComplexityAssessment,
     IncrementalAssessor,
 )
 
@@ -466,7 +463,7 @@ class TestEnforcementMode:
         sm = GateStateMachine(tmp_path / "gate.json")
         sm.set_policy(disabled_policy)
         # In disabled mode, illegal transition proceeds
-        result = sm.transition("TDD")
+        _result = sm.transition("TDD")
         assert sm.state.current_phase == "TDD"
 
     def test_emergency_bypass_restricts_phases(self, tmp_path: Path, loaded_policy: GatePolicyConfig):

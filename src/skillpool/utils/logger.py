@@ -16,10 +16,8 @@ __all__ = [
 ]
 
 import json
-import os
 import sys
-from contextvars import ContextVar, copy_context
-from datetime import UTC, datetime
+from contextvars import ContextVar
 from typing import Any
 
 from skillpool.utils.time_utils import utc_now
@@ -183,7 +181,7 @@ def get_skillpool_logger(name: str) -> SkillPoolLogger:
     """
     import os as _os
 
-    log_level = _os.environ.get("SKILLPOOL_LOG_LEVEL", "INFO").upper()
+    _log_level = _os.environ.get("SKILLPOOL_LOG_LEVEL", "INFO").upper()
     renderer: Any = ConsoleRenderer() if sys.stderr.isatty() else JSONRenderer()
     return SkillPoolLogger(name=name, renderer=renderer)
 

@@ -6,19 +6,15 @@ Verifies that SkillPool behaves consistently across different Agent types:
 - skill_get enforces search-first for all agents equally
 - MCP server-side search tracking is agent-neutral
 """
-import tempfile
-from pathlib import Path
 
 import pytest
 
 from skillpool.combiner import (
     CombinationLifecycleManager,
     CombinationLifecycleState,
-    SkillCombination,
 )
 from skillpool.gain import GainTracker, SkillExecution, GainScores
-from skillpool.router import IntentRouter, SkillCandidate, RoutingResult
-from skillpool.synergy import SynergyDetector
+from skillpool.router import IntentRouter
 
 
 class TestCrossAgentCombinationConsistency:
@@ -32,7 +28,6 @@ class TestCrossAgentCombinationConsistency:
     def test_agent_a_report_visible_to_agent_b(self, shared_data_dir):
         """Agent A reports usage, Agent B sees the combination."""
         # Agent A creates and validates a combination
-        gain_dir = shared_data_dir / "gain"
         combo_dir = shared_data_dir / "combinations"
 
         mgr_a = CombinationLifecycleManager(data_dir=combo_dir)
@@ -71,7 +66,6 @@ class TestCrossAgentCombinationConsistency:
     def test_different_agent_types_same_combination(self, shared_data_dir):
         """Same combination used by different agent types produces consistent data."""
         gain_dir = shared_data_dir / "gain"
-        combo_dir = shared_data_dir / "combinations"
 
         # Agent A (claude-code) reports usage
         tracker_a = GainTracker(data_dir=gain_dir)
@@ -212,7 +206,7 @@ class TestSkillAutoDeprecationCrossAgent:
 
         # Auto-deprecation check
         from skillpool.lifecycle import check_auto_deprecation
-        deprecated = check_auto_deprecation("review")
+        _deprecated = check_auto_deprecation("review")
         # May or may not deprecate depending on gain data path
         # The key test is that the mechanism exists and is agent-neutral
 
@@ -232,7 +226,6 @@ class TestCombinationMCPTools:
 
     def test_combination_create_any_agent(self, tmp_path):
         """Any agent type can create a combination."""
-        from skillpool.mcp_server import combination_create
         from skillpool.combiner import CombinationLifecycleManager
 
         combo_dir = tmp_path / "combinations"
@@ -263,7 +256,7 @@ class TestCombinationMCPTools:
 
     def test_combination_list_filter_by_state(self, tmp_path):
         """combination_list filters by state."""
-        from skillpool.combiner import CombinationLifecycleManager, CombinationLifecycleState
+        from skillpool.combiner import CombinationLifecycleManager
 
         combo_dir = tmp_path / "combinations"
         mgr = CombinationLifecycleManager(data_dir=combo_dir)

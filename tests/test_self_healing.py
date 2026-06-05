@@ -4,7 +4,6 @@ Part of SkillPool — independent infrastructure, shared by all agents.
 """
 from __future__ import annotations
 
-import pytest
 import yaml
 from pathlib import Path
 
@@ -586,7 +585,7 @@ class TestRunReviewCheckpoint:
 
     def test_review_infrastructure_unavailable(self):
         """When ReviewManager import fails, should default to pass."""
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import patch
         bc = BugCollector()
         ev = EvolverLayer()
         loop = SelfHealingLoop(bug_collector=bc, evolver=ev)
@@ -603,7 +602,6 @@ class TestFindSkillYamlEdgeCases:
 
     def test_skills_dir_not_exists(self, tmp_path):
         """If skills_dir doesn't exist, should return None."""
-        from unittest.mock import MagicMock
         bc = BugCollector()
         ev = EvolverLayer()
         loop = SelfHealingLoop(bug_collector=bc, evolver=ev, skills_dir=tmp_path / "nonexistent")
@@ -611,7 +609,6 @@ class TestFindSkillYamlEdgeCases:
 
     def test_prefix_match(self, tmp_path):
         """Should find YAML by prefix match (skill_id-*.yaml)."""
-        from unittest.mock import MagicMock
         bc = BugCollector()
         ev = EvolverLayer()
         skills_dir = tmp_path / "skills"
@@ -629,7 +626,6 @@ class TestPersistEvolutionEdgeCases:
 
     def test_invalid_yaml_content(self, tmp_path):
         """If YAML content is not a dict, should return False."""
-        from unittest.mock import MagicMock
         bc = BugCollector()
         ev = EvolverLayer()
         skills_dir = tmp_path / "skills"

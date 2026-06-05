@@ -16,20 +16,17 @@ from __future__ import annotations
 
 import logging
 import time
-from pathlib import Path
 from typing import Optional
 
 import yaml
 from fastmcp import FastMCP
 from fastmcp.server.middleware import Middleware
 
-from skillpool.materializer import Materializer
-from skillpool.materializer.models import MaterializationResult
 from skillpool.materializer.lazy_loader import LazySkillLoader  # Part of SkillPool — independent infrastructure
 from skillpool.materializer.csdf_loader import load_csdf as _load_csdf_shared  # Part of SkillPool
 from skillpool.hooks.security_scanner import SecurityScanner  # Part of SkillPool — independent infrastructure
-from skillpool.telemetry import TelemetryBridge, TelemetryChannel, TelemetryEvent
-from skillpool.gate import GateManager, GateResult, GateDecision
+from skillpool.telemetry import TelemetryBridge
+from skillpool.gate import GateManager
 from skillpool.profile import (
     CLAUDE_CODE_PROFILE,
     CODEX_PROFILE,
@@ -37,13 +34,14 @@ from skillpool.profile import (
     OPENCLAW_PROFILE,
     AgentCapabilityProfile,
 )
-from skillpool.audit import AuditLayer, AuditRecord
+from skillpool.audit import AuditLayer
 from skillpool.evolver import EvolverLayer, DefectSeverity
-from skillpool.registry import Registry, SkillStatus
-from skillpool.monitor import MonitorLayer, FiveDimensionEvaluation, MetricType
-from skillpool.monitor.bug_collector import BugCollector, BugSeverity, DefectType  # Part of SkillPool — independent infrastructure
+from skillpool.registry import Registry
+from skillpool.monitor import MonitorLayer, MetricType
+from skillpool.monitor.bug_collector import BugCollector  # Part of SkillPool — independent infrastructure
 from skillpool.monitor.self_healing import SelfHealingLoop  # Part of SkillPool — independent infrastructure
 from skillpool.health import HealthManager
+from skillpool.config import get_data_dir
 
 logger = logging.getLogger("skillpool.mcp")
 
@@ -145,8 +143,6 @@ _PROFILES: dict[str, AgentCapabilityProfile] = {
     "hermes": HERMES_PROFILE,
     "openclaw": OPENCLAW_PROFILE,
 }
-
-from skillpool.config import get_data_dir
 
 _SKILLPOOL_DIR = get_data_dir()
 _SKILLS_DIR = _SKILLPOOL_DIR / "skills"
@@ -275,7 +271,7 @@ def skill_definition(skill_id: str) -> str:
         # Materialization failed — return partial info
         name = data.get("name", skill_id)
         return f"# {name}\n\nContent unavailable (materialization errors: {data.get('_materialization_errors', [])})"
-    except ValueError as e:
+    except ValueError:
         return f"Skill not found: {skill_id}"
 
 
@@ -290,7 +286,7 @@ def skill_summary(skill_id: str) -> dict:
     # Part of SkillPool — independent infrastructure, shared by all agents
     try:
         return _lazy_loader.load(skill_id, tier="L1")
-    except ValueError as e:
+    except ValueError:
         return {"error": f"Skill not found: {skill_id}"}
 
 
@@ -1279,8 +1275,8 @@ def skill_get(
     if agent_type not in _search_done_callers:
         return {
             "error": "search_required",
-            "message": f"Please call skill_search(intent=...) first to find the optimal skill combination. "
-                       f"Direct skill access is blocked until you search for the best match.",
+            "message": "Please call skill_search(intent=...) first to find the optimal skill combination. "
+                       "Direct skill access is blocked until you search for the best match.",
             "skill_id": skill_id,
             "agent_type": agent_type,
         }
@@ -1334,7 +1330,7 @@ def skill_match(task_description: str, agent_type: str, include_combinations: bo
     from skillpool.resolver import SkillResolver, SkillResolveRequest
     from skillpool.router import IntentRouter
 
-    profile = _get_profile(agent_type)
+    _profile = _get_profile(agent_type)
 
     # L1+L2: Intent routing (semantic + logical)
     intent_router = IntentRouter(skills_dir=_SKILLS_DIR)
@@ -1506,7 +1502,7 @@ def report_usage(
 
     # 3. Update combination lifecycle if combination_skills provided
     lifecycle_updated = False
-    lifecycle_state = ""
+    _lifecycle_state = ""
     if combination_skills:
         from skillpool.combiner import CombinationLifecycleManager
         from skillpool.combiner.models import CombinationLifecycleState
@@ -1519,7 +1515,7 @@ def report_usage(
         )
 
         if combo:
-            lifecycle_state = CombinationLifecycleState(combo.state).name
+            _lifecycle_state = CombinationLifecycleState(combo.state).name
 
             # DISCOVERED → VALIDATING: first execution triggers validation
             if combo.state == CombinationLifecycleState.DISCOVERED:
@@ -1528,14 +1524,14 @@ def report_usage(
                 )
                 if transition_result.success:
                     lifecycle_updated = True
-                    lifecycle_state = "VALIDATING"
+                    _lifecycle_state = "VALIDATING"
 
             # VALIDATING → PROMOTED: try promotion after enough executions
             if combo.state == CombinationLifecycleState.VALIDATING:
                 promote_result = lifecycle_mgr.try_promote(combo_id)
                 if promote_result.success:
                     lifecycle_updated = True
-                    lifecycle_state = "PROMOTED"
+                    _lifecycle_state = "PROMOTED"
 
         # If combination doesn't exist yet, create it
         if combo is None:
@@ -1544,7 +1540,7 @@ def report_usage(
                 enhancers=combination_skills,
                 source="auto_discovered",
             )
-            lifecycle_state = "DISCOVERED"
+            _lifecycle_state = "DISCOVERED"
 
     return {
         "skill_name": skill_name,
@@ -1764,7 +1760,7 @@ def skill_lifecycle_check(
         check_combinations: If True, also check combination lifecycle.
     """
     # Part of SkillPool — independent infrastructure, shared by all agents
-    from skillpool.lifecycle import SkillLifecycleState, check_auto_deprecation
+    from skillpool.lifecycle import check_auto_deprecation
     from skillpool.combiner import CombinationLifecycleManager
 
     results = {
@@ -1823,7 +1819,6 @@ def get_emergency_overrides(skill_id: str = "") -> dict:
         skill_id: Optional skill ID to filter overrides.
     """
     # Part of SkillPool — independent infrastructure, shared by all agents
-    from skillpool.paradigm import OverrideLevel, EmergencyOverride
     import json
 
     overrides_path = _SKILLPOOL_DIR / "emergency_overrides.json"
@@ -1858,7 +1853,6 @@ def cost_estimate(
     # Part of SkillPool — independent infrastructure, shared by all agents
     try:
         from skillpool.cost.token_governor import TokenGovernor, PRESET_AGENT_CONFIGS
-        from skillpool.cost.models import CostEstimate
 
         governor = TokenGovernor(PRESET_AGENT_CONFIGS)
         result = governor.estimate_session_cost(

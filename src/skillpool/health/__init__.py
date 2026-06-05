@@ -4,7 +4,7 @@ from __future__ import annotations
 from skillpool.health.check import HealthChecker
 from skillpool.health.degradation import DegradationManager
 from skillpool.health.models import (
-    ComponentHealth,
+    ComponentHealth as ComponentHealth,
     DegradationLevel,
     HealthCheckResponse,
     ServingStatus,

@@ -256,7 +256,7 @@ class TestAppendChangelogEntry:
         assert "First feature" in content
 
     def test_preserves_existing_content(self, sample_changelog: Path):
-        original_content = sample_changelog.read_text(encoding="utf-8")
+        _original_content = sample_changelog.read_text(encoding="utf-8")
 
         append_changelog_entry(
             category="Fixed",
