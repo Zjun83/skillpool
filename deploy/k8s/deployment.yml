@@ -24,6 +24,11 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: skillpool
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:
@@ -129,3 +134,15 @@ spec:
                 name: skillpool
                 port:
                   number: 8000
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: skillpool-pdb
+  namespace: skillpool
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: skillpool

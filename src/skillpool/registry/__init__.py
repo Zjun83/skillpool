@@ -23,6 +23,7 @@ __all__ = [
 import json
 import logging
 import os
+import sqlite3
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -200,54 +201,101 @@ class Registry:
     def _load(self) -> None:
         """Load registry from persistent storage if path is configured.
 
-        Supports both JSON object format (single JSON dict) and JSONL format
-        (one record per line), with automatic detection.
+        Supports three formats:
+        - .db / .sqlite → SQLite backend (preferred for production)
+        - .jsonl → JSONL format (one record per line, legacy)
+        - other → JSON object format (single dict, legacy)
         """
         if not self._registry_path:
             return
         if not self._registry_path.exists():
             return
+        suffix = self._registry_path.suffix.lower()
         try:
-            content = self._registry_path.read_text(encoding="utf-8").strip()
-            if not content:
-                return
-
-            # Try JSON object format first (standard Registry format)
-            try:
-                data = json.loads(content)
-                if isinstance(data, dict):
-                    for sid, sdata in data.items():
-                        rec = SkillRecord.from_dict(sdata)
-                        self._skills[sid] = rec
-                        self._by_name[rec.metadata.name] = sid
-                    return
-            except (json.JSONDecodeError, KeyError, TypeError):
-                pass
-
-            # Try JSONL format (one record per line)
-            for line in content.splitlines():
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    rec = SkillRecord.from_dict(json.loads(line))
-                    self._skills[rec.metadata.skill_id] = rec
-                    self._by_name[rec.metadata.name] = rec.metadata.skill_id
-                except (json.JSONDecodeError, KeyError, TypeError):
-                    continue
+            if suffix in (".db", ".sqlite"):
+                self._load_sqlite()
+            else:
+                self._load_json()
         except Exception as exc:
             logger.warning("Registry load failed from %s: %s", self._registry_path, exc)
+
+    def _load_sqlite(self) -> None:
+        """Load skills from SQLite database."""
+        conn = sqlite3.connect(str(self._registry_path))
+        try:
+            conn.execute("CREATE TABLE IF NOT EXISTS skills (skill_id TEXT PRIMARY KEY, data TEXT NOT NULL)")
+            for row in conn.execute("SELECT skill_id, data FROM skills"):
+                rec = SkillRecord.from_dict(json.loads(row[1]))
+                self._skills[row[0]] = rec
+                self._by_name[rec.metadata.name] = row[0]
+        finally:
+            conn.close()
+
+    def _load_json(self) -> None:
+        """Load skills from JSON/JSONL file."""
+        content = self._registry_path.read_text(encoding="utf-8").strip()
+        if not content:
+            return
+
+        # Try JSON object format first (standard Registry format)
+        try:
+            data = json.loads(content)
+            if isinstance(data, dict):
+                for sid, sdata in data.items():
+                    rec = SkillRecord.from_dict(sdata)
+                    self._skills[sid] = rec
+                    self._by_name[rec.metadata.name] = sid
+                return
+        except (json.JSONDecodeError, KeyError, TypeError):
+            pass
+
+        # Try JSONL format (one record per line)
+        for line in content.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = SkillRecord.from_dict(json.loads(line))
+                self._skills[rec.metadata.skill_id] = rec
+                self._by_name[rec.metadata.name] = rec.metadata.skill_id
+            except (json.JSONDecodeError, KeyError, TypeError):
+                continue
 
     def _save(self) -> None:
         """Persist registry to disk if path is configured."""
         if not self._registry_path:
             return
+        suffix = self._registry_path.suffix.lower()
         try:
-            self._registry_path.parent.mkdir(parents=True, exist_ok=True)
-            data = {sid: rec.to_dict() for sid, rec in self._skills.items()}
-            self._registry_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+            if suffix in (".db", ".sqlite"):
+                self._save_sqlite()
+            else:
+                self._save_json()
         except OSError as exc:
             logger.warning("Registry save failed to %s: %s", self._registry_path, exc)
+
+    def _save_sqlite(self) -> None:
+        """Persist skills to SQLite database."""
+        self._registry_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(str(self._registry_path))
+        try:
+            conn.execute("CREATE TABLE IF NOT EXISTS skills (skill_id TEXT PRIMARY KEY, data TEXT NOT NULL)")
+            # Upsert all records in a single transaction
+            conn.execute("DELETE FROM skills")
+            for sid, rec in self._skills.items():
+                conn.execute(
+                    "INSERT INTO skills (skill_id, data) VALUES (?, ?)",
+                    (sid, json.dumps(rec.to_dict(), ensure_ascii=False)),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def _save_json(self) -> None:
+        """Persist skills to JSON file (legacy format)."""
+        self._registry_path.parent.mkdir(parents=True, exist_ok=True)
+        data = {sid: rec.to_dict() for sid, rec in self._skills.items()}
+        self._registry_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
     def _check_audit_available(self) -> bool:
         """Check if Audit layer is available."""

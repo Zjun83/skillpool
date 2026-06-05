@@ -1080,6 +1080,59 @@ class TestTimingMiddleware:
         assert mw._monitor is monitor
 
 
+class TestAuthMiddleware:
+    def test_auth_disabled_when_no_key(self):
+        """When SKILLPOOL_API_KEY is not set, auth is disabled."""
+        mw = _mod.AuthMiddleware()
+        assert not mw.auth_enabled
+
+    def test_auth_enabled_when_key_set(self):
+        """When SKILLPOOL_API_KEY is set, auth is enabled."""
+        with patch.dict(os.environ, {"SKILLPOOL_API_KEY": "test-secret-123"}):
+            mw = _mod.AuthMiddleware()
+            assert mw.auth_enabled
+
+    def test_valid_key_passes(self):
+        """Valid API key should pass validation."""
+        with patch.dict(os.environ, {"SKILLPOOL_API_KEY": "test-secret-123"}):
+            mw = _mod.AuthMiddleware()
+            context = MagicMock()
+            context.headers = {"authorization": "Bearer test-secret-123"}
+            context.message = MagicMock()
+            context.message.arguments = {}
+            assert mw._validate_key(context) is True
+
+    def test_invalid_key_fails(self):
+        """Invalid API key should fail validation."""
+        with patch.dict(os.environ, {"SKILLPOOL_API_KEY": "test-secret-123"}):
+            mw = _mod.AuthMiddleware()
+            context = MagicMock()
+            context.headers = {"authorization": "Bearer wrong-key"}
+            context.message = MagicMock()
+            context.message.arguments = {}
+            assert mw._validate_key(context) is False
+
+    def test_missing_key_fails(self):
+        """Missing API key should fail validation when auth is enabled."""
+        with patch.dict(os.environ, {"SKILLPOOL_API_KEY": "test-secret-123"}):
+            mw = _mod.AuthMiddleware()
+            context = MagicMock()
+            context.headers = {}
+            context.message = MagicMock()
+            context.message.arguments = {}
+            assert mw._validate_key(context) is False
+
+    def test_key_in_arguments_passes(self):
+        """API key passed as tool argument should pass validation."""
+        with patch.dict(os.environ, {"SKILLPOOL_API_KEY": "test-secret-123"}):
+            mw = _mod.AuthMiddleware()
+            context = MagicMock()
+            context.headers = {}
+            context.message = MagicMock()
+            context.message.arguments = {"api_key": "test-secret-123"}
+            assert mw._validate_key(context) is True
+
+
 # ═══════════════════════════════════════════════════════════════════
 # MCP App & Entry Point
 # ═══════════════════════════════════════════════════════════════════
@@ -1093,7 +1146,7 @@ class TestMcpApp:
         assert mcp.version == "4.3.0"
 
     def test_middleware_registered(self):
-        assert len(mcp.middleware) >= 2  # Logging + Timing
+        assert len(mcp.middleware) >= 3  # Auth + Logging + Timing
 
 
 class TestMain:

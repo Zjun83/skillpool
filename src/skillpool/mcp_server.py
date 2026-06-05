@@ -16,6 +16,7 @@ Why Resources vs Tools (per MCP 2025-03-26 spec):
 from __future__ import annotations
 
 import logging
+import os
 import time
 from typing import Optional
 
@@ -55,8 +56,67 @@ _search_done_callers: set[str] = set()
 
 
 # ═══════════════════════════════════════════════════════════════════
-# MIDDLEWARE — Logging + Timing
+# MIDDLEWARE — Auth + Logging + Timing
 # ═══════════════════════════════════════════════════════════════════
+
+
+class AuthMiddleware(Middleware):
+    """API key authentication for MCP endpoints.
+
+    Enabled by setting SKILLPOOL_API_KEY environment variable.
+    If not set, authentication is disabled (backward compatible).
+    Clients must send the key via Authorization: Bearer <key> header
+    or as api_key query parameter in HTTP transport.
+    """
+
+    def __init__(self) -> None:
+        self._required_key: str | None = os.environ.get("SKILLPOOL_API_KEY")
+        if self._required_key:
+            logger.info("mcp_auth_enabled")
+        else:
+            logger.info("mcp_auth_disabled_no_key_set")
+
+    @property
+    def auth_enabled(self) -> bool:
+        return self._required_key is not None
+
+    def _validate_key(self, context) -> bool:
+        """Extract and validate API key from request context."""
+        if not self._required_key:
+            return True
+        # Check Authorization: Bearer <key>
+        headers = getattr(context, "headers", None) or {}
+        auth_header = headers.get("authorization", "") or headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:].strip()
+            if token == self._required_key:
+                return True
+        # Check api_key in message arguments (for tool calls)
+        args = getattr(context.message, "arguments", None) or {}
+        if isinstance(args, dict) and args.get("api_key") == self._required_key:
+            return True
+        return False
+
+    async def on_call_tool(self, context, call_next):
+        if not self._validate_key(context):
+            logger.warning("mcp_auth_rejected", extra={"tool": context.message.name})
+            from fastmcp.utilities.types import TextContent
+            from fastmcp.server.types import ToolResult
+
+            return ToolResult(
+                content=[
+                    TextContent(type="text", text='{"error": "unauthorized", "detail": "Invalid or missing API key"}')
+                ]
+            )
+        return await call_next(context)
+
+    async def on_read_resource(self, context, call_next):
+        if not self._validate_key(context):
+            logger.warning("mcp_auth_rejected_resource", extra={"uri": str(getattr(context.message, "uri", "unknown"))})
+            from fastmcp.utilities.types import TextContent
+
+            return [TextContent(type="text", text='{"error": "unauthorized", "detail": "Invalid or missing API key"}')]
+        return await call_next(context)
 
 
 class SkillPoolLoggingMiddleware(Middleware):
@@ -167,6 +227,7 @@ _self_healing = SelfHealingLoop(bug_collector=_bug_collector, evolver=_evolver) 
 _security_scanner = SecurityScanner()  # Part of SkillPool
 
 # Register middleware on the MCP instance
+mcp.add_middleware(AuthMiddleware())
 mcp.add_middleware(SkillPoolLoggingMiddleware())
 mcp.add_middleware(TimingMiddleware(monitor=_monitor))
 

@@ -543,3 +543,34 @@ class MonitorLayer:
             "total_requests": budget["total_requests"],
             "failed_requests": budget["failed_requests"],
         }
+
+    def to_prometheus(self) -> str:
+        """Export metrics in Prometheus exposition format.
+
+        Returns:
+            String in Prometheus text format suitable for /metrics endpoint.
+        """
+        lines = []
+        for name, metrics in self._metrics.items():
+            # Prometheus metric name: replace dots with underscores
+            prom_name = f"skillpool_{name.replace('.', '_').replace('-', '_')}"
+            # TYPE header
+            metric_type_map = {
+                MetricType.COUNTER: "counter",
+                MetricType.GAUGE: "gauge",
+                MetricType.HISTOGRAM: "histogram",
+            }
+            prom_type = metric_type_map.get(metrics[0].metric_type, "gauge") if metrics else "gauge"
+            lines.append(f"# TYPE {prom_name} {prom_type}")
+            # Data lines
+            for m in metrics:
+                if m.labels:
+                    label_str = ",".join(f'{k}="{v}"' for k, v in sorted(m.labels.items()))
+                    lines.append(f"{prom_name}{{{label_str}}} {m.value}")
+                else:
+                    lines.append(f"{prom_name} {m.value}")
+        # Alerts as gauge
+        if self._alerts:
+            lines.append("# TYPE skillpool_alerts_total gauge")
+            lines.append(f"skillpool_alerts_total {len(self._alerts)}")
+        return "\n".join(lines) + "\n"

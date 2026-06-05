@@ -503,3 +503,71 @@ class TestSaveLoadCycle:
         audit = _make_audit()
         reg = Registry(audit_layer=audit, registry_path=path)
         assert len(reg._skills) == 0
+
+
+class TestRegistrySQLite:
+    """Tests for SQLite backend in Registry."""
+
+    def test_sqlite_save_load(self, tmp_path):
+        """Registry should persist and reload from SQLite (.db) file."""
+        path = str(tmp_path / "registry.db")
+        audit = _make_audit()
+        reg = Registry(audit_layer=audit, registry_path=path)
+
+        meta = _make_metadata("s-sqlite")
+        reg.register_candidate(RegisterSkillRequest(skill_metadata=meta))
+
+        # Reload and verify
+        reg2 = Registry(audit_layer=audit, registry_path=path)
+        assert "s-sqlite" in reg2._skills
+        assert reg2._skills["s-sqlite"].metadata.skill_id == "s-sqlite"
+
+    def test_sqlite_evidence_preserved(self, tmp_path):
+        """Supply chain evidence should survive SQLite save→load."""
+        path = str(tmp_path / "registry.db")
+        audit = _make_audit()
+        reg = Registry(audit_layer=audit, registry_path=path)
+
+        meta = _make_metadata("s-ev")
+        reg.register_candidate(RegisterSkillRequest(skill_metadata=meta))
+
+        reg2 = Registry(audit_layer=audit, registry_path=path)
+        evidence = reg2.get_supply_chain_evidence("s-ev")
+        assert "SPDX SBOM" in evidence["evidence"]
+
+    def test_sqlite_multiple_skills(self, tmp_path):
+        """Multiple skills should persist correctly in SQLite."""
+        path = str(tmp_path / "registry.db")
+        audit = _make_audit()
+        reg = Registry(audit_layer=audit, registry_path=path)
+
+        for i in range(5):
+            meta = _make_metadata(f"s-{i}")
+            reg.register_candidate(RegisterSkillRequest(skill_metadata=meta))
+
+        reg2 = Registry(audit_layer=audit, registry_path=path)
+        assert len(reg2._skills) == 5
+
+    def test_sqlite_empty_load(self, tmp_path):
+        """Loading from nonexistent SQLite file should produce empty registry."""
+        path = str(tmp_path / "nonexistent.db")
+        audit = _make_audit()
+        reg = Registry(audit_layer=audit, registry_path=path)
+        assert len(reg._skills) == 0
+
+    def test_sqlite_upsert_overwrite(self, tmp_path):
+        """Saving again should overwrite (upsert) existing records."""
+        path = str(tmp_path / "registry.db")
+        audit = _make_audit()
+        reg = Registry(audit_layer=audit, registry_path=path)
+
+        meta = _make_metadata("s-up")
+        reg.register_candidate(RegisterSkillRequest(skill_metadata=meta))
+
+        # Register another skill, then reload — first should still exist
+        meta2 = _make_metadata("s-up2")
+        reg.register_candidate(RegisterSkillRequest(skill_metadata=meta2))
+
+        reg2 = Registry(audit_layer=audit, registry_path=path)
+        assert "s-up" in reg2._skills
+        assert "s-up2" in reg2._skills

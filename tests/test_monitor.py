@@ -415,3 +415,32 @@ class TestScoreToLevel:
         mon = MonitorLayer()
         assert mon._score_to_level(0.699) == EvaluationLevel.AVERAGE
         assert mon._score_to_level(0.7) == EvaluationLevel.GOOD
+
+
+class TestPrometheusExport:
+    """Tests for Prometheus exposition format export."""
+
+    def test_empty_metrics(self):
+        mon = MonitorLayer()
+        result = mon.to_prometheus()
+        assert result.strip() == ""
+
+    def test_single_gauge(self):
+        mon = MonitorLayer()
+        mon.record_metric("test_gauge", 42.0, MetricType.GAUGE)
+        result = mon.to_prometheus()
+        assert "# TYPE skillpool_test_gauge gauge" in result
+        assert "skillpool_test_gauge 42.0" in result
+
+    def test_counter_with_labels(self):
+        mon = MonitorLayer()
+        mon.record_metric("requests_total", 1, MetricType.COUNTER, labels={"method": "GET"})
+        result = mon.to_prometheus()
+        assert "# TYPE skillpool_requests_total counter" in result
+        assert 'skillpool_requests_total{method="GET"} 1' in result
+
+    def test_alerts_count(self):
+        mon = MonitorLayer()
+        mon._create_alert(AlertSeverity.WARNING, "test alert")
+        result = mon.to_prometheus()
+        assert "skillpool_alerts_total 1" in result
