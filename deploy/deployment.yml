@@ -1,4 +1,4 @@
-# ── SkillPool V4.1 Standalone Deployment Spec ────────────────────
+# ── SkillPool V4.3 Standalone Deployment Spec ────────────────────
 # For bare-metal / VM deployment without Docker or Kubernetes
 # Usage: ansible-playbook deploy/deployment.yml
 # ──────────────────────────────────────────────────────────────────

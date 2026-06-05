@@ -1,6 +1,6 @@
 """MCP Server — expose skillpool via FastMCP with Resources/Tools/Prompts separation.
 
-Architecture (V4.1 dual-channel):
+Architecture (V4.3 dual-channel):
   - CLI (Start Hook): Materialization channel — one-time file writes at session start
   - MCP Resources: Read-only context delivery — skill definitions, audit records
   - MCP Tools: Governance actions — register, transition, gate_check, review, telemetry
