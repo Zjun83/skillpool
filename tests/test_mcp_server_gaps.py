@@ -17,6 +17,7 @@ Targeted gaps:
 - L1765: get_emergency_overrides with no overrides file
 - L1778-1786: main() --help and __main__ branches
 """
+
 from __future__ import annotations
 
 import json
@@ -155,12 +156,8 @@ class TestSkillSearchLifecycle:
         """Lines 1120-1181: skill_search with enhancers and lifecycle data."""
         with patch("skillpool.router.IntentRouter") as MockRouter:
             routing = MagicMock()
-            routing.primary = MagicMock(
-                skill_id="S09", score=0.9, layer="semantic", reason="match"
-            )
-            routing.enhancers = [MagicMock(
-                skill_id="S05a", gain=1.5, reason="security", score=0.8
-            )]
+            routing.primary = MagicMock(skill_id="S09", score=0.9, layer="semantic", reason="match")
+            routing.enhancers = [MagicMock(skill_id="S05a", gain=1.5, reason="security", score=0.8)]
             routing.layers_used = ["semantic"]
             routing.candidates = [routing.primary]
             MockRouter.return_value.route.return_value = routing
@@ -174,7 +171,8 @@ class TestSkillSearchLifecycle:
                     MockLCM.return_value.get_validating_combinations.return_value = []
 
                     result = skill_search(
-                        intent="security", agent_type="claude-code",
+                        intent="security",
+                        agent_type="claude-code",
                         include_lifecycle=True,
                     )
                     assert "recommended_combinations" in result
@@ -183,12 +181,8 @@ class TestSkillSearchLifecycle:
         """Lines 1149-1177: promoted + validating combos in search."""
         with patch("skillpool.router.IntentRouter") as MockRouter:
             routing = MagicMock()
-            routing.primary = MagicMock(
-                skill_id="S09", score=0.9, layer="semantic", reason="match"
-            )
-            routing.enhancers = [MagicMock(
-                skill_id="S05a", gain=1.5, reason="security", score=0.8
-            )]
+            routing.primary = MagicMock(skill_id="S09", score=0.9, layer="semantic", reason="match")
+            routing.enhancers = [MagicMock(skill_id="S05a", gain=1.5, reason="security", score=0.8)]
             routing.layers_used = ["semantic"]
             routing.candidates = [routing.primary]
             MockRouter.return_value.route.return_value = routing
@@ -199,20 +193,27 @@ class TestSkillSearchLifecycle:
 
                 with patch("skillpool.combiner.CombinationLifecycleManager") as MockLCM:
                     promoted = MagicMock(
-                        combination_id="c1", enhancers=["S05a"],
+                        combination_id="c1",
+                        enhancers=["S05a"],
                         state=MagicMock(name="PROMOTED"),
-                        gain_avg=1.2, current_weight=MagicMock(return_value=0.8),
+                        gain_avg=1.2,
+                        current_weight=MagicMock(return_value=0.8),
                         source="auto",
                     )
                     validating = MagicMock(
-                        combination_id="c2", primary="S09", enhancers=["S05a"],
-                        execution_count=3, gain_avg=0.9, gain_confidence=0.7,
+                        combination_id="c2",
+                        primary="S09",
+                        enhancers=["S05a"],
+                        execution_count=3,
+                        gain_avg=0.9,
+                        gain_confidence=0.7,
                     )
                     MockLCM.return_value.get_promoted_combinations.return_value = [promoted]
                     MockLCM.return_value.get_validating_combinations.return_value = [validating]
 
                     result = skill_search(
-                        intent="security", agent_type="codex",
+                        intent="security",
+                        agent_type="codex",
                         include_lifecycle=True,
                     )
                     assert "active_combinations" in result
@@ -302,6 +303,7 @@ class TestReportUsageGaps:
             mock_tel.return_value = {"event_type": "usage", "skill_id": "S09"}
             with patch("skillpool.combiner.CombinationLifecycleManager") as MockLCM:
                 from skillpool.combiner.models import CombinationLifecycleState
+
                 mgr = MockLCM.return_value
                 discovered_combo = MagicMock()
                 discovered_combo.state = CombinationLifecycleState.DISCOVERED
@@ -321,6 +323,7 @@ class TestReportUsageGaps:
             mock_tel.return_value = {"event_type": "usage", "skill_id": "S09"}
             with patch("skillpool.combiner.CombinationLifecycleManager") as MockLCM:
                 from skillpool.combiner.models import CombinationLifecycleState
+
                 mgr = MockLCM.return_value
                 validating_combo = MagicMock()
                 validating_combo.state = CombinationLifecycleState.VALIDATING
@@ -361,7 +364,9 @@ class TestCombinationTransitionValidState:
     def test_valid_transition(self):
         """Lines 1668-1671: successful combination transition."""
         combo = combination_create(
-            primary="S09", enhancers=["S05a"], agent_type="claude-code",
+            primary="S09",
+            enhancers=["S05a"],
+            agent_type="claude-code",
         )
         combo_id = combo["combination_id"]
         result = combination_transition(
@@ -438,10 +443,14 @@ class TestGetEmergencyOverridesNoFile:
     def test_overrides_file_with_skill_filter(self, tmp_path):
         """Line 1762-1763: skill_id filter applied."""
         overrides_path = tmp_path / "emergency_overrides.json"
-        overrides_path.write_text(json.dumps({
-            "S09": {"level": "WARN"},
-            "S05a": {"level": "KILL"},
-        }))
+        overrides_path.write_text(
+            json.dumps(
+                {
+                    "S09": {"level": "WARN"},
+                    "S05a": {"level": "KILL"},
+                }
+            )
+        )
         with patch.object(_mod, "_SKILLPOOL_DIR", tmp_path):
             result = get_emergency_overrides(skill_id="S09")
             assert result["count"] == 1
@@ -549,9 +558,11 @@ class TestSkillMatchTool:
         mock_response = MagicMock()
         mock_response.resolved = []
 
-        with patch("skillpool.router.IntentRouter") as MockRouter, \
-             patch("skillpool.resolver.SkillResolver") as MockResolver, \
-             patch("skillpool.mcp_server._SKILLS_DIR", Path("/nonexistent")):
+        with (
+            patch("skillpool.router.IntentRouter") as MockRouter,
+            patch("skillpool.resolver.SkillResolver") as MockResolver,
+            patch("skillpool.mcp_server._SKILLS_DIR", Path("/nonexistent")),
+        ):
             MockRouter.return_value.route.return_value = mock_routing
             MockResolver.return_value.resolve.return_value = mock_response
 

@@ -1,4 +1,5 @@
 """SkillGraph — DAG construction, topological sort, cycle detection, PPR ranking."""
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -10,6 +11,7 @@ if TYPE_CHECKING:
 
 class CycleDetected(Exception):
     """Raised when a cycle is detected in the skill dependency graph."""
+
     def __init__(self, cycle_nodes: list[str]):
         self.cycle_nodes = cycle_nodes
         super().__init__(f"Cycle detected: {' → '.join(cycle_nodes)}")

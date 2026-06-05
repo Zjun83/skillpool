@@ -1,4 +1,5 @@
 """BDD tests for Cost Attribution — mapping to cost-attribution.feature scenarios."""
+
 import pytest
 
 from skillpool.cost import CostManager
@@ -15,24 +16,28 @@ class TestCostQuery:
     def test_query_24h_by_agent(self):
         """Scenario: Query cost for 24h window grouped by agent."""
         mgr = CostManager()
-        mgr.report_cost(CostRecord(
-            agent_id="evolver_v4",
-            tokens_input=1000,
-            tokens_output=500,
-            cost_usd=0.05,
-            model="gpt-4",
-            operation="evolve",
-            trace_id="trace-001",
-        ))
-        mgr.report_cost(CostRecord(
-            agent_id="knowledge_refiner",
-            tokens_input=2000,
-            tokens_output=800,
-            cost_usd=0.10,
-            model="gpt-4",
-            operation="refine",
-            trace_id="trace-002",
-        ))
+        mgr.report_cost(
+            CostRecord(
+                agent_id="evolver_v4",
+                tokens_input=1000,
+                tokens_output=500,
+                cost_usd=0.05,
+                model="gpt-4",
+                operation="evolve",
+                trace_id="trace-001",
+            )
+        )
+        mgr.report_cost(
+            CostRecord(
+                agent_id="knowledge_refiner",
+                tokens_input=2000,
+                tokens_output=800,
+                cost_usd=0.10,
+                model="gpt-4",
+                operation="refine",
+                trace_id="trace-002",
+            )
+        )
         query = CostQuery(window="24h", group_by=["agent_id"])
         response = mgr.get_dashboard(query)
         assert response.total_cost_usd > 0
@@ -160,6 +165,7 @@ class TestMultiDimensionGrouping:
         tracker.record_cost(70.0)  # 70%
         from skillpool.cost.dashboard import CostDashboard
         from skillpool.cost.token_governor import TokenGovernor, PRESET_AGENT_CONFIGS
+
         dash = CostDashboard(governor=TokenGovernor(PRESET_AGENT_CONFIGS), budget_tracker=tracker)
         dash.record("evolver_v4", 100, 50, 0.10)
         resp = dash.query(CostQuery(window="24h"))

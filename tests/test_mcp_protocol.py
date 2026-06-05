@@ -3,6 +3,7 @@
 Tests the complete MCP protocol path: resources/list, resources/read, tools/call, prompts/list.
 This is more thorough than direct function calls because it exercises the MCP serialization layer.
 """
+
 from __future__ import annotations
 
 import os
@@ -134,31 +135,40 @@ class TestToolCall:
     """Verify tools/call returns correct results."""
 
     async def test_gate_check_allow(self, client: Client) -> None:
-        result = await client.call_tool("gate_check", {
-            "csdf": {"id": "S01", "name": "Simple", "min_trust_level": 1, "checklist": []},
-            "profile_name": "claude-code",
-        })
+        result = await client.call_tool(
+            "gate_check",
+            {
+                "csdf": {"id": "S01", "name": "Simple", "min_trust_level": 1, "checklist": []},
+                "profile_name": "claude-code",
+            },
+        )
         assert not result.is_error
         assert result.data is not None
         assert result.data.get("decision") == "allow"
 
     async def test_gate_check_safe_deny_on_invalid(self, client: Client) -> None:
         """gate_check with invalid input should return error or safe-deny."""
-        result = await client.call_tool("gate_check", {
-            "csdf": {"id": "X99", "min_trust_level": 99, "checklist": []},
-            "profile_name": "hermes",
-        })
+        result = await client.call_tool(
+            "gate_check",
+            {
+                "csdf": {"id": "X99", "min_trust_level": 99, "checklist": []},
+                "profile_name": "hermes",
+            },
+        )
         # Either denied by gate logic or by capability mismatch
         assert not result.is_error
         decision = result.data.get("decision", "")
         assert decision in ("deny", "DENY", "allow", "GUARD", "ESCALATE")
 
     async def test_telemetry_report(self, client: Client) -> None:
-        result = await client.call_tool("telemetry_report", {
-            "event_type": "skill_used",
-            "skill_id": "S05a",
-            "channel": "hook",
-        })
+        result = await client.call_tool(
+            "telemetry_report",
+            {
+                "event_type": "skill_used",
+                "skill_id": "S05a",
+                "channel": "hook",
+            },
+        )
         assert not result.is_error
         assert result.data.get("event_type") == "skill_used"
 
@@ -212,10 +222,13 @@ class TestToolErrorHandling:
 
     async def test_gate_check_empty_csdf(self, client: Client) -> None:
         """gate_check with empty/minimal CSDF should return a valid decision, not crash."""
-        result = await client.call_tool("gate_check", {
-            "csdf": {"id": "", "name": "", "min_trust_level": 0, "checklist": []},
-            "profile_name": "claude-code",
-        })
+        result = await client.call_tool(
+            "gate_check",
+            {
+                "csdf": {"id": "", "name": "", "min_trust_level": 0, "checklist": []},
+                "profile_name": "claude-code",
+            },
+        )
         assert not result.is_error
         decision = result.data.get("decision", "")
         # Empty CSDF should still produce a valid gate decision
@@ -223,48 +236,60 @@ class TestToolErrorHandling:
 
     async def test_skill_register_no_evidence_dev_mode(self, client: Client) -> None:
         """In dev evidence tier, registration without supply chain evidence should succeed."""
-        result = await client.call_tool("skill_register", {
-            "skill_id": "test-dev-skill",
-            "name": "Test Dev Skill",
-            "version": "0.1.0",
-        })
+        result = await client.call_tool(
+            "skill_register",
+            {
+                "skill_id": "test-dev-skill",
+                "name": "Test Dev Skill",
+                "version": "0.1.0",
+            },
+        )
         assert not result.is_error
         # Dev mode requires no evidence — should succeed
         assert "error" not in result.data or result.data.get("skill_id") == "test-dev-skill"
 
     async def test_skill_transition_nonexistent(self, client: Client) -> None:
         """Transitioning a nonexistent skill should return an error, not crash."""
-        result = await client.call_tool("skill_transition", {
-            "skill_id": "NONEXISTENT_SKILL_XYZ_999",
-            "from_status": "testing",
-            "to_status": "enabled",
-        })
+        result = await client.call_tool(
+            "skill_transition",
+            {
+                "skill_id": "NONEXISTENT_SKILL_XYZ_999",
+                "from_status": "testing",
+                "to_status": "enabled",
+            },
+        )
         assert not result.is_error
         # Should contain error info, not a bare crash
         assert "error" in result.data
 
     async def test_evolution_trigger_invalid_severity(self, client: Client) -> None:
         """evolution_trigger with invalid severity should return an error."""
-        result = await client.call_tool("evolution_trigger", {
-            "skill_id": "S09",
-            "version": "1.0.0",
-            "severity": "INVALID_SEVERITY",
-            "description": "test invalid severity",
-        })
+        result = await client.call_tool(
+            "evolution_trigger",
+            {
+                "skill_id": "S09",
+                "version": "1.0.0",
+                "severity": "INVALID_SEVERITY",
+                "description": "test invalid severity",
+            },
+        )
         assert result.is_error or "error" in result.data
 
     async def test_monitor_evaluate_zero_coverage(self, client: Client) -> None:
         """monitor_evaluate with zero coverage should return Poor completeness."""
-        result = await client.call_tool("monitor_evaluate", {
-            "skill_id": "test-zero-coverage",
-            "error_rate": 0.0,
-            "security_issues": 0,
-            "coverage": 0.0,
-            "doc_completeness": 0.0,
-            "p99_latency_ms": 100.0,
-            "update_frequency_days": 1.0,
-            "resource_efficiency": 0.5,
-        })
+        result = await client.call_tool(
+            "monitor_evaluate",
+            {
+                "skill_id": "test-zero-coverage",
+                "error_rate": 0.0,
+                "security_issues": 0,
+                "coverage": 0.0,
+                "doc_completeness": 0.0,
+                "p99_latency_ms": 100.0,
+                "update_frequency_days": 1.0,
+                "resource_efficiency": 0.5,
+            },
+        )
         assert not result.is_error
         completeness = result.data.get("completeness", {})
         assert completeness.get("level") == "Poor"
@@ -311,6 +336,7 @@ class TestResourceBoundaryConditions:
         result = await client.read_resource("audit://records/0")
         text = getattr(result[0], "text", str(result[0]))
         import json
+
         records = json.loads(text) if text.startswith("[") else []
         assert len(records) <= 100
 
@@ -319,6 +345,7 @@ class TestResourceBoundaryConditions:
         result = await client.read_resource("skill://graph")
         text = getattr(result[0], "text", str(result[0]))
         import json
+
         data = json.loads(text) if text.startswith("{") else {}
         # Should have some structure (nodes, edges, or skills)
         assert isinstance(data, dict)
@@ -344,8 +371,10 @@ class TestEnvironmentAwareRegistration:
             # Re-create registry with prod profile
             from skillpool.registry import Registry
             from skillpool.audit import AuditLayer
+
             prod_registry = Registry(audit_layer=AuditLayer())
             from skillpool.registry.models import RegisterSkillRequest, SkillMetadata
+
             meta = SkillMetadata(
                 skill_id="prod-test-skill",
                 name="Prod Test",
@@ -371,6 +400,7 @@ class TestEnvironmentAwareRegistration:
             os.environ["SKILLPOOL_EVIDENCE_TIER"] = "ci"
             from skillpool.registry import Registry
             from skillpool.audit import AuditLayer
+
             ci_registry = Registry(audit_layer=AuditLayer())
             from skillpool.registry.models import RegisterSkillRequest, SkillMetadata
 

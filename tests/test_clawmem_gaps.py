@@ -6,6 +6,7 @@ Targeted gaps:
 - L134-140: _write_http success path
 - L158-168: _write_cli error paths (FileNotFoundError, TimeoutExpired, generic Exception)
 """
+
 from __future__ import annotations
 
 import json

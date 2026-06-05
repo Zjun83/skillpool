@@ -35,5 +35,6 @@ class TestRateLimiter:
         limiter.allow()
         assert limiter.allow() is False
         import time
+
         time.sleep(0.02)
         assert limiter.allow() is True

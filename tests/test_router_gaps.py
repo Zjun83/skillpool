@@ -16,6 +16,7 @@ Uncovered lines:
 - 439-440: _route_l4_predictive ImportError
 - 449-454: _route_l4_predictive with promoted combinations
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -28,6 +29,7 @@ from skillpool.router import IntentRouter, SkillCandidate
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def skills_dir(tmp_path):
@@ -48,10 +50,7 @@ def skills_dir(tmp_path):
     )
     # Another flat YAML skill
     (tmp_path / "S05a-security.yaml").write_text(
-        "id: S05a\n"
-        "name: Security Transport\n"
-        "description: Validate transport layer security\n"
-        "dimension: D3\n"
+        "id: S05a\nname: Security Transport\ndescription: Validate transport layer security\ndimension: D3\n"
     )
     # Directory-based skill with SKILL.md + YAML
     skill_dir = tmp_path / "scaffold-docs"
@@ -65,9 +64,7 @@ def skills_dir(tmp_path):
         "# Scaffold Docs\n"
     )
     (skill_dir / "scaffold-docs.yaml").write_text(
-        "id: scaffold-docs\n"
-        "name: Scaffold Documentation\n"
-        "description: Generate project scaffolding\n"
+        "id: scaffold-docs\nname: Scaffold Documentation\ndescription: Generate project scaffolding\n"
     )
     return tmp_path
 
@@ -80,6 +77,7 @@ def router(skills_dir):
 # ---------------------------------------------------------------------------
 # Ollama auto-detect port fallback (lines 92-98)
 # ---------------------------------------------------------------------------
+
 
 class TestOllamaAutoDetectPort:
     """When default port 11434 fails, try 11435 (WSL2 conflict fallback)."""
@@ -123,6 +121,7 @@ class TestOllamaAutoDetectPort:
 # _embed returning None when Ollama unavailable (lines 125-127)
 # ---------------------------------------------------------------------------
 
+
 class TestEmbedFallback:
     """When Ollama is unavailable, _embed returns None (keyword fallback)."""
 
@@ -143,6 +142,7 @@ class TestEmbedFallback:
 # ---------------------------------------------------------------------------
 # _build_index — flat YAML and directory skills (lines 143, 147, 153)
 # ---------------------------------------------------------------------------
+
 
 class TestBuildIndexPaths:
     """Cover flat YAML and directory-based skill indexing."""
@@ -173,6 +173,7 @@ class TestBuildIndexPaths:
 # ---------------------------------------------------------------------------
 # L3/L4 layers used in route() (lines 207, 212)
 # ---------------------------------------------------------------------------
+
 
 class TestRouteL3L4Layers:
     """Test that L3 and L4 layers appear in layers_used when they produce results."""
@@ -282,6 +283,7 @@ class TestRouteL3L4Layers:
 # _match_by_embedding — skill embedding failure (line 259)
 # ---------------------------------------------------------------------------
 
+
 class TestMatchByEmbeddingFailure:
     """When a skill's embedding fails, it's skipped."""
 
@@ -295,6 +297,7 @@ class TestMatchByEmbeddingFailure:
 
         # Mock _embed: succeed for intent, fail for one skill, succeed for another
         call_count = [0]
+
         def mock_embed(text):
             call_count[0] += 1
             if text == "test intent":
@@ -315,6 +318,7 @@ class TestMatchByEmbeddingFailure:
 # _route_l2_logical — dependency parsing (lines 319, 324, 325)
 # ---------------------------------------------------------------------------
 
+
 class TestL2DependencyParsing:
     """Test various dependency formats in L2 routing."""
 
@@ -331,12 +335,7 @@ class TestL2DependencyParsing:
 
     def test_string_dependency(self, tmp_path):
         """Dependencies as plain strings."""
-        (tmp_path / "test-skill.yaml").write_text(
-            "id: test-skill\n"
-            "dependencies:\n"
-            "  - dep-a\n"
-            "  - dep-b\n"
-        )
+        (tmp_path / "test-skill.yaml").write_text("id: test-skill\ndependencies:\n  - dep-a\n  - dep-b\n")
         router = IntentRouter(skills_dir=tmp_path, ollama_url="http://127.0.0.1:99999/api/embed")
         router._build_index()
         l1 = [SkillCandidate(skill_id="test-skill", score=0.8, layer="L1")]
@@ -347,11 +346,7 @@ class TestL2DependencyParsing:
 
     def test_dict_dependency_with_id_field(self, tmp_path):
         """Dependencies as dicts with 'id' field (alternative to skill_id)."""
-        (tmp_path / "test-skill.yaml").write_text(
-            "id: test-skill\n"
-            "dependencies:\n"
-            "  - id: dep-x\n"
-        )
+        (tmp_path / "test-skill.yaml").write_text("id: test-skill\ndependencies:\n  - id: dep-x\n")
         router = IntentRouter(skills_dir=tmp_path, ollama_url="http://127.0.0.1:99999/api/embed")
         router._build_index()
         l1 = [SkillCandidate(skill_id="test-skill", score=0.8, layer="L1")]
@@ -364,17 +359,13 @@ class TestL2DependencyParsing:
 # _route_l2_logical — synergy parsing (lines 335, 342, 343, 351)
 # ---------------------------------------------------------------------------
 
+
 class TestL2SynergyParsing:
     """Test synergy parsing edge cases in L2 routing."""
 
     def test_non_dict_synergy_skipped(self, tmp_path):
         """Non-dict synergy entries are skipped."""
-        (tmp_path / "test-skill.yaml").write_text(
-            "id: test-skill\n"
-            "synergies:\n"
-            "  - plain_string\n"
-            "  - 42\n"
-        )
+        (tmp_path / "test-skill.yaml").write_text("id: test-skill\nsynergies:\n  - plain_string\n  - 42\n")
         router = IntentRouter(skills_dir=tmp_path, ollama_url="http://127.0.0.1:99999/api/embed")
         router._build_index()
         l1 = [SkillCandidate(skill_id="test-skill", score=0.8, layer="L1")]
@@ -395,11 +386,7 @@ class TestL2SynergyParsing:
     def test_synergy_not_in_l1_included(self, tmp_path):
         """Synergy skill not already in L1 is added as L2 candidate."""
         (tmp_path / "primary.yaml").write_text(
-            "id: primary\n"
-            "synergies:\n"
-            "  - skill_id: enhancer\n"
-            "    gain: '+20%'\n"
-            "    reason: Test synergy\n"
+            "id: primary\nsynergies:\n  - skill_id: enhancer\n    gain: '+20%'\n    reason: Test synergy\n"
         )
         router = IntentRouter(skills_dir=tmp_path, ollama_url="http://127.0.0.1:99999/api/embed")
         router._build_index()
@@ -412,6 +399,7 @@ class TestL2SynergyParsing:
 # ---------------------------------------------------------------------------
 # _find_skill_yaml — parse failures (lines 372, 374-376, 383, 385-386)
 # ---------------------------------------------------------------------------
+
 
 class TestFindSkillYamlParseFailures:
     """Test YAML parse failures in _find_skill_yaml."""
@@ -474,6 +462,7 @@ class TestFindSkillYamlParseFailures:
 # _route_l3_causal — ImportError (lines 407-408)
 # ---------------------------------------------------------------------------
 
+
 class TestL3CausalImportError:
     """When skillpool.gain cannot be imported, L3 returns empty."""
 
@@ -489,6 +478,7 @@ class TestL3CausalImportError:
 # _route_l4_predictive — ImportError (lines 439-440)
 # ---------------------------------------------------------------------------
 
+
 class TestL4PredictiveImportError:
     """When skillpool.combiner cannot be imported, L4 returns empty."""
 
@@ -503,6 +493,7 @@ class TestL4PredictiveImportError:
 # ---------------------------------------------------------------------------
 # route() — L3/L4 layers_used integration (lines 207, 212)
 # ---------------------------------------------------------------------------
+
 
 class TestRouteLayersUsedIntegration:
     """Test that route() correctly adds L3/L4 to layers_used."""
@@ -548,6 +539,7 @@ class TestRouteLayersUsedIntegration:
 # ---------------------------------------------------------------------------
 # _route_l4_predictive — gain_avg handling (line 459)
 # ---------------------------------------------------------------------------
+
 
 class TestL4GainAvg:
     """Test gain_avg formatting in L4 candidates."""

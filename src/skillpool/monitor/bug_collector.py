@@ -9,6 +9,7 @@ Persist: Write to JSONL at ~/.skillpool/logs/bugs.jsonl (with fsync) + append to
 
 Part of SkillPool — independent infrastructure, shared by all agents.
 """
+
 from __future__ import annotations
 
 __all__ = [
@@ -39,6 +40,7 @@ logger = logging.getLogger(__name__)
 
 class BugSeverity(StrEnum):
     """Bug severity levels (Sentry-inspired)."""
+
     P0 = "P0"
     P1 = "P1"
     P2 = "P2"
@@ -46,6 +48,7 @@ class BugSeverity(StrEnum):
 
 class DefectType(StrEnum):
     """Defect classification from ProcCtrlBench — 11 types."""
+
     PARAM_ERROR = "PARAM_ERROR"
     PERMISSION_BREACH = "PERMISSION_BREACH"
     TIMEOUT = "TIMEOUT"
@@ -62,6 +65,7 @@ class DefectType(StrEnum):
 @dataclass
 class BugRecord:
     """Immutable bug record produced by the 4-stage pipeline."""
+
     bug_id: str
     timestamp: str
     severity: BugSeverity
@@ -332,7 +336,9 @@ class BugCollector:
                     trace_id=record.trace_id,
                 )
             except Exception as e:
-                logger.warning("Audit record failed for bug %s: %s", record.bug_id, e)  # Audit errors should not crash the pipeline
+                logger.warning(
+                    "Audit record failed for bug %s: %s", record.bug_id, e
+                )  # Audit errors should not crash the pipeline
 
     @staticmethod
     def _map_severity(severity: BugSeverity) -> str:

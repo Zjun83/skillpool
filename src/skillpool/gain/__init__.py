@@ -11,6 +11,7 @@ explicit scoring (agent-provided ratings). Zero-burden by default.
 
 Part of SkillPool — independent infrastructure, shared by all agents.
 """
+
 from __future__ import annotations
 
 import json
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 class GainScores(BaseModel):
     """Four-dimension gain scores for a skill execution."""
+
     effectiveness: float = Field(default=0.0, ge=0.0, le=10.0, description="Task goal achievement (0-10)")
     efficiency: float = Field(default=0.0, ge=0.0, le=10.0, description="Resource consumption (0-10)")
     quality: float = Field(default=0.0, ge=0.0, le=10.0, description="Output sustainability (0-10)")
@@ -36,6 +38,7 @@ class GainScores(BaseModel):
 
 class SkillExecution(BaseModel):
     """Record of a single skill execution with outcome data."""
+
     execution_id: str = Field(default="", description="Unique execution ID")
     skill_ids: list[str] = Field(description="Skill(s) used in this execution")
     timestamp: str = Field(default="", description="ISO 8601 timestamp")
@@ -49,6 +52,7 @@ class SkillExecution(BaseModel):
 
 class GainReport(BaseModel):
     """Aggregated gain report for a skill or combination."""
+
     skill_id: str
     execution_count: int = 0
     avg_effectiveness: float = 0.0
@@ -144,18 +148,20 @@ class GainTracker:
             effectiveness=eff_score,
             efficiency=eff_score_eff,
             quality=5.0,  # No data to assess
-            gain=0.0,     # Unknown for single execution
+            gain=0.0,  # Unknown for single execution
         )
 
-        self.record(SkillExecution(
-            skill_ids=skill_ids,
-            intent=intent,
-            scores=scores,
-            duration_ms=duration_ms,
-            token_count=token_count,
-            success=success,
-            source="implicit",
-        ))
+        self.record(
+            SkillExecution(
+                skill_ids=skill_ids,
+                intent=intent,
+                scores=scores,
+                duration_ms=duration_ms,
+                token_count=token_count,
+                success=success,
+                source="implicit",
+            )
+        )
 
     def report(self, skill_id: str, last_n: int = 50) -> GainReport:
         """Generate aggregated gain report for a skill.
@@ -184,9 +190,9 @@ class GainTracker:
 
         # Combined score: weighted average
         combined = (
-            avg_eff * 0.35     # Effectiveness 35%
-            + avg_effi * 0.20   # Efficiency 20%
-            + avg_qual * 0.25   # Quality 25%
+            avg_eff * 0.35  # Effectiveness 35%
+            + avg_effi * 0.20  # Efficiency 20%
+            + avg_qual * 0.25  # Quality 25%
             + max(0, avg_gain) * 0.20  # Gain 20% (only positive contributes)
         )
 
@@ -208,14 +214,8 @@ class GainTracker:
         """
         self._ensure_loaded()
 
-        together = [
-            e for e in self._executions
-            if skill_a in e.skill_ids and skill_b in e.skill_ids
-        ]
-        alone = [
-            e for e in self._executions
-            if skill_a in e.skill_ids and skill_b not in e.skill_ids
-        ]
+        together = [e for e in self._executions if skill_a in e.skill_ids and skill_b in e.skill_ids]
+        alone = [e for e in self._executions if skill_a in e.skill_ids and skill_b not in e.skill_ids]
 
         if not together or not alone:
             return 0.0
@@ -252,7 +252,8 @@ class GainTracker:
         if intent:
             intent_lower = intent.lower()
             skill_stats = {
-                k: v for k, v in skill_stats.items()
+                k: v
+                for k, v in skill_stats.items()
                 if k.lower() in intent_lower or any(w in k.lower() for w in intent_lower.split())
             }
 
@@ -260,12 +261,14 @@ class GainTracker:
         results = []
         for sid, stats in skill_stats.items():
             avg_gain = stats["total_gain"] / stats["count"] if stats["count"] > 0 else 0.0
-            results.append({
-                "skill_id": sid,
-                "avg_gain": round(avg_gain, 2),
-                "execution_count": stats["count"],
-                "last_execution": stats["last"],
-            })
+            results.append(
+                {
+                    "skill_id": sid,
+                    "avg_gain": round(avg_gain, 2),
+                    "execution_count": stats["count"],
+                    "last_execution": stats["last"],
+                }
+            )
 
         return sorted(results, key=lambda x: x["avg_gain"], reverse=True)[:top_k]
 

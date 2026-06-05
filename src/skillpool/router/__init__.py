@@ -7,6 +7,7 @@ Routes agent intents (natural language descriptions) to optimal skill combinatio
 
 Part of SkillPool — independent infrastructure, shared by all agents.
 """
+
 from __future__ import annotations
 
 import logging
@@ -27,6 +28,7 @@ _OLLAMA_DEFAULT = "http://127.0.0.1:11434/api/embed"
 
 class SkillCandidate(BaseModel):
     """A skill candidate returned by routing."""
+
     skill_id: str
     score: float = Field(ge=0.0, le=1.0, description="Match score [0,1]")
     layer: str = Field(description="Which routing layer produced this match: L1/L2/L3")
@@ -36,6 +38,7 @@ class SkillCandidate(BaseModel):
 
 class RoutingResult(BaseModel):
     """Result of intent routing."""
+
     intent: str = Field(description="Original intent text")
     candidates: list[SkillCandidate] = Field(default_factory=list)
     primary: SkillCandidate | None = None
@@ -77,6 +80,7 @@ class IntentRouter:
             return self._ollama_available
 
         from urllib.parse import urlparse
+
         parsed = urlparse(self.ollama_url)
         base_url = f"{parsed.scheme}://{parsed.netloc}"
 
@@ -163,6 +167,7 @@ class IntentRouter:
         parts = []
         try:
             import yaml
+
             data = yaml.safe_load(yaml_file.read_text())
             if isinstance(data, dict):
                 if data.get("description"):
@@ -258,12 +263,14 @@ class IntentRouter:
 
             skill_emb = self._embeddings[skill_id]
             score = self._cosine_similarity(intent_emb, skill_emb)
-            candidates.append(SkillCandidate(
-                skill_id=skill_id,
-                score=round(score, 4),
-                layer="L1",
-                reason=f"Semantic similarity: {score:.3f}",
-            ))
+            candidates.append(
+                SkillCandidate(
+                    skill_id=skill_id,
+                    score=round(score, 4),
+                    layer="L1",
+                    reason=f"Semantic similarity: {score:.3f}",
+                )
+            )
 
         return sorted(candidates, key=lambda c: c.score, reverse=True)[:top_k]
 
@@ -293,12 +300,14 @@ class IntentRouter:
                         score = min(1.0, score + 0.2)
 
             if score > 0:
-                candidates.append(SkillCandidate(
-                    skill_id=skill_id,
-                    score=round(score, 4),
-                    layer="L1",
-                    reason=f"Keyword match: {overlap} words overlap",
-                ))
+                candidates.append(
+                    SkillCandidate(
+                        skill_id=skill_id,
+                        score=round(score, 4),
+                        layer="L1",
+                        reason=f"Keyword match: {overlap} words overlap",
+                    )
+                )
 
         return sorted(candidates, key=lambda c: c.score, reverse=True)[:top_k]
 
@@ -321,12 +330,14 @@ class IntentRouter:
                         else:
                             dep_id = str(dep)
                         if dep_id and dep_id not in l1_skill_ids:
-                            l2_candidates.append(SkillCandidate(
-                                skill_id=dep_id,
-                                score=round(candidate.score * 0.7, 4),
-                                layer="L2",
-                                reason=f"Dependency of {candidate.skill_id}",
-                            ))
+                            l2_candidates.append(
+                                SkillCandidate(
+                                    skill_id=dep_id,
+                                    score=round(candidate.score * 0.7, 4),
+                                    layer="L2",
+                                    reason=f"Dependency of {candidate.skill_id}",
+                                )
+                            )
 
                 # Add synergies
                 synergies = data.get("synergies", [])
@@ -339,21 +350,25 @@ class IntentRouter:
                         else:
                             continue
                         if syn_id and syn_id not in l1_skill_ids:
-                            l2_candidates.append(SkillCandidate(
-                                skill_id=syn_id,
-                                score=round(candidate.score * 0.8, 4),
-                                layer="L2",
-                                reason=f"Synergy with {candidate.skill_id}: {reason}",
-                                gain=gain,
-                            ))
-                            if syn_id and syn_id not in l1_skill_ids:
-                                l2_candidates.append(SkillCandidate(
+                            l2_candidates.append(
+                                SkillCandidate(
                                     skill_id=syn_id,
                                     score=round(candidate.score * 0.8, 4),
                                     layer="L2",
                                     reason=f"Synergy with {candidate.skill_id}: {reason}",
                                     gain=gain,
-                                ))
+                                )
+                            )
+                            if syn_id and syn_id not in l1_skill_ids:
+                                l2_candidates.append(
+                                    SkillCandidate(
+                                        skill_id=syn_id,
+                                        score=round(candidate.score * 0.8, 4),
+                                        layer="L2",
+                                        reason=f"Synergy with {candidate.skill_id}: {reason}",
+                                        gain=gain,
+                                    )
+                                )
 
         return l2_candidates
 
@@ -366,6 +381,7 @@ class IntentRouter:
             for yaml_file in skill_dir.glob("*.yaml"):
                 try:
                     import yaml
+
                     data = yaml.safe_load(yaml_file.read_text())
                     if isinstance(data, dict):
                         results.append((yaml_file, data))
@@ -377,6 +393,7 @@ class IntentRouter:
         if flat_yaml.exists():
             try:
                 import yaml
+
                 data = yaml.safe_load(flat_yaml.read_text())
                 if isinstance(data, dict):
                     results.append((flat_yaml, data))
@@ -416,13 +433,15 @@ class IntentRouter:
                     continue
                 gain = tracker.combination_gain(candidate.skill_id, other_id)
                 if gain > 0.5:  # Only include meaningful positive gain
-                    l3_candidates.append(SkillCandidate(
-                        skill_id=other_id,
-                        score=round(min(1.0, candidate.score * 0.6 + gain * 0.04), 4),
-                        layer="L3",
-                        reason=f"Causal gain with {candidate.skill_id}: +{gain:.1f}",
-                        gain=f"+{gain:.1f}",
-                    ))
+                    l3_candidates.append(
+                        SkillCandidate(
+                            skill_id=other_id,
+                            score=round(min(1.0, candidate.score * 0.6 + gain * 0.04), 4),
+                            layer="L3",
+                            reason=f"Causal gain with {candidate.skill_id}: +{gain:.1f}",
+                            gain=f"+{gain:.1f}",
+                        )
+                    )
 
         return sorted(l3_candidates, key=lambda c: c.score, reverse=True)[:5]
 
@@ -449,12 +468,14 @@ class IntentRouter:
                         continue
                     weight = combo.current_weight()
                     if weight > 0.1:  # Only include meaningful weights
-                        l4_candidates.append(SkillCandidate(
-                            skill_id=enhancer,
-                            score=round(weight, 4),
-                            layer="L4",
-                            reason=f"Predicted: {combo.combination_id} (weight={weight:.2f})",
-                            gain=f"+{combo.gain_avg:.1f}" if combo.gain_avg > 0 else "",
-                        ))
+                        l4_candidates.append(
+                            SkillCandidate(
+                                skill_id=enhancer,
+                                score=round(weight, 4),
+                                layer="L4",
+                                reason=f"Predicted: {combo.combination_id} (weight={weight:.2f})",
+                                gain=f"+{combo.gain_avg:.1f}" if combo.gain_avg > 0 else "",
+                            )
+                        )
 
         return sorted(l4_candidates, key=lambda c: c.score, reverse=True)[:5]

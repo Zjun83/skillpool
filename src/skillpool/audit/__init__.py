@@ -9,6 +9,7 @@ Architecture constraint:
 - Audit is append-only integrity-protected
 - Audit unavailable = fail closed for mutations
 """
+
 from __future__ import annotations
 
 __all__ = [
@@ -188,14 +189,17 @@ def log_event(
     parent_span_id = kwargs.pop("parent_span_id", "")
 
     # Hash inputs for integrity
-    payload = json.dumps({
-        "action": action,
-        "actor": actor,
-        "resource_type": resource_type,
-        "resource_id": resource_id,
-        "result": result,
-        "timestamp": isoformat_z(now),
-    }, sort_keys=True)
+    payload = json.dumps(
+        {
+            "action": action,
+            "actor": actor,
+            "resource_type": resource_type,
+            "resource_id": resource_id,
+            "result": result,
+            "timestamp": isoformat_z(now),
+        },
+        sort_keys=True,
+    )
     input_hash = hashlib.sha256(payload.encode()).hexdigest()
 
     # Determine trace provenance
@@ -258,15 +262,14 @@ def log_event(
         "timestamp": record.created_at,
         "previous_hash": record.previous_hash,
     }
-    record.current_hash = hashlib.sha256(
-        json.dumps(all_fields, sort_keys=True).encode()
-    ).hexdigest()
+    record.current_hash = hashlib.sha256(json.dumps(all_fields, sort_keys=True).encode()).hexdigest()
 
     return record
 
 
 class AuditUnavailableError(Exception):
     """Audit unavailable — fail closed."""
+
     pass
 
 
@@ -312,19 +315,22 @@ class AuditLayer:
             for idx, record in enumerate(self._records):
                 record.previous_hash = prev_hash
                 record.chain_index = idx
-                chain_payload = json.dumps({
-                    "event_id": record.event_id,
-                    "trace_id": record.trace_id,
-                    "span_id": record.span_id,
-                    "action": record.action,
-                    "actor": record.actor,
-                    "resource_type": record.resource_type,
-                    "resource_id": record.resource_id,
-                    "result": record.result,
-                    "timestamp": record.created_at,
-                    "chain_index": idx,
-                    "previous_hash": prev_hash,
-                }, sort_keys=True)
+                chain_payload = json.dumps(
+                    {
+                        "event_id": record.event_id,
+                        "trace_id": record.trace_id,
+                        "span_id": record.span_id,
+                        "action": record.action,
+                        "actor": record.actor,
+                        "resource_type": record.resource_type,
+                        "resource_id": record.resource_id,
+                        "result": record.result,
+                        "timestamp": record.created_at,
+                        "chain_index": idx,
+                        "previous_hash": prev_hash,
+                    },
+                    sort_keys=True,
+                )
                 record.current_hash = hashlib.sha256(chain_payload.encode()).hexdigest()
                 record.signature = record.current_hash
                 prev_hash = record.current_hash
@@ -387,19 +393,22 @@ class AuditLayer:
         record.chain_index = chain_index
 
         # Recompute hash with chain position
-        chain_payload = json.dumps({
-            "event_id": record.event_id,
-            "trace_id": record.trace_id,
-            "span_id": record.span_id,
-            "action": record.action,
-            "actor": record.actor,
-            "resource_type": record.resource_type,
-            "resource_id": record.resource_id,
-            "result": record.result,
-            "timestamp": record.created_at,
-            "chain_index": chain_index,
-            "previous_hash": previous_hash,
-        }, sort_keys=True)
+        chain_payload = json.dumps(
+            {
+                "event_id": record.event_id,
+                "trace_id": record.trace_id,
+                "span_id": record.span_id,
+                "action": record.action,
+                "actor": record.actor,
+                "resource_type": record.resource_type,
+                "resource_id": record.resource_id,
+                "result": record.result,
+                "timestamp": record.created_at,
+                "chain_index": chain_index,
+                "previous_hash": previous_hash,
+            },
+            sort_keys=True,
+        )
         record.current_hash = hashlib.sha256(chain_payload.encode()).hexdigest()
         record.signature = record.current_hash
 
@@ -432,19 +441,22 @@ class AuditLayer:
         record.previous_hash = self._last_hash
         record.chain_index = chain_index
 
-        chain_payload = json.dumps({
-            "event_id": record.event_id,
-            "trace_id": record.trace_id,
-            "span_id": record.span_id,
-            "action": record.action,
-            "actor": record.actor,
-            "resource_type": record.resource_type,
-            "resource_id": record.resource_id,
-            "result": record.result,
-            "timestamp": record.created_at,
-            "chain_index": chain_index,
-            "previous_hash": self._last_hash,
-        }, sort_keys=True)
+        chain_payload = json.dumps(
+            {
+                "event_id": record.event_id,
+                "trace_id": record.trace_id,
+                "span_id": record.span_id,
+                "action": record.action,
+                "actor": record.actor,
+                "resource_type": record.resource_type,
+                "resource_id": record.resource_id,
+                "result": record.result,
+                "timestamp": record.created_at,
+                "chain_index": chain_index,
+                "previous_hash": self._last_hash,
+            },
+            sort_keys=True,
+        )
         record.current_hash = hashlib.sha256(chain_payload.encode()).hexdigest()
         record.signature = record.current_hash
 
@@ -457,10 +469,7 @@ class AuditLayer:
     def get_records(self, object_id: str | None = None) -> list[AuditRecord]:
         """Get audit records, optionally filtered by resource_id (or object_id compat)."""
         if object_id:
-            return [
-                r for r in self._records
-                if r.resource_id == object_id
-            ]
+            return [r for r in self._records if r.resource_id == object_id]
         return list(self._records)
 
     def get_record_count(self) -> int:
@@ -484,19 +493,22 @@ class AuditLayer:
 
         for idx, record in enumerate(self._records):
             # Recompute hash from record content
-            chain_payload = json.dumps({
-                "event_id": record.event_id,
-                "trace_id": record.trace_id,
-                "span_id": record.span_id,
-                "action": record.action,
-                "actor": record.actor,
-                "resource_type": record.resource_type,
-                "resource_id": record.resource_id,
-                "result": record.result,
-                "timestamp": record.created_at,
-                "chain_index": record.chain_index,
-                "previous_hash": record.previous_hash,
-            }, sort_keys=True)
+            chain_payload = json.dumps(
+                {
+                    "event_id": record.event_id,
+                    "trace_id": record.trace_id,
+                    "span_id": record.span_id,
+                    "action": record.action,
+                    "actor": record.actor,
+                    "resource_type": record.resource_type,
+                    "resource_id": record.resource_id,
+                    "result": record.result,
+                    "timestamp": record.created_at,
+                    "chain_index": record.chain_index,
+                    "previous_hash": record.previous_hash,
+                },
+                sort_keys=True,
+            )
             expected_hash = hashlib.sha256(chain_payload.encode()).hexdigest()
 
             if record.current_hash != expected_hash:
@@ -515,6 +527,7 @@ class AuditLayer:
         try:
             self._jsonl_path.parent.mkdir(parents=True, exist_ok=True)
             import dataclasses
+
             d = dataclasses.asdict(record)
             # Convert datetime objects to ISO strings
             et = d.get("event_time")
@@ -610,27 +623,29 @@ class AuditLayer:
             if event_time.tzinfo is None:
                 event_time = event_time.replace(tzinfo=timezone.utc)
 
-            traces.append({
-                "traceId": record.trace_id,
-                "spanId": record.span_id,
-                "parentSpanId": record.parent_span_id or None,
-                "name": f"{record.source_component}.{record.action}",
-                "kind": "INTERNAL",
-                "startTimeUnixNano": str(int(event_time.timestamp() * 1e9)),
-                "endTimeUnixNano": str(int((event_time.timestamp() + record.duration_ms / 1000) * 1e9)),
-                "attributes": {
-                    "audit.id": record.audit_id,
-                    "event.id": record.event_id,
-                    "actor": record.actor,
-                    "action": record.action,
-                    "resource.type": record.resource_type,
-                    "resource.id": record.resource_id,
-                    "decision": record.decision,
-                    "result": record.result,
-                    "severity": record.severity,
-                    "tenant.id": record.tenant_id,
-                    "compliance.tags": record.compliance_tags,
-                },
-                "status": {"code": 1 if record.result == "success" else 2},
-            })
+            traces.append(
+                {
+                    "traceId": record.trace_id,
+                    "spanId": record.span_id,
+                    "parentSpanId": record.parent_span_id or None,
+                    "name": f"{record.source_component}.{record.action}",
+                    "kind": "INTERNAL",
+                    "startTimeUnixNano": str(int(event_time.timestamp() * 1e9)),
+                    "endTimeUnixNano": str(int((event_time.timestamp() + record.duration_ms / 1000) * 1e9)),
+                    "attributes": {
+                        "audit.id": record.audit_id,
+                        "event.id": record.event_id,
+                        "actor": record.actor,
+                        "action": record.action,
+                        "resource.type": record.resource_type,
+                        "resource.id": record.resource_id,
+                        "decision": record.decision,
+                        "result": record.result,
+                        "severity": record.severity,
+                        "tenant.id": record.tenant_id,
+                        "compliance.tags": record.compliance_tags,
+                    },
+                    "status": {"code": 1 if record.result == "success" else 2},
+                }
+            )
         return traces

@@ -29,10 +29,12 @@ def test_full_pipeline():
 
     # 2. Profile check
     profile = CLAUDE_CODE_PROFILE
-    can_execute, reason = profile.can_execute({
-        "required_capabilities": {"file_system", "python"},
-        "min_trust_level": 1,
-    })
+    can_execute, reason = profile.can_execute(
+        {
+            "required_capabilities": {"file_system", "python"},
+            "min_trust_level": 1,
+        }
+    )
     assert can_execute, f"Profile should execute: {reason}"
 
     # 3. Gate check

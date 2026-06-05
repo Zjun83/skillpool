@@ -1,4 +1,5 @@
 """Tests for Audit Layer V4.0 — 34-field OTel-aligned audit with hash chain."""
+
 from __future__ import annotations
 
 import hashlib
@@ -48,17 +49,40 @@ class TestAuditRecord:
 
     def test_all_34_fields_populated(self):
         r = AuditRecord(
-            audit_id="a1", event_id="e1", trace_id="t1", span_id="s1",
-            parent_span_id="p1", event_type="test", event_time=None,
-            created_at="2026-01-01", updated_at="2026-01-01", duration_ms=100.0,
-            actor="bot", session_id="sess1", tenant_id="ten1",
-            source_component="SC", action="act", resource_type="rt",
-            resource_id="ri", request_id="req1", correlation_id="corr1",
-            policy_decision="deny", decision="blocked", result="failure",
-            reason="bad", severity="ERROR", previous_hash="ph",
-            current_hash="ch", chain_index=5, signature="sig",
-            input_hash="ih", output_hash="oh", metadata_json='{"k":"v"}',
-            retention_class="cold", compliance_tags="ct", geo_location="US",
+            audit_id="a1",
+            event_id="e1",
+            trace_id="t1",
+            span_id="s1",
+            parent_span_id="p1",
+            event_type="test",
+            event_time=None,
+            created_at="2026-01-01",
+            updated_at="2026-01-01",
+            duration_ms=100.0,
+            actor="bot",
+            session_id="sess1",
+            tenant_id="ten1",
+            source_component="SC",
+            action="act",
+            resource_type="rt",
+            resource_id="ri",
+            request_id="req1",
+            correlation_id="corr1",
+            policy_decision="deny",
+            decision="blocked",
+            result="failure",
+            reason="bad",
+            severity="ERROR",
+            previous_hash="ph",
+            current_hash="ch",
+            chain_index=5,
+            signature="sig",
+            input_hash="ih",
+            output_hash="oh",
+            metadata_json='{"k":"v"}',
+            retention_class="cold",
+            compliance_tags="ct",
+            geo_location="US",
         )
         assert r.audit_id == "a1"
         assert r.event_id == "e1"
@@ -89,14 +113,17 @@ class TestLogEvent:
         record = log_event(action="test", resource_id="skill-1")
         assert record.input_hash != ""
         # Verify hash is deterministic
-        payload = json.dumps({
-            "action": "test",
-            "actor": "system",
-            "resource_type": "skill",
-            "resource_id": "skill-1",
-            "result": "success",
-            "timestamp": record.created_at,
-        }, sort_keys=True)
+        payload = json.dumps(
+            {
+                "action": "test",
+                "actor": "system",
+                "resource_type": "skill",
+                "resource_id": "skill-1",
+                "result": "success",
+                "timestamp": record.created_at,
+            },
+            sort_keys=True,
+        )
         expected = hashlib.sha256(payload.encode()).hexdigest()
         assert record.input_hash == expected
 
@@ -362,6 +389,7 @@ class TestAuditAgentIdRequired:
     def test_agent_id_in_to_dict(self):
         """agent_id should appear in serialized output."""
         import dataclasses
+
         record = log_event(action="test", agent_id="spiffe://skillpool/gate")
         d = dataclasses.asdict(record)
         assert "agent_id" in d

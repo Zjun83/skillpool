@@ -4,6 +4,7 @@ GateManager — Skill 执行门禁 + ComplexityAssessor。
 GateManager 根据 ComplexityAssessor 的评估结果决定是否放行 Skill 执行。
 复杂度评估维度：context_size, dependency_depth, trust_requirement, veto_risk
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -19,14 +20,15 @@ from skillpool.telemetry import TelemetryBridge
 
 class GateDecision(StrEnum):
     ALLOW = "allow"
-    GUARD = "guard"       # 允许但需要额外监督
-    DENY = "deny"         # 拒绝执行
-    ESCALATE = "escalate" # 需要人工审批
+    GUARD = "guard"  # 允许但需要额外监督
+    DENY = "deny"  # 拒绝执行
+    ESCALATE = "escalate"  # 需要人工审批
 
 
 @dataclass
 class ComplexityScore:
     """复杂度评分结果。"""
+
     total: float = 0.0
     context_size: float = 0.0
     dependency_depth: float = 0.0
@@ -93,6 +95,7 @@ class ComplexityAssessor:
 @dataclass
 class GateResult:
     """门禁决策结果。"""
+
     decision: GateDecision
     reason: str = ""
     complexity: Optional[ComplexityScore] = None
@@ -102,6 +105,7 @@ class GateResult:
 @dataclass
 class GatePolicyResult(GateResult):
     """Gate result with policy-based phase information."""
+
     policy_level: Optional[str] = None
     skip_phases: list[str] = field(default_factory=list)
     state: Optional[Any] = None
@@ -137,11 +141,13 @@ class GateManager:
     def check(self, csdf: dict) -> GateResult:
         """对 CSDF 做门禁检查，返回决策。"""
         # 1. 能力匹配
-        can_exec, reason = self.profile.can_execute({
-            "required_capabilities": csdf.get("required_agent_capabilities", set()),
-            "min_trust_level": csdf.get("min_trust_level", 0),
-            "paradigm": csdf.get("paradigm"),
-        })
+        can_exec, reason = self.profile.can_execute(
+            {
+                "required_capabilities": csdf.get("required_agent_capabilities", set()),
+                "min_trust_level": csdf.get("min_trust_level", 0),
+                "paradigm": csdf.get("paradigm"),
+            }
+        )
 
         if not can_exec:
             result = GateResult(
@@ -244,6 +250,7 @@ class GateManager:
                     all_skip: set[str] = set()
                     for f in changed_files:
                         from skillpool.gate_policy.parser import resolve_level_for_path
+
                         resolution = resolve_level_for_path(f, policy)
                         all_skip.update(resolution.skip_phases)
                     skip_phases = sorted(all_skip)

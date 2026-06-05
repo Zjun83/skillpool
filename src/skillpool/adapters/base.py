@@ -18,9 +18,7 @@ class AgentAdapter(ABC):
     - verify_skill: confirm the skill is accessible to the agent
     """
 
-    def __init__(
-        self, materializer: Materializer | None = None, state_dir: Path = Path(".skillpool")
-    ) -> None:
+    def __init__(self, materializer: Materializer | None = None, state_dir: Path = Path(".skillpool")) -> None:
         self.materializer = materializer or Materializer(state_dir)
 
     @abstractmethod

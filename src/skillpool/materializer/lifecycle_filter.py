@@ -3,6 +3,7 @@
 根据 CSDF 中的 lifecycle_state 字段，对 markdown 内容添加状态标记、
 降级警告或截断处理。
 """
+
 from __future__ import annotations
 
 from skillpool.lifecycle import SkillLifecycleState, parse_state

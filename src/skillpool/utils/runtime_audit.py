@@ -3,6 +3,7 @@
 Tracks security-sensitive operations: exec, compile, open, subprocess.Popen,
 socket.connect. Cannot be removed once registered (by design).
 """
+
 from __future__ import annotations
 
 __all__ = [
@@ -36,13 +37,15 @@ class RuntimeAuditHook:
         events = hook.get_events()
     """
 
-    MONITORED_EVENTS: frozenset[str] = frozenset({
-        "exec",
-        "compile",
-        "open",
-        "subprocess.Popen",
-        "socket.connect",
-    })
+    MONITORED_EVENTS: frozenset[str] = frozenset(
+        {
+            "exec",
+            "compile",
+            "open",
+            "subprocess.Popen",
+            "socket.connect",
+        }
+    )
 
     def __init__(
         self,

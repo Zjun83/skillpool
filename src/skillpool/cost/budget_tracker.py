@@ -1,4 +1,5 @@
 """BudgetTracker — monthly budget enforcement with threshold alerts."""
+
 from __future__ import annotations
 
 from skillpool.cost.models import AgentConfig, BudgetStatus

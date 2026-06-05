@@ -1,4 +1,5 @@
 """TokenGovernor — per-agent daily token budget enforcement."""
+
 from __future__ import annotations
 
 import json
@@ -13,6 +14,7 @@ from skillpool.utils.time_utils import utc_now
 @dataclass
 class _Usage:
     """Internal daily usage tracker for a single agent."""
+
     tokens: int = 0
 
 
@@ -22,10 +24,34 @@ PRESET_AGENT_CONFIGS: list[AgentConfig] = [
     AgentConfig(agent_id="sub_planner", agent_type="planner", daily_limit_tokens=0, is_critical=True),
     AgentConfig(agent_id="level1_worker", agent_type="worker", daily_limit_tokens=0, is_critical=True),
     AgentConfig(agent_id="level2_worker", agent_type="worker", daily_limit_tokens=0, is_critical=True),
-    AgentConfig(agent_id="evolver_v4", agent_type="evolver", daily_limit_tokens=100_000, throttle_at_pct=0.8, throttle_to_pct=0.5),
-    AgentConfig(agent_id="knowledge_refiner", agent_type="refiner", daily_limit_tokens=500_000, throttle_at_pct=0.9, throttle_to_pct=0.25),
-    AgentConfig(agent_id="sandbox_validator", agent_type="validator", daily_limit_tokens=50_000, throttle_at_pct=0.9, throttle_to_pct=0.25),
-    AgentConfig(agent_id="hermes_refiner", agent_type="refiner", daily_limit_tokens=300_000, throttle_at_pct=0.8, throttle_to_pct=0.5),
+    AgentConfig(
+        agent_id="evolver_v4",
+        agent_type="evolver",
+        daily_limit_tokens=100_000,
+        throttle_at_pct=0.8,
+        throttle_to_pct=0.5,
+    ),
+    AgentConfig(
+        agent_id="knowledge_refiner",
+        agent_type="refiner",
+        daily_limit_tokens=500_000,
+        throttle_at_pct=0.9,
+        throttle_to_pct=0.25,
+    ),
+    AgentConfig(
+        agent_id="sandbox_validator",
+        agent_type="validator",
+        daily_limit_tokens=50_000,
+        throttle_at_pct=0.9,
+        throttle_to_pct=0.25,
+    ),
+    AgentConfig(
+        agent_id="hermes_refiner",
+        agent_type="refiner",
+        daily_limit_tokens=300_000,
+        throttle_at_pct=0.8,
+        throttle_to_pct=0.5,
+    ),
 ]
 
 
@@ -204,6 +230,7 @@ class TokenGovernor:
                     expires_at = data.get("expires_at")
                     if expires_at:
                         from datetime import datetime
+
                         expiry = datetime.fromisoformat(expires_at)
                         if utc_now() < expiry:
                             emergency_bypass_active = True

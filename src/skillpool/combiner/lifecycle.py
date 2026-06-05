@@ -12,6 +12,7 @@ Human-specified combinations skip DISCOVERED, enter VALIDATING directly.
 
 Part of SkillPool — independent infrastructure, shared by all agents.
 """
+
 from __future__ import annotations
 
 import fcntl
@@ -126,9 +127,7 @@ class CombinationLifecycleManager:
         self._combinations[combo.combination_id] = combo
         records = [c.model_dump() for c in self._combinations.values()]
         # Atomic write: temp file → rename
-        tmp_fd, tmp_path = tempfile.mkstemp(
-            dir=str(self.data_dir), suffix=".jsonl.tmp"
-        )
+        tmp_fd, tmp_path = tempfile.mkstemp(dir=str(self.data_dir), suffix=".jsonl.tmp")
         try:
             with open(tmp_fd, "w") as f:
                 fcntl.flock(f, fcntl.LOCK_EX)
@@ -398,8 +397,8 @@ class CombinationLifecycleManager:
                     combination_id,
                     CombinationLifecycleState.DEPRECATED,
                     reason=f"Recent gain ({combo.recent_gain_avg:.2f}) "
-                           f"< 50% of all-time ({combo.all_time_gain_avg:.2f}) "
-                           f"(ratio={gain_ratio:.2f})",
+                    f"< 50% of all-time ({combo.all_time_gain_avg:.2f}) "
+                    f"(ratio={gain_ratio:.2f})",
                 )
 
         return None
@@ -438,10 +437,7 @@ class CombinationLifecycleManager:
     def get_promoted_combinations(self, primary: str = "") -> list[SkillCombination]:
         """Get all PROMOTED combinations, optionally filtered by primary skill."""
         self._ensure_loaded()
-        results = [
-            c for c in self._combinations.values()
-            if c.state == CombinationLifecycleState.PROMOTED
-        ]
+        results = [c for c in self._combinations.values() if c.state == CombinationLifecycleState.PROMOTED]
         if primary:
             results = [c for c in results if c.primary == primary]
         return sorted(results, key=lambda c: c.current_weight(), reverse=True)
@@ -449,15 +445,9 @@ class CombinationLifecycleManager:
     def get_validating_combinations(self) -> list[SkillCombination]:
         """Get all combinations currently in VALIDATING state."""
         self._ensure_loaded()
-        return [
-            c for c in self._combinations.values()
-            if c.state == CombinationLifecycleState.VALIDATING
-        ]
+        return [c for c in self._combinations.values() if c.state == CombinationLifecycleState.VALIDATING]
 
     def get_combinations_for_skill(self, skill_id: str) -> list[SkillCombination]:
         """Get all combinations involving a skill (as primary or enhancer)."""
         self._ensure_loaded()
-        return [
-            c for c in self._combinations.values()
-            if c.primary == skill_id or skill_id in c.enhancers
-        ]
+        return [c for c in self._combinations.values() if c.primary == skill_id or skill_id in c.enhancers]

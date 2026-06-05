@@ -17,8 +17,15 @@ class TestSkillLifecycleState:
 
     def test_nine_states_exist(self):
         expected_states = [
-            "DRAFT", "PROPOSED", "UNDER_REVIEW", "APPROVED", "REJECTED",
-            "ACTIVE", "DEPRECATED", "ARCHIVED", "REMOVED",
+            "DRAFT",
+            "PROPOSED",
+            "UNDER_REVIEW",
+            "APPROVED",
+            "REJECTED",
+            "ACTIVE",
+            "DEPRECATED",
+            "ARCHIVED",
+            "REMOVED",
         ]
         actual_states = [s.name for s in SkillLifecycleState]
         assert len(actual_states) == 9

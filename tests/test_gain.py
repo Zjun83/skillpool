@@ -17,6 +17,7 @@ from skillpool.gain import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def data_dir(tmp_path):
     """Create a temporary data directory for GainTracker."""
@@ -34,6 +35,7 @@ def tracker(data_dir):
 # ---------------------------------------------------------------------------
 # GainScores model
 # ---------------------------------------------------------------------------
+
 
 class TestGainScores:
     """Test the GainScores Pydantic model."""
@@ -81,6 +83,7 @@ class TestGainScores:
 # ---------------------------------------------------------------------------
 # SkillExecution model
 # ---------------------------------------------------------------------------
+
 
 class TestSkillExecution:
     """Test the SkillExecution Pydantic model."""
@@ -130,6 +133,7 @@ class TestSkillExecution:
 # GainReport model
 # ---------------------------------------------------------------------------
 
+
 class TestGainReport:
     """Test the GainReport Pydantic model."""
 
@@ -163,6 +167,7 @@ class TestGainReport:
 # GainTracker — constructor
 # ---------------------------------------------------------------------------
 
+
 class TestGainTrackerInit:
     """Test GainTracker constructor."""
 
@@ -192,6 +197,7 @@ class TestGainTrackerInit:
 # GainTracker — record
 # ---------------------------------------------------------------------------
 
+
 class TestRecord:
     """Test recording skill executions."""
 
@@ -218,6 +224,7 @@ class TestRecord:
         """If timestamp is empty, it's auto-generated."""
         with patch("skillpool.gain.utc_now") as mock_now:
             from datetime import datetime, timezone
+
             mock_now.return_value = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
             ex = SkillExecution(skill_ids=["test"])
@@ -274,6 +281,7 @@ class TestRecord:
 # ---------------------------------------------------------------------------
 # GainTracker — record_implicit
 # ---------------------------------------------------------------------------
+
 
 class TestRecordImplicit:
     """Test implicit (auto-collected) execution recording."""
@@ -350,6 +358,7 @@ class TestRecordImplicit:
 # GainTracker — _ensure_loaded
 # ---------------------------------------------------------------------------
 
+
 class TestEnsureLoaded:
     """Test lazy loading of execution history."""
 
@@ -375,9 +384,7 @@ class TestEnsureLoaded:
     def test_skips_empty_lines(self, tracker, data_dir):
         """Empty lines in log file are skipped."""
         log_file = data_dir / "executions.jsonl"
-        log_file.write_text(
-            '{"skill_ids": ["a"]}\n\n{"skill_ids": ["b"]}\n\n'
-        )
+        log_file.write_text('{"skill_ids": ["a"]}\n\n{"skill_ids": ["b"]}\n\n')
 
         tracker._ensure_loaded()
         assert len(tracker._executions) == 2
@@ -385,9 +392,7 @@ class TestEnsureLoaded:
     def test_skips_whitespace_lines(self, tracker, data_dir):
         """Whitespace-only lines are skipped."""
         log_file = data_dir / "executions.jsonl"
-        log_file.write_text(
-            '{"skill_ids": ["a"]}\n   \n{"skill_ids": ["b"]}\n'
-        )
+        log_file.write_text('{"skill_ids": ["a"]}\n   \n{"skill_ids": ["b"]}\n')
 
         tracker._ensure_loaded()
         assert len(tracker._executions) == 2
@@ -395,9 +400,7 @@ class TestEnsureLoaded:
     def test_skips_invalid_json(self, tracker, data_dir):
         """Invalid JSON lines are skipped with a warning."""
         log_file = data_dir / "executions.jsonl"
-        log_file.write_text(
-            '{"skill_ids": ["a"]}\n{invalid json}\n{"skill_ids": ["b"]}\n'
-        )
+        log_file.write_text('{"skill_ids": ["a"]}\n{invalid json}\n{"skill_ids": ["b"]}\n')
 
         tracker._ensure_loaded()
         # Should load valid lines, skip invalid
@@ -424,6 +427,7 @@ class TestEnsureLoaded:
 # GainTracker — report
 # ---------------------------------------------------------------------------
 
+
 class TestReport:
     """Test generating aggregated gain reports."""
 
@@ -436,10 +440,12 @@ class TestReport:
         assert report.combined_score == 0.0
 
     def test_report_single_execution(self, tracker):
-        tracker.record(SkillExecution(
-            skill_ids=["review"],
-            scores=GainScores(effectiveness=8.0, efficiency=7.0, quality=9.0, gain=1.0),
-        ))
+        tracker.record(
+            SkillExecution(
+                skill_ids=["review"],
+                scores=GainScores(effectiveness=8.0, efficiency=7.0, quality=9.0, gain=1.0),
+            )
+        )
 
         report = tracker.report("review")
         assert report.execution_count == 1
@@ -449,29 +455,35 @@ class TestReport:
         assert report.avg_gain == 1.0
 
     def test_report_multiple_executions(self, tracker):
-        tracker.record(SkillExecution(
-            skill_ids=["review"],
-            scores=GainScores(effectiveness=8.0, efficiency=7.0, quality=9.0, gain=1.0),
-        ))
-        tracker.record(SkillExecution(
-            skill_ids=["review"],
-            scores=GainScores(effectiveness=6.0, efficiency=5.0, quality=7.0, gain=0.5),
-        ))
+        tracker.record(
+            SkillExecution(
+                skill_ids=["review"],
+                scores=GainScores(effectiveness=8.0, efficiency=7.0, quality=9.0, gain=1.0),
+            )
+        )
+        tracker.record(
+            SkillExecution(
+                skill_ids=["review"],
+                scores=GainScores(effectiveness=6.0, efficiency=5.0, quality=7.0, gain=0.5),
+            )
+        )
 
         report = tracker.report("review")
         assert report.execution_count == 2
         assert report.avg_effectiveness == 7.0  # (8+6)/2
-        assert report.avg_efficiency == 6.0    # (7+5)/2
-        assert report.avg_quality == 8.0       # (9+7)/2
-        assert report.avg_gain == 0.75         # (1+0.5)/2
+        assert report.avg_efficiency == 6.0  # (7+5)/2
+        assert report.avg_quality == 8.0  # (9+7)/2
+        assert report.avg_gain == 0.75  # (1+0.5)/2
 
     def test_report_last_n_filter(self, tracker):
         """Report only considers last N executions."""
         for i in range(10):
-            tracker.record(SkillExecution(
-                skill_ids=["review"],
-                scores=GainScores(effectiveness=float(i)),
-            ))
+            tracker.record(
+                SkillExecution(
+                    skill_ids=["review"],
+                    scores=GainScores(effectiveness=float(i)),
+                )
+            )
 
         report = tracker.report("review", last_n=3)
         assert report.execution_count == 3
@@ -480,18 +492,24 @@ class TestReport:
 
     def test_report_filters_by_skill_id(self, tracker):
         """Report only includes executions with matching skill_id."""
-        tracker.record(SkillExecution(
-            skill_ids=["review"],
-            scores=GainScores(effectiveness=8.0),
-        ))
-        tracker.record(SkillExecution(
-            skill_ids=["security"],
-            scores=GainScores(effectiveness=5.0),
-        ))
-        tracker.record(SkillExecution(
-            skill_ids=["review", "security"],  # Both skills
-            scores=GainScores(effectiveness=9.0),
-        ))
+        tracker.record(
+            SkillExecution(
+                skill_ids=["review"],
+                scores=GainScores(effectiveness=8.0),
+            )
+        )
+        tracker.record(
+            SkillExecution(
+                skill_ids=["security"],
+                scores=GainScores(effectiveness=5.0),
+            )
+        )
+        tracker.record(
+            SkillExecution(
+                skill_ids=["review", "security"],  # Both skills
+                scores=GainScores(effectiveness=9.0),
+            )
+        )
 
         report_review = tracker.report("review")
         assert report_review.execution_count == 2  # First and third
@@ -505,10 +523,12 @@ class TestReport:
 
     def test_combined_score_formula(self, tracker):
         """Test the combined score weighted average."""
-        tracker.record(SkillExecution(
-            skill_ids=["test"],
-            scores=GainScores(effectiveness=10.0, efficiency=10.0, quality=10.0, gain=10.0),
-        ))
+        tracker.record(
+            SkillExecution(
+                skill_ids=["test"],
+                scores=GainScores(effectiveness=10.0, efficiency=10.0, quality=10.0, gain=10.0),
+            )
+        )
 
         report = tracker.report("test")
         # Combined = eff*0.35 + effi*0.20 + qual*0.25 + max(0,gain)*0.20
@@ -517,10 +537,12 @@ class TestReport:
 
     def test_combined_score_negative_gain_ignored(self, tracker):
         """Negative gain doesn't contribute to combined score."""
-        tracker.record(SkillExecution(
-            skill_ids=["test"],
-            scores=GainScores(effectiveness=5.0, efficiency=5.0, quality=5.0, gain=-5.0),
-        ))
+        tracker.record(
+            SkillExecution(
+                skill_ids=["test"],
+                scores=GainScores(effectiveness=5.0, efficiency=5.0, quality=5.0, gain=-5.0),
+            )
+        )
 
         report = tracker.report("test")
         # Combined = 5*0.35 + 5*0.20 + 5*0.25 + max(0,-5)*0.20
@@ -529,10 +551,12 @@ class TestReport:
 
     def test_report_values_rounded(self, tracker):
         """Report values are rounded to 2 decimal places."""
-        tracker.record(SkillExecution(
-            skill_ids=["test"],
-            scores=GainScores(effectiveness=8.333, efficiency=7.777, quality=9.111, gain=1.555),
-        ))
+        tracker.record(
+            SkillExecution(
+                skill_ids=["test"],
+                scores=GainScores(effectiveness=8.333, efficiency=7.777, quality=9.111, gain=1.555),
+            )
+        )
 
         report = tracker.report("test")
         assert report.avg_effectiveness == 8.33
@@ -546,6 +570,7 @@ class TestReport:
 # GainTracker — combination_gain
 # ---------------------------------------------------------------------------
 
+
 class TestCombinationGain:
     """Test marginal gain calculation for skill combinations."""
 
@@ -555,18 +580,22 @@ class TestCombinationGain:
 
     def test_only_together_no_alone(self, tracker):
         """If only A+B executions exist (no A alone), returns 0.0."""
-        tracker.record(SkillExecution(
-            skill_ids=["a", "b"],
-            scores=GainScores(effectiveness=9.0),
-        ))
+        tracker.record(
+            SkillExecution(
+                skill_ids=["a", "b"],
+                scores=GainScores(effectiveness=9.0),
+            )
+        )
         assert tracker.combination_gain("a", "b") == 0.0
 
     def test_only_alone_no_together(self, tracker):
         """If only A alone executions exist (no A+B), returns 0.0."""
-        tracker.record(SkillExecution(
-            skill_ids=["a"],
-            scores=GainScores(effectiveness=7.0),
-        ))
+        tracker.record(
+            SkillExecution(
+                skill_ids=["a"],
+                scores=GainScores(effectiveness=7.0),
+            )
+        )
         assert tracker.combination_gain("a", "b") == 0.0
 
     def test_positive_gain(self, tracker):
@@ -603,6 +632,7 @@ class TestCombinationGain:
 # GainTracker — get_top_combinations
 # ---------------------------------------------------------------------------
 
+
 class TestGetTopCombinations:
     """Test retrieving top-performing skill combinations."""
 
@@ -610,10 +640,12 @@ class TestGetTopCombinations:
         assert tracker.get_top_combinations() == []
 
     def test_single_skill(self, tracker):
-        tracker.record(SkillExecution(
-            skill_ids=["review"],
-            scores=GainScores(effectiveness=8.0),
-        ))
+        tracker.record(
+            SkillExecution(
+                skill_ids=["review"],
+                scores=GainScores(effectiveness=8.0),
+            )
+        )
 
         result = tracker.get_top_combinations()
         assert len(result) == 1
@@ -622,18 +654,24 @@ class TestGetTopCombinations:
         assert result[0]["execution_count"] == 1
 
     def test_multiple_skills_sorted_by_gain(self, tracker):
-        tracker.record(SkillExecution(
-            skill_ids=["low"],
-            scores=GainScores(effectiveness=3.0),
-        ))
-        tracker.record(SkillExecution(
-            skill_ids=["high"],
-            scores=GainScores(effectiveness=9.0),
-        ))
-        tracker.record(SkillExecution(
-            skill_ids=["mid"],
-            scores=GainScores(effectiveness=6.0),
-        ))
+        tracker.record(
+            SkillExecution(
+                skill_ids=["low"],
+                scores=GainScores(effectiveness=3.0),
+            )
+        )
+        tracker.record(
+            SkillExecution(
+                skill_ids=["high"],
+                scores=GainScores(effectiveness=9.0),
+            )
+        )
+        tracker.record(
+            SkillExecution(
+                skill_ids=["mid"],
+                scores=GainScores(effectiveness=6.0),
+            )
+        )
 
         result = tracker.get_top_combinations()
         assert len(result) == 3
@@ -644,10 +682,12 @@ class TestGetTopCombinations:
 
     def test_top_k_limit(self, tracker):
         for i in range(10):
-            tracker.record(SkillExecution(
-                skill_ids=[f"skill-{i}"],
-                scores=GainScores(effectiveness=float(i)),
-            ))
+            tracker.record(
+                SkillExecution(
+                    skill_ids=[f"skill-{i}"],
+                    scores=GainScores(effectiveness=float(i)),
+                )
+            )
 
         result = tracker.get_top_combinations(top_k=3)
         assert len(result) == 3
@@ -657,18 +697,24 @@ class TestGetTopCombinations:
         assert result[2]["skill_id"] == "skill-7"
 
     def test_intent_filter_match(self, tracker):
-        tracker.record(SkillExecution(
-            skill_ids=["code-review"],
-            scores=GainScores(effectiveness=8.0),
-        ))
-        tracker.record(SkillExecution(
-            skill_ids=["security-scan"],
-            scores=GainScores(effectiveness=7.0),
-        ))
-        tracker.record(SkillExecution(
-            skill_ids=["testing"],
-            scores=GainScores(effectiveness=6.0),
-        ))
+        tracker.record(
+            SkillExecution(
+                skill_ids=["code-review"],
+                scores=GainScores(effectiveness=8.0),
+            )
+        )
+        tracker.record(
+            SkillExecution(
+                skill_ids=["security-scan"],
+                scores=GainScores(effectiveness=7.0),
+            )
+        )
+        tracker.record(
+            SkillExecution(
+                skill_ids=["testing"],
+                scores=GainScores(effectiveness=6.0),
+            )
+        )
 
         result = tracker.get_top_combinations(intent="review")
         assert len(result) == 1
@@ -676,18 +722,24 @@ class TestGetTopCombinations:
 
     def test_intent_filter_partial_match(self, tracker):
         """Intent filter matches if skill_id contains any intent word."""
-        tracker.record(SkillExecution(
-            skill_ids=["code-review"],
-            scores=GainScores(effectiveness=8.0),
-        ))
-        tracker.record(SkillExecution(
-            skill_ids=["review-checklist"],
-            scores=GainScores(effectiveness=7.0),
-        ))
-        tracker.record(SkillExecution(
-            skill_ids=["unrelated"],
-            scores=GainScores(effectiveness=9.0),
-        ))
+        tracker.record(
+            SkillExecution(
+                skill_ids=["code-review"],
+                scores=GainScores(effectiveness=8.0),
+            )
+        )
+        tracker.record(
+            SkillExecution(
+                skill_ids=["review-checklist"],
+                scores=GainScores(effectiveness=7.0),
+            )
+        )
+        tracker.record(
+            SkillExecution(
+                skill_ids=["unrelated"],
+                scores=GainScores(effectiveness=9.0),
+            )
+        )
 
         result = tracker.get_top_combinations(intent="review")
         assert len(result) == 2
@@ -696,31 +748,39 @@ class TestGetTopCombinations:
 
     def test_last_execution_timestamp(self, tracker):
         """Result includes the most recent timestamp for each skill."""
-        tracker.record(SkillExecution(
-            skill_ids=["test"],
-            timestamp="2025-01-01T00:00:00Z",
-            scores=GainScores(effectiveness=5.0),
-        ))
-        tracker.record(SkillExecution(
-            skill_ids=["test"],
-            timestamp="2025-01-02T00:00:00Z",
-            scores=GainScores(effectiveness=6.0),
-        ))
-        tracker.record(SkillExecution(
-            skill_ids=["test"],
-            timestamp="2025-01-03T00:00:00Z",
-            scores=GainScores(effectiveness=7.0),
-        ))
+        tracker.record(
+            SkillExecution(
+                skill_ids=["test"],
+                timestamp="2025-01-01T00:00:00Z",
+                scores=GainScores(effectiveness=5.0),
+            )
+        )
+        tracker.record(
+            SkillExecution(
+                skill_ids=["test"],
+                timestamp="2025-01-02T00:00:00Z",
+                scores=GainScores(effectiveness=6.0),
+            )
+        )
+        tracker.record(
+            SkillExecution(
+                skill_ids=["test"],
+                timestamp="2025-01-03T00:00:00Z",
+                scores=GainScores(effectiveness=7.0),
+            )
+        )
 
         result = tracker.get_top_combinations()
         assert result[0]["last_execution"] == "2025-01-03T00:00:00Z"
 
     def test_multi_skill_execution_counts_each_skill(self, tracker):
         """An execution with multiple skills counts for each skill separately."""
-        tracker.record(SkillExecution(
-            skill_ids=["a", "b"],
-            scores=GainScores(effectiveness=8.0),
-        ))
+        tracker.record(
+            SkillExecution(
+                skill_ids=["a", "b"],
+                scores=GainScores(effectiveness=8.0),
+            )
+        )
 
         result = tracker.get_top_combinations()
         assert len(result) == 2
@@ -733,6 +793,7 @@ class TestGetTopCombinations:
 # GainTracker — get_gain_history
 # ---------------------------------------------------------------------------
 
+
 class TestGetGainHistory:
     """Test retrieving execution history for a specific skill."""
 
@@ -740,11 +801,13 @@ class TestGetGainHistory:
         assert tracker.get_gain_history("nonexistent") == []
 
     def test_single_execution(self, tracker):
-        tracker.record(SkillExecution(
-            skill_ids=["review"],
-            timestamp="2025-01-01T00:00:00Z",
-            scores=GainScores(effectiveness=8.0),
-        ))
+        tracker.record(
+            SkillExecution(
+                skill_ids=["review"],
+                timestamp="2025-01-01T00:00:00Z",
+                scores=GainScores(effectiveness=8.0),
+            )
+        )
 
         history = tracker.get_gain_history("review")
         assert len(history) == 1
@@ -753,36 +816,46 @@ class TestGetGainHistory:
         assert history[0]["skill_ids"] == ["review"]
 
     def test_multiple_executions(self, tracker):
-        tracker.record(SkillExecution(
-            skill_ids=["review"],
-            timestamp="2025-01-01T00:00:00Z",
-            scores=GainScores(effectiveness=7.0),
-        ))
-        tracker.record(SkillExecution(
-            skill_ids=["review"],
-            timestamp="2025-01-02T00:00:00Z",
-            scores=GainScores(effectiveness=8.0),
-        ))
-        tracker.record(SkillExecution(
-            skill_ids=["review"],
-            timestamp="2025-01-03T00:00:00Z",
-            scores=GainScores(effectiveness=9.0),
-        ))
+        tracker.record(
+            SkillExecution(
+                skill_ids=["review"],
+                timestamp="2025-01-01T00:00:00Z",
+                scores=GainScores(effectiveness=7.0),
+            )
+        )
+        tracker.record(
+            SkillExecution(
+                skill_ids=["review"],
+                timestamp="2025-01-02T00:00:00Z",
+                scores=GainScores(effectiveness=8.0),
+            )
+        )
+        tracker.record(
+            SkillExecution(
+                skill_ids=["review"],
+                timestamp="2025-01-03T00:00:00Z",
+                scores=GainScores(effectiveness=9.0),
+            )
+        )
 
         history = tracker.get_gain_history("review")
         assert len(history) == 3
 
     def test_filters_by_skill_id(self, tracker):
-        tracker.record(SkillExecution(
-            skill_ids=["review"],
-            timestamp="2025-01-01T00:00:00Z",
-            scores=GainScores(effectiveness=8.0),
-        ))
-        tracker.record(SkillExecution(
-            skill_ids=["security"],
-            timestamp="2025-01-02T00:00:00Z",
-            scores=GainScores(effectiveness=7.0),
-        ))
+        tracker.record(
+            SkillExecution(
+                skill_ids=["review"],
+                timestamp="2025-01-01T00:00:00Z",
+                scores=GainScores(effectiveness=8.0),
+            )
+        )
+        tracker.record(
+            SkillExecution(
+                skill_ids=["security"],
+                timestamp="2025-01-02T00:00:00Z",
+                scores=GainScores(effectiveness=7.0),
+            )
+        )
 
         history = tracker.get_gain_history("review")
         assert len(history) == 1
@@ -790,11 +863,13 @@ class TestGetGainHistory:
 
     def test_includes_multi_skill_executions(self, tracker):
         """Executions with multiple skills are included if skill_id matches."""
-        tracker.record(SkillExecution(
-            skill_ids=["review", "security"],
-            timestamp="2025-01-01T00:00:00Z",
-            scores=GainScores(effectiveness=9.0),
-        ))
+        tracker.record(
+            SkillExecution(
+                skill_ids=["review", "security"],
+                timestamp="2025-01-01T00:00:00Z",
+                scores=GainScores(effectiveness=9.0),
+            )
+        )
 
         history = tracker.get_gain_history("review")
         assert len(history) == 1
@@ -808,16 +883,19 @@ class TestGetGainHistory:
 # GainTracker — persistence integration
 # ---------------------------------------------------------------------------
 
+
 class TestPersistenceIntegration:
     """Test that data persists across GainTracker instances."""
 
     def test_data_persists_across_instances(self, data_dir):
         """Data written by one tracker is readable by another."""
         t1 = GainTracker(data_dir=data_dir)
-        t1.record(SkillExecution(
-            skill_ids=["persistent"],
-            scores=GainScores(effectiveness=8.5),
-        ))
+        t1.record(
+            SkillExecution(
+                skill_ids=["persistent"],
+                scores=GainScores(effectiveness=8.5),
+            )
+        )
 
         # New instance should load the same data
         t2 = GainTracker(data_dir=data_dir)

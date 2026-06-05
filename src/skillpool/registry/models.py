@@ -1,4 +1,5 @@
 """Registry models — Skill metadata and lifecycle state."""
+
 from __future__ import annotations
 
 __all__ = [
@@ -18,6 +19,7 @@ from typing import Any
 
 class SkillStatus(StrEnum):
     """Skill lifecycle states (9-state model)."""
+
     DRAFT = "draft"
     IMPORTED = "imported"
     TESTING = "testing"
@@ -32,6 +34,7 @@ class SkillStatus(StrEnum):
 @dataclass
 class SkillMetadata:
     """Skill metadata stored in Registry."""
+
     skill_id: str
     name: str
     version: str
@@ -49,6 +52,7 @@ class SkillMetadata:
 @dataclass
 class ProblemDetail:
     """RFC 7807 Problem Detail for error responses."""
+
     type: str
     title: str
     status: int
@@ -59,6 +63,7 @@ class ProblemDetail:
 @dataclass
 class RegisterSkillRequest:
     """Request to register a skill candidate."""
+
     skill_metadata: SkillMetadata
     context: dict[str, Any] = field(default_factory=dict)
 
@@ -66,6 +71,7 @@ class RegisterSkillRequest:
 @dataclass
 class RegisterSkillResponse:
     """Response from skill registration."""
+
     context: dict[str, Any] = field(default_factory=dict)
     skill_id: str = ""
     status: str = "testing"
@@ -75,6 +81,7 @@ class RegisterSkillResponse:
 @dataclass
 class StateTransitionRequest:
     """Request to transition skill state."""
+
     from_status: SkillStatus
     to_status: SkillStatus
     context: dict[str, Any] = field(default_factory=dict)
@@ -83,6 +90,7 @@ class StateTransitionRequest:
 @dataclass
 class StateTransitionResponse:
     """Response from state transition."""
+
     context: dict[str, Any] = field(default_factory=dict)
     skill_id: str = ""
     from_status: str = ""

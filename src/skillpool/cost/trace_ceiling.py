@@ -1,4 +1,5 @@
 """TraceCeiling — per-trace cost ceiling with circuit breaker."""
+
 from __future__ import annotations
 
 
@@ -26,7 +27,10 @@ class TraceCeiling:
         """
         current = self._trace_costs.get(trace_id, 0.0)
         if current + additional_cost > self.ceiling_usd:
-            return False, f"trace {trace_id} ceiling exceeded: ${current:.4f} + ${additional_cost:.4f} > ${self.ceiling_usd:.2f}"
+            return (
+                False,
+                f"trace {trace_id} ceiling exceeded: ${current:.4f} + ${additional_cost:.4f} > ${self.ceiling_usd:.2f}",
+            )
         return True, "ok"
 
     def is_circuit_broken(self, trace_id: str) -> bool:

@@ -1,4 +1,5 @@
 """Tests for Monitor Layer — Runtime observability, SLO, and evaluation."""
+
 from __future__ import annotations
 
 import pytest
@@ -41,13 +42,23 @@ class TestFiveDimensionEvaluation:
     def test_overall_score_calculation(self):
         eval_ = FiveDimensionEvaluation(
             skill_id="s1",
-            safety=EvaluationLevel.GOOD, safety_score=0.9, safety_reason="ok",
-            completeness=EvaluationLevel.GOOD, completeness_score=0.8, completeness_reason="ok",
-            executability=EvaluationLevel.GOOD, executability_score=0.7, executability_reason="ok",
-            maintainability=EvaluationLevel.AVERAGE, maintainability_score=0.5, maintainability_reason="avg",
-            cost_awareness=EvaluationLevel.GOOD, cost_awareness_score=0.8, cost_awareness_reason="ok",
+            safety=EvaluationLevel.GOOD,
+            safety_score=0.9,
+            safety_reason="ok",
+            completeness=EvaluationLevel.GOOD,
+            completeness_score=0.8,
+            completeness_reason="ok",
+            executability=EvaluationLevel.GOOD,
+            executability_score=0.7,
+            executability_reason="ok",
+            maintainability=EvaluationLevel.AVERAGE,
+            maintainability_score=0.5,
+            maintainability_reason="avg",
+            cost_awareness=EvaluationLevel.GOOD,
+            cost_awareness_score=0.8,
+            cost_awareness_reason="ok",
         )
-        expected = 0.9*0.25 + 0.8*0.20 + 0.7*0.25 + 0.5*0.15 + 0.8*0.15
+        expected = 0.9 * 0.25 + 0.8 * 0.20 + 0.7 * 0.25 + 0.5 * 0.15 + 0.8 * 0.15
         assert abs(eval_.overall_score - expected) < 0.01
 
 
@@ -124,40 +135,52 @@ class TestMonitorLayer:
 
     def test_evaluate_skill(self):
         mon = MonitorLayer()
-        eval_ = mon.evaluate_skill("s1", {
-            "error_rate": 0.05,
-            "security_issues": 0,
-            "coverage": 0.9,
-            "doc_completeness": 0.8,
-            "p99_latency_ms": 200,
-            "update_frequency_days": 10,
-            "resource_efficiency": 0.7,
-        })
+        eval_ = mon.evaluate_skill(
+            "s1",
+            {
+                "error_rate": 0.05,
+                "security_issues": 0,
+                "coverage": 0.9,
+                "doc_completeness": 0.8,
+                "p99_latency_ms": 200,
+                "update_frequency_days": 10,
+                "resource_efficiency": 0.7,
+            },
+        )
         assert eval_.skill_id == "s1"
         assert eval_.overall_score > 0
         assert eval_.safety == EvaluationLevel.GOOD
 
     def test_evaluate_skill_with_security_issues(self):
         mon = MonitorLayer()
-        eval_ = mon.evaluate_skill("s1", {
-            "error_rate": 0.1,
-            "security_issues": 2,
-            "coverage": 0.5,
-            "doc_completeness": 0.5,
-            "p99_latency_ms": 500,
-            "update_frequency_days": 30,
-            "resource_efficiency": 0.5,
-        })
+        eval_ = mon.evaluate_skill(
+            "s1",
+            {
+                "error_rate": 0.1,
+                "security_issues": 2,
+                "coverage": 0.5,
+                "doc_completeness": 0.5,
+                "p99_latency_ms": 500,
+                "update_frequency_days": 30,
+                "resource_efficiency": 0.5,
+            },
+        )
         assert eval_.safety_score < 0.5  # Penalty for security issues
 
     def test_get_evaluation(self):
         mon = MonitorLayer()
-        eval_ = mon.evaluate_skill("s1", {
-            "error_rate": 0.0, "security_issues": 0,
-            "coverage": 1.0, "doc_completeness": 1.0,
-            "p99_latency_ms": 10, "update_frequency_days": 1,
-            "resource_efficiency": 1.0,
-        })
+        eval_ = mon.evaluate_skill(
+            "s1",
+            {
+                "error_rate": 0.0,
+                "security_issues": 0,
+                "coverage": 1.0,
+                "doc_completeness": 1.0,
+                "p99_latency_ms": 10,
+                "update_frequency_days": 1,
+                "resource_efficiency": 1.0,
+            },
+        )
         found = mon.get_evaluation("s1")
         assert found is eval_
 
@@ -189,12 +212,18 @@ class TestMonitorLayer:
     def test_skill_performance_summary(self):
         mon = MonitorLayer()
         mon.record_latency("s1", 50.0, True)
-        mon.evaluate_skill("s1", {
-            "error_rate": 0.0, "security_issues": 0,
-            "coverage": 1.0, "doc_completeness": 1.0,
-            "p99_latency_ms": 10, "update_frequency_days": 1,
-            "resource_efficiency": 1.0,
-        })
+        mon.evaluate_skill(
+            "s1",
+            {
+                "error_rate": 0.0,
+                "security_issues": 0,
+                "coverage": 1.0,
+                "doc_completeness": 1.0,
+                "p99_latency_ms": 10,
+                "update_frequency_days": 1,
+                "resource_efficiency": 1.0,
+            },
+        )
         summary = mon.get_skill_performance_summary("s1")
         assert summary["skill_id"] == "s1"
         assert summary["five_dimension"] is not None
@@ -227,6 +256,7 @@ class TestTelemetryBridge:
     def test_sink_exception_swallowed(self):
         def bad_sink(m):
             raise RuntimeError("fail")
+
         bridge = TelemetryBridge(sink=bad_sink)
         bridge.emit({"name": "test"})  # Should not raise
 
@@ -330,6 +360,7 @@ class TestRecordBug:
     def test_record_bug_creates_bug_record(self):
         mon = MonitorLayer()
         from skillpool.monitor.bug_collector import BugSeverity, DefectType
+
         record = mon.record_bug(
             severity=BugSeverity.P2,
             defect_type=DefectType.PARAM_ERROR,
@@ -344,6 +375,7 @@ class TestRecordBug:
     def test_record_bug_with_context(self):
         mon = MonitorLayer()
         from skillpool.monitor.bug_collector import BugSeverity, DefectType
+
         record = mon.record_bug(
             severity=BugSeverity.P1,
             defect_type=DefectType.EXECUTION_FAILURE,

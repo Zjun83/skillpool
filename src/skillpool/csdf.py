@@ -39,9 +39,7 @@ class CSDFParser:
     """Stateless parser for CSDF frontmatter documents."""
 
     def __init__(self) -> None:
-        self._frontmatter_re = re.compile(
-            r"^---\s*\n(.*?)\n---\s*\n?(.*)", re.DOTALL
-        )
+        self._frontmatter_re = re.compile(r"^---\s*\n(.*?)\n---\s*\n?(.*)", re.DOTALL)
 
     def parse(self, content: str, source_path: str = "") -> CSDFDocument:
         """Parse a SKILL.md string into a CSDFDocument.

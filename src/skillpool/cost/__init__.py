@@ -1,4 +1,5 @@
 """CostManager — unified cost tracking, budgeting, and throttling."""
+
 from __future__ import annotations
 
 from skillpool.cost.models import (

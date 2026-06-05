@@ -16,6 +16,7 @@ from typing import Optional
 
 class SkillLifecycleState(IntEnum):
     """9-state lifecycle for skills in the pool."""
+
     DRAFT = 0
     PROPOSED = 1
     UNDER_REVIEW = 2

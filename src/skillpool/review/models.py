@@ -2,6 +2,7 @@
 
 Aligned with contracts/sdd/review-trigger-spec.yaml
 """
+
 from __future__ import annotations
 
 from enum import StrEnum
@@ -12,6 +13,7 @@ from pydantic import BaseModel, Field
 
 class ReviewTrigger(StrEnum):
     """What triggered this review."""
+
     L3_REGRESSION_FAIL = "l3_regression_fail"
     L4_E2E_FAIL = "l4_e2e_fail"
     L5_ERROR_BUDGET_BURN = "l5_error_budget_burn"
@@ -21,6 +23,7 @@ class ReviewTrigger(StrEnum):
 
 class CheckpointLevel(StrEnum):
     """Review checkpoint level — determines which dimensions are evaluated."""
+
     L1 = "L1"
     L2 = "L2"
     L3 = "L3"
@@ -29,7 +32,7 @@ class CheckpointLevel(StrEnum):
 
 # Checkpoint SLA timeouts (per spec)
 CHECKPOINT_SLA_TIMEOUTS: dict[CheckpointLevel, float] = {
-    CheckpointLevel.L1: 10.0,   # seconds
+    CheckpointLevel.L1: 10.0,  # seconds
     CheckpointLevel.L2: 60.0,
     CheckpointLevel.L3: 120.0,
     CheckpointLevel.L4: 300.0,
@@ -38,6 +41,7 @@ CHECKPOINT_SLA_TIMEOUTS: dict[CheckpointLevel, float] = {
 
 class VetoRule(StrEnum):
     """Veto rules V1-V6 with human-readable conditions."""
+
     V1 = "V1"  # D3 < 7.0 → block
     V2 = "V2"  # D5 < 7.0 → block
     V3 = "V3"  # D7 < 7.5 → block
@@ -48,6 +52,7 @@ class VetoRule(StrEnum):
 
 class ReviewStatus(StrEnum):
     """Status of a review execution."""
+
     COMPLETED = "completed"
     PARTIAL = "partial"
     FAILED = "failed"
@@ -57,6 +62,7 @@ class ReviewStatus(StrEnum):
 
 class UpgradeRecommendation(StrEnum):
     """Recommended upgrade action based on review results."""
+
     PATCH = "PATCH"
     MINOR = "MINOR"
     MAJOR = "MAJOR"
@@ -65,6 +71,7 @@ class UpgradeRecommendation(StrEnum):
 
 class FailedTestDetail(BaseModel):
     """Structured failed test information (per schema)."""
+
     test_name: str
     expected: str = ""
     actual: str = ""
@@ -74,6 +81,7 @@ class FailedTestDetail(BaseModel):
 
 class VetoDetail(BaseModel):
     """Detail of a single veto rule evaluation."""
+
     rule: VetoRule
     dimension: str
     score: float
@@ -84,6 +92,7 @@ class VetoDetail(BaseModel):
 
 class SuspectSkill(BaseModel):
     """A skill marked as suspect during review."""
+
     skill_id: str
     reason: str
     suspected_dimension: str = ""
@@ -91,6 +100,7 @@ class SuspectSkill(BaseModel):
 
 class BlindSpotFound(BaseModel):
     """New blind spot discovered during review."""
+
     id: str
     description: str
     dimension: str
@@ -106,13 +116,16 @@ class ReviewTriggerRequest(BaseModel):
     - baseline_metrics: before/after metrics for comparison
     - pipeline_url: CI pipeline reference
     """
+
     trigger: ReviewTrigger
     checkpoint: CheckpointLevel
     affected_skills: list[str] = Field(min_length=1, description="Skill IDs under review")
     failed_tests: Optional[list[str]] = Field(default=None, description="Test IDs that failed (backward compat)")
     failed_test_details: list[FailedTestDetail] = Field(default_factory=list, description="Structured failed test info")
     trace_id: str = Field(default="", description="W3C TraceContext trace_id")
-    baseline_metrics: dict[str, float] = Field(default_factory=dict, description="Baseline metrics (previous_recall, current_recall, etc.)")
+    baseline_metrics: dict[str, float] = Field(
+        default_factory=dict, description="Baseline metrics (previous_recall, current_recall, etc.)"
+    )
     pipeline_url: str = Field(default="", description="CI pipeline URL for audit")
 
     def get_all_failed_tests(self) -> list[str]:
@@ -132,6 +145,7 @@ class ReviewTriggerResponse(BaseModel):
     - merkle_commit: ClawMem savepoint hash
     - retry_after_seconds: for async polling
     """
+
     review_id: str
     status: ReviewStatus
     checkpoint: CheckpointLevel
@@ -143,6 +157,8 @@ class ReviewTriggerResponse(BaseModel):
     duration_ms: float = 0.0
     # Schema-aligned fields
     new_blind_spots: list[BlindSpotFound] = Field(default_factory=list, description="New blind spots discovered")
-    estimated_cost: dict[str, Any] = Field(default_factory=dict, description="Cost estimate {review_tokens, review_cost_usd}")
+    estimated_cost: dict[str, Any] = Field(
+        default_factory=dict, description="Cost estimate {review_tokens, review_cost_usd}"
+    )
     merkle_commit: str = Field(default="", description="ClawMem SAVEPOINT hash")
     retry_after_seconds: float = Field(default=0.0, description="Seconds until async result available (0 = sync)")

@@ -1,4 +1,5 @@
 """Health check — component health assessment."""
+
 from __future__ import annotations
 
 import logging
@@ -63,10 +64,12 @@ class HealthChecker:
                     overall = ServingStatus.DEGRADED
 
             config["last_status"] = comp_status
-            results.append(ComponentHealth(
-                component=name,
-                status=comp_status,
-            ))
+            results.append(
+                ComponentHealth(
+                    component=name,
+                    status=comp_status,
+                )
+            )
 
         return HealthCheckResponse(
             status=overall,

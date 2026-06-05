@@ -1,4 +1,5 @@
 """CheckpointRunner — runs dimension scoring for each checkpoint level."""
+
 from __future__ import annotations
 
 import hashlib
@@ -139,6 +140,7 @@ class CheckpointRunner:
         # Bonus: SecurityScanner scan passes
         try:
             from skillpool.hooks.security_scanner import SecurityScanner
+
             scanner = SecurityScanner()
             result = scanner.full_check(raw_content)
             if result.is_safe:
@@ -172,13 +174,21 @@ class CheckpointRunner:
             score += 0.5
 
         # Penalty: no resilience fields at all
-        resilience_fields = {"fallback", "degradation", "recovery", "retry_strategy",
-                             "circuit_breaker", "timeout", "grace_period"}
+        resilience_fields = {
+            "fallback",
+            "degradation",
+            "recovery",
+            "retry_strategy",
+            "circuit_breaker",
+            "timeout",
+            "grace_period",
+        }
         if not any(k in data for k in resilience_fields):
             # Check checklist for resilience-related items
             checklist = data.get("checklist", [])
             has_resilience_item = any(
-                isinstance(item, dict) and any(
+                isinstance(item, dict)
+                and any(
                     kw in str(item.get("description", "")).lower()
                     for kw in ("fallback", "degrad", "recover", "retry", "timeout")
                 )
@@ -211,9 +221,9 @@ class CheckpointRunner:
         checklist = data.get("checklist", [])
         bdd_keywords = {"given", "when", "then", "should", "must", "verify"}
         bdd_count = sum(
-            1 for item in checklist
-            if isinstance(item, dict)
-            and any(kw in str(item.get("description", "")).lower() for kw in bdd_keywords)
+            1
+            for item in checklist
+            if isinstance(item, dict) and any(kw in str(item.get("description", "")).lower() for kw in bdd_keywords)
         )
         if bdd_count >= 3:
             score += 1.5
@@ -229,6 +239,7 @@ class CheckpointRunner:
         # Bonus: version follows semver
         version = str(data.get("version", ""))
         import re
+
         if re.match(r"\d+\.\d+\.\d+", version):
             score += 0.5
 
@@ -296,10 +307,7 @@ class CheckpointRunner:
             else:
                 score += 0.5
 
-            severities = [
-                item.get("severity", "") for item in checklist
-                if isinstance(item, dict)
-            ]
+            severities = [item.get("severity", "") for item in checklist if isinstance(item, dict)]
             if "critical" in severities:
                 score += 0.5
         else:
@@ -331,9 +339,7 @@ class CheckpointRunner:
 
     def _fallback_score(self, key: str) -> float:
         """Generate a deterministic fallback score when skill files are unavailable."""
-        seed = self._base_seed or int(
-            hashlib.sha256(key.encode()).hexdigest()[:8], 16
-        )
+        seed = self._base_seed or int(hashlib.sha256(key.encode()).hexdigest()[:8], 16)
         combined = f"{key}:{seed}".encode()
         h = int(hashlib.sha256(combined).hexdigest()[:8], 16)
         return round(5.0 + (h % 5000) / 1000.0, 2)

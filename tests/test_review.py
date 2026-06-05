@@ -1,4 +1,5 @@
 """Comprehensive tests for skillpool.review — models, veto, checkpoint, suspect, queue, manager."""
+
 from __future__ import annotations
 
 import time
@@ -26,6 +27,7 @@ from skillpool.telemetry import TelemetryBridge
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def evaluator() -> VetoEvaluator:
@@ -75,6 +77,7 @@ def _make_request(
 
 # ── Models ────────────────────────────────────────────────────────────
 
+
 class TestModels:
     """Pydantic model validation."""
 
@@ -92,14 +95,19 @@ class TestModels:
 
     def test_review_status_enum(self):
         assert set(ReviewStatus) == {
-            ReviewStatus.COMPLETED, ReviewStatus.PARTIAL, ReviewStatus.FAILED,
-            ReviewStatus.QUEUED, ReviewStatus.PROCESSING,
+            ReviewStatus.COMPLETED,
+            ReviewStatus.PARTIAL,
+            ReviewStatus.FAILED,
+            ReviewStatus.QUEUED,
+            ReviewStatus.PROCESSING,
         }
 
     def test_upgrade_recommendation_enum(self):
         assert set(UpgradeRecommendation) == {
-            UpgradeRecommendation.PATCH, UpgradeRecommendation.MINOR,
-            UpgradeRecommendation.MAJOR, UpgradeRecommendation.NONE,
+            UpgradeRecommendation.PATCH,
+            UpgradeRecommendation.MINOR,
+            UpgradeRecommendation.MAJOR,
+            UpgradeRecommendation.NONE,
         }
 
     def test_veto_detail_model(self):
@@ -160,6 +168,7 @@ class TestModels:
 
 
 # ── VetoEvaluator ────────────────────────────────────────────────────
+
 
 class TestVetoEvaluator:
     """VetoEvaluator — all 6 veto rules."""
@@ -276,6 +285,7 @@ class TestVetoEvaluator:
 
 # ── CheckpointRunner ─────────────────────────────────────────────────
 
+
 class TestCheckpointRunner:
     """CheckpointRunner — L1/L2/L3/L4 dimension selection and scoring."""
 
@@ -337,6 +347,7 @@ class TestCheckpointRunner:
 
 # ── SuspectMarker ────────────────────────────────────────────────────
 
+
 class TestSuspectMarker:
     """SuspectMarker — mark, check, list, clear."""
 
@@ -382,6 +393,7 @@ class TestSuspectMarker:
 
 
 # ── AsyncReviewQueue ─────────────────────────────────────────────────
+
 
 class TestAsyncReviewQueue:
     """AsyncReviewQueue — submit, status, cooldown, max_concurrent."""
@@ -462,6 +474,7 @@ class TestAsyncReviewQueue:
 
 
 # ── ReviewManager ────────────────────────────────────────────────────
+
 
 class TestReviewManager:
     """ReviewManager.trigger() — happy path, veto path, cooldown path."""
@@ -571,6 +584,7 @@ class TestReviewManager:
 
 
 # ── Test Helpers ──────────────────────────────────────────────────────
+
 
 class _LowScoreRunner(CheckpointRunner):
     """CheckpointRunner that always returns low scores (triggers vetoes)."""

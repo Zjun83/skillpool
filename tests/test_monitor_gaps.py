@@ -5,6 +5,7 @@ Targeted gaps from:
 - self_healing.py: scan_and_propose, execute_healing, get_healing_status, _determine_action
 - bug_collector.py: record, get_bugs, get_stats, capture_exception
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -97,25 +98,37 @@ class TestTelemetryBridgeGaps:
 
     def test_check_alerts_critical(self, telemetry_bridge):
         """check_alerts generates critical alert for low overall."""
-        evaluation = {"overall": 1.5, "dimensions": {"correctness": 1.0, "efficiency": 1.0, "robustness": 1.0, "usability": 1.0, "security": 1.0}}
+        evaluation = {
+            "overall": 1.5,
+            "dimensions": {"correctness": 1.0, "efficiency": 1.0, "robustness": 1.0, "usability": 1.0, "security": 1.0},
+        }
         alerts = telemetry_bridge.check_alerts(evaluation)
         assert any(a["severity"] == "critical" for a in alerts)
 
     def test_check_alerts_warning(self, telemetry_bridge):
         """check_alerts generates warning for low dimension."""
-        evaluation = {"overall": 3.0, "dimensions": {"correctness": 1.5, "efficiency": 4.0, "robustness": 4.0, "usability": 4.0, "security": 4.0}}
+        evaluation = {
+            "overall": 3.0,
+            "dimensions": {"correctness": 1.5, "efficiency": 4.0, "robustness": 4.0, "usability": 4.0, "security": 4.0},
+        }
         alerts = telemetry_bridge.check_alerts(evaluation)
         assert any(a["severity"] == "warning" for a in alerts)
 
     def test_check_alerts_info(self, telemetry_bridge):
         """check_alerts generates info for borderline dimension."""
-        evaluation = {"overall": 3.5, "dimensions": {"correctness": 2.5, "efficiency": 4.0, "robustness": 4.0, "usability": 4.0, "security": 4.0}}
+        evaluation = {
+            "overall": 3.5,
+            "dimensions": {"correctness": 2.5, "efficiency": 4.0, "robustness": 4.0, "usability": 4.0, "security": 4.0},
+        }
         alerts = telemetry_bridge.check_alerts(evaluation)
         assert any(a["severity"] == "info" for a in alerts)
 
     def test_check_alerts_no_alerts(self, telemetry_bridge):
         """check_alerts returns empty for good scores."""
-        evaluation = {"overall": 4.5, "dimensions": {"correctness": 4.5, "efficiency": 4.5, "robustness": 4.5, "usability": 4.5, "security": 4.5}}
+        evaluation = {
+            "overall": 4.5,
+            "dimensions": {"correctness": 4.5, "efficiency": 4.5, "robustness": 4.5, "usability": 4.5, "security": 4.5},
+        }
         alerts = telemetry_bridge.check_alerts(evaluation)
         assert len(alerts) == 0
 

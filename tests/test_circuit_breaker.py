@@ -43,6 +43,7 @@ class TestHalfOpenState:
         cb.record_failure()
         assert cb.state == CircuitState.OPEN
         import time
+
         time.sleep(0.02)
         assert cb.state == CircuitState.HALF_OPEN
 
@@ -50,6 +51,7 @@ class TestHalfOpenState:
         cb = CircuitBreaker(failure_threshold=1, recovery_timeout=0.01, half_open_max_calls=2)
         cb.record_failure()
         import time
+
         time.sleep(0.02)
         assert cb.allow_request() is True
         assert cb.allow_request() is True
@@ -59,6 +61,7 @@ class TestHalfOpenState:
         cb = CircuitBreaker(failure_threshold=1, recovery_timeout=0.01, half_open_max_calls=1)
         cb.record_failure()
         import time
+
         time.sleep(0.02)
         cb.allow_request()
         cb.record_success()
@@ -68,6 +71,7 @@ class TestHalfOpenState:
         cb = CircuitBreaker(failure_threshold=1, recovery_timeout=0.01, half_open_max_calls=1)
         cb.record_failure()
         import time
+
         time.sleep(0.02)
         cb.allow_request()
         cb.record_failure()

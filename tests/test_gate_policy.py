@@ -297,7 +297,8 @@ class TestGateStateMachine:
         sm = GateStateMachine(tmp_path / "gate.json")
         sm.set_policy(loaded_policy)
         result = sm.check_gate(
-            "SDD", "BDD",
+            "SDD",
+            "BDD",
             artifacts={"interface_contracts": "done"},
         )
         assert result.passed is False
@@ -309,7 +310,8 @@ class TestGateStateMachine:
         sm = GateStateMachine(tmp_path / "gate.json")
         sm.set_policy(loaded_policy)
         result = sm.check_gate(
-            "SDD", "BDD",
+            "SDD",
+            "BDD",
             artifacts={
                 "interface_contracts": "done",
                 "data_schemas": "done",
@@ -329,6 +331,7 @@ class TestGateStateMachine:
         # Verify file exists and contains correct state
         assert gate_path.exists()
         import json
+
         data = json.loads(gate_path.read_text())
         assert data["current_phase"] == "DOCSDD"
 
@@ -471,6 +474,7 @@ class TestEnforcementMode:
         # Activate bypass by creating override file
         overrides = tmp_path / "emergency_overrides.json"
         from datetime import datetime, timedelta, timezone
+
         future = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
         overrides.write_text(f'{{"active": true, "expires_at": "{future}"}}')
 
@@ -485,6 +489,7 @@ class TestEnforcementMode:
         # Create emergency_overrides.json
         overrides = tmp_path / "emergency_overrides.json"
         from datetime import datetime, timedelta, timezone
+
         future = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
         overrides.write_text(f'{{"active": true, "expires_at": "{future}"}}')
 
@@ -497,6 +502,7 @@ class TestEnforcementMode:
         """Emergency bypass expired — normal gate rules apply."""
         overrides = tmp_path / "emergency_overrides.json"
         from datetime import datetime, timedelta, timezone
+
         past = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
         overrides.write_text(f'{{"active": true, "expires_at": "{past}"}}')
 
@@ -651,6 +657,7 @@ class TestGateStateMachineReset:
 
         # Verify file reflects reset
         import json
+
         data = json.loads(gate_path.read_text())
         assert data["current_phase"] == "IDLE"
         assert data["assessed_level"] is None
@@ -706,9 +713,7 @@ class TestReviewCheckpointAutoTrigger:
 class TestGateCheckWithPolicyMCP:
     """L3+L2+ verification: gate_check_with_policy MCP tool."""
 
-    def test_mcp_tool_with_policy_returns_policy_level(
-        self, tmp_path: Path, valid_policy_yaml: Path
-    ):
+    def test_mcp_tool_with_policy_returns_policy_level(self, tmp_path: Path, valid_policy_yaml: Path):
         """MCP tool returns policy_level when policy_path provided."""
         from skillpool.mcp_server import gate_check_with_policy
 

@@ -1,4 +1,5 @@
 """AuditHashChain — SHA-256 hash chain for cost record integrity."""
+
 from __future__ import annotations
 
 import hashlib

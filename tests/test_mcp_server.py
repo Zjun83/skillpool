@@ -4,6 +4,7 @@ Tests call handler functions directly (they are plain synchronous functions
 decorated by FastMCP, not async coroutines). Module-level singletons
 (_audit, _evolver, _registry, etc.) are patched where isolation is needed.
 """
+
 from __future__ import annotations
 
 import os
@@ -368,7 +369,9 @@ class TestGateCheck:
 class TestTelemetryReport:
     def test_report_event(self):
         result = telemetry_report(
-            event_type="skill_used", skill_id="S05a", channel="hook",
+            event_type="skill_used",
+            skill_id="S05a",
+            channel="hook",
         )
         assert result["event_type"] == "skill_used"
         assert result["skill_id"] == "S05a"
@@ -387,7 +390,9 @@ class TestTelemetryReport:
         with patch("skillpool.mcp_server.TelemetryBridge") as MockBridge:
             MockBridge.return_value.emit.side_effect = RuntimeError("boom")
             result = telemetry_report(
-                event_type="test", skill_id="S01", channel="hook",
+                event_type="test",
+                skill_id="S01",
+                channel="hook",
             )
             assert "error" in result
             assert "telemetry dropped" in result["error"]
@@ -423,6 +428,7 @@ class TestSkillRegister:
             # Re-create registry with dev tier
             audit = AuditLayer(data_dir=Path("/tmp/skillpool_test_audit"))
             from skillpool.registry import Registry
+
             registry = Registry(audit_layer=audit)
 
             with patch.object(_mod, "_registry", registry):
@@ -445,6 +451,7 @@ class TestSkillRegister:
             os.environ["SKILLPOOL_EVIDENCE_TIER"] = "prod"
             audit = AuditLayer(data_dir=Path("/tmp/skillpool_test_audit2"))
             from skillpool.registry import Registry
+
             registry = Registry(audit_layer=audit)
 
             with patch.object(_mod, "_registry", registry):
@@ -498,20 +505,29 @@ class TestSkillStatusTool:
 class TestEvolutionTrigger:
     def test_trigger_defect(self):
         result = evolution_trigger(
-            skill_id="S09", version="9.0.0", severity="minor", description="Test defect",
+            skill_id="S09",
+            version="9.0.0",
+            severity="minor",
+            description="Test defect",
         )
         assert "defect_id" in result
         assert result["severity"] == "minor"
 
     def test_invalid_severity(self):
         result = evolution_trigger(
-            skill_id="S09", version="9.0.0", severity="invalid", description="Test",
+            skill_id="S09",
+            version="9.0.0",
+            severity="invalid",
+            description="Test",
         )
         assert "error" in result
 
     def test_critical_severity(self):
         result = evolution_trigger(
-            skill_id="S09", version="9.0.0", severity="critical", description="Critical defect",
+            skill_id="S09",
+            version="9.0.0",
+            severity="critical",
+            description="Critical defect",
         )
         assert "defect_id" in result
         assert result["severity"] == "critical"
@@ -756,7 +772,8 @@ class TestSkillMatch:
         with patch("skillpool.resolver.SkillResolver", return_value=mock_resolver):
             with patch("skillpool.router.IntentRouter", return_value=mock_router):
                 result = skill_match(
-                    task_description="resilience review", agent_type="claude-code",
+                    task_description="resilience review",
+                    agent_type="claude-code",
                 )
         assert isinstance(result, dict)
         assert result["task"] == "resilience review"
@@ -863,7 +880,9 @@ class TestAssessParadigm:
 class TestCombinationCreate:
     def test_create_combination(self):
         result = combination_create(
-            primary="S09", enhancers=["S05a"], agent_type="claude-code",
+            primary="S09",
+            enhancers=["S05a"],
+            agent_type="claude-code",
         )
         assert "combination_id" in result
         assert result["primary"] == "S09"
@@ -887,7 +906,9 @@ class TestCombinationGet:
     def test_get_existing(self):
         # Create first
         create_result = combination_create(
-            primary="S05a", enhancers=["S09"], agent_type="claude-code",
+            primary="S05a",
+            enhancers=["S09"],
+            agent_type="claude-code",
         )
         combo_id = create_result["combination_id"]
         result = combination_get(combination_id=combo_id)
@@ -1045,6 +1066,7 @@ class TestSkillPoolLoggingMiddleware:
 class TestTimingMiddleware:
     def test_init_stores_monitor(self):
         from skillpool.monitor import MonitorLayer
+
         monitor = MonitorLayer()
         mw = TimingMiddleware(monitor=monitor)
         assert mw._monitor is monitor

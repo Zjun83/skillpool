@@ -6,6 +6,7 @@ TelemetryBridge — 反向反馈通道，将运行时信号传回 SkillPool。
   2. mcp   — MCP tool call（由 mcp_server.py 暴露 telemetry_report 工具）
   3. log_file — 文件轮询（兼容无 hook/MCP 的环境）
 """
+
 from __future__ import annotations
 
 import json
@@ -29,6 +30,7 @@ class TelemetryChannel(StrEnum):
 
 class TelemetryEvent(BaseModel):
     """单条遥测事件。"""
+
     event_type: str
     skill_id: str
     channel: TelemetryChannel = TelemetryChannel.LOG_FILE

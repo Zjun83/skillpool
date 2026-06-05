@@ -13,6 +13,7 @@ Uses shared csdf_loader for CSDF loading (eliminates duplication with mcp_server
 
 Part of SkillPool — independent infrastructure, shared by all agents.
 """
+
 from __future__ import annotations
 
 import logging
@@ -140,18 +141,14 @@ class LazySkillLoader:
 
         tier_order = {"L0": 0, "L1": 1, "L2": 2}
         if tier_order[to_tier] <= tier_order[from_tier]:
-            raise ValueError(
-                f"to_tier ({to_tier}) must be higher than from_tier ({from_tier})"
-            )
+            raise ValueError(f"to_tier ({to_tier}) must be higher than from_tier ({from_tier})")
 
         with self._lock:
             if skill_id not in self._cache:
                 raise ValueError(f"Skill {skill_id} not in cache — call load() first")
 
             if from_tier not in self._cache[skill_id]:
-                raise ValueError(
-                    f"Skill {skill_id} not loaded at {from_tier} — load it first"
-                )
+                raise ValueError(f"Skill {skill_id} not loaded at {from_tier} — load it first")
 
         # Re-load at the higher tier (uses cache for lower tiers)
         return self.load(skill_id, tier=to_tier)
@@ -224,11 +221,13 @@ class LazySkillLoader:
             checklist_summary = []
             for item in csdf.get("checklist", []):
                 if isinstance(item, dict):
-                    checklist_summary.append({
-                        "id": item.get("id", ""),
-                        "description": item.get("description", ""),
-                        "severity": item.get("severity", ""),
-                    })
+                    checklist_summary.append(
+                        {
+                            "id": item.get("id", ""),
+                            "description": item.get("description", ""),
+                            "severity": item.get("severity", ""),
+                        }
+                    )
             cache["L1"] = {
                 **l0,
                 "description": csdf.get("description", ""),

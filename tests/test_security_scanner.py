@@ -2,6 +2,7 @@
 
 Part of SkillPool — independent infrastructure, shared by all agents.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -49,13 +50,16 @@ class TestYamlSafety:
         assert result.threat_level == ThreatLevel.SAFE
         assert "yaml_syntax" in result.checks_passed
 
-    @pytest.mark.parametrize("tag", [
-        "!!python/object",
-        "!!python/object/apply",
-        "!!python/object/new",
-        "!!python/module",
-        "!!python/name",
-    ])
+    @pytest.mark.parametrize(
+        "tag",
+        [
+            "!!python/object",
+            "!!python/object/apply",
+            "!!python/object/new",
+            "!!python/module",
+            "!!python/name",
+        ],
+    )
     def test_dangerous_yaml_tags(self, tag):
         scanner = SecurityScanner()
         content = f"value: {tag}:module.Class"
@@ -112,9 +116,11 @@ class TestPatternScan:
         assert result.threat_level == ThreatLevel.SAFE
 
     def test_custom_patterns(self):
-        scanner = SecurityScanner(custom_patterns=[
-            (r"\bdangerous_func\s*\(", "custom dangerous function"),
-        ])
+        scanner = SecurityScanner(
+            custom_patterns=[
+                (r"\bdangerous_func\s*\(", "custom dangerous function"),
+            ]
+        )
         content = "```python\ndangerous_func()\n```"
         result = scanner.scan_dangerous_patterns(content)
         assert result.threat_level in (ThreatLevel.WARNING, ThreatLevel.CRITICAL)
@@ -152,12 +158,14 @@ class TestExtractCodeBlocks:
 
     def test_simple_backtick_fence(self):
         from skillpool.hooks.security_scanner import _extract_code_blocks
+
         content = "```python\nprint('hello')\n```\n"
         result = _extract_code_blocks(content)
         assert "print('hello')" in result
 
     def test_tilde_fence(self):
         from skillpool.hooks.security_scanner import _extract_code_blocks
+
         content = "~~~python\nprint('hello')\n~~~\n"
         result = _extract_code_blocks(content)
         assert "print('hello')" in result
@@ -165,6 +173,7 @@ class TestExtractCodeBlocks:
     def test_unclosed_backtick_fence(self):
         """Unclosed fence → fallback: scan entire content minus the fence line."""
         from skillpool.hooks.security_scanner import _extract_code_blocks
+
         content = "```python\nexec('dangerous')\n"
         result = _extract_code_blocks(content)
         # NOSONAR: testing detection, not execution
@@ -172,6 +181,7 @@ class TestExtractCodeBlocks:
 
     def test_crlf_line_endings(self):
         from skillpool.hooks.security_scanner import _extract_code_blocks
+
         content = "```python\r\nprint('hello')\r\n```\r\n"
         result = _extract_code_blocks(content)
         assert "print('hello')" in result
@@ -179,6 +189,7 @@ class TestExtractCodeBlocks:
     def test_multiple_code_blocks(self):
         """Multiple code blocks — all blocks are extracted."""
         from skillpool.hooks.security_scanner import _extract_code_blocks
+
         content = "```python\nprint('a')\n```\n```bash\necho b\n```\n"
         result = _extract_code_blocks(content)
         assert "print('a')" in result
@@ -186,12 +197,14 @@ class TestExtractCodeBlocks:
 
     def test_no_code_blocks_returns_full_content(self):
         from skillpool.hooks.security_scanner import _extract_code_blocks
+
         content = "Just plain text, no code."
         result = _extract_code_blocks(content)
         assert result == content
 
     def test_inline_code(self):
         from skillpool.hooks.security_scanner import _extract_code_blocks
+
         content = "Use `exec('x')` carefully."
         # NOSONAR: testing detection
         result = _extract_code_blocks(content)
@@ -208,6 +221,7 @@ class TestExtractCodeBlocks:
     def test_tilde_fence_with_backtick_inside(self):
         """Tilde fence containing backtick lines should not confuse the parser."""
         from skillpool.hooks.security_scanner import _extract_code_blocks
+
         content = "~~~python\nprint('`hello`')\n~~~\n"
         result = _extract_code_blocks(content)
         assert "hello" in result
@@ -215,6 +229,7 @@ class TestExtractCodeBlocks:
     def test_nested_fences(self):
         """Inner fence with different type should be treated as content."""
         from skillpool.hooks.security_scanner import _extract_code_blocks
+
         content = "~~~markdown\n```python\ncode\n```\n~~~\n"
         result = _extract_code_blocks(content)
         assert "code" in result
@@ -376,7 +391,10 @@ class TestDangerousPatternsComprehensive:
         content = "```python\nos.popen('whoami')\n```"
         result = scanner.scan_dangerous_patterns(content)
         assert result.threat_level in (ThreatLevel.WARNING, ThreatLevel.CRITICAL)
-        assert any("os.popen" in w or "os.popen" in b for w, b in [(w, "") for w in result.warnings] + [(b, b) for b in result.blockers])
+        assert any(
+            "os.popen" in w or "os.popen" in b
+            for w, b in [(w, "") for w in result.warnings] + [(b, b) for b in result.blockers]
+        )
 
     def test_import_detected(self):
         """__import__() should be flagged."""

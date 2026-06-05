@@ -54,6 +54,7 @@ SKILLS = {
 
 class TestSkillResolver:
     """Scenario: Normal resolution — linear skill chain."""
+
     def test_linear_resolution(self):
         """Scenario: Normal resolve - linear skill chain."""
         clear_registry()
@@ -70,20 +71,26 @@ class TestSkillResolver:
     def test_partial_resolution_health_filter(self):
         """Scenario: Skills with low health score are excluded."""
         clear_registry()
-        register_skill("low_health", {
-            "name": "LowHealth Skill",
-            "dimension": "D3",
-            "health_score": 0.3,
-            "dependencies": [],
-            "namespaces": ["testing"],
-        })
-        register_skill("good_skill", {
-            "name": "Good Skill",
-            "dimension": "D1",
-            "health_score": 0.95,
-            "dependencies": [],
-            "namespaces": [],
-        })
+        register_skill(
+            "low_health",
+            {
+                "name": "LowHealth Skill",
+                "dimension": "D3",
+                "health_score": 0.3,
+                "dependencies": [],
+                "namespaces": ["testing"],
+            },
+        )
+        register_skill(
+            "good_skill",
+            {
+                "name": "Good Skill",
+                "dimension": "D1",
+                "health_score": 0.95,
+                "dependencies": [],
+                "namespaces": [],
+            },
+        )
 
         resolver = SkillResolver()
         req = SkillResolveRequest(skill_ids=["low_health", "good_skill"])
@@ -103,14 +110,24 @@ class TestSkillResolver:
     def test_conflict_detection(self):
         """Scenario: Conflicts detected via namespace overlap."""
         clear_registry()
-        register_skill("skill_a", {
-            "name": "Skill A", "namespaces": ["file_ops"],
-            "health_score": 0.9, "dependencies": [],
-        })
-        register_skill("skill_b", {
-            "name": "Skill B", "namespaces": ["file_ops"],
-            "health_score": 0.85, "dependencies": [],
-        })
+        register_skill(
+            "skill_a",
+            {
+                "name": "Skill A",
+                "namespaces": ["file_ops"],
+                "health_score": 0.9,
+                "dependencies": [],
+            },
+        )
+        register_skill(
+            "skill_b",
+            {
+                "name": "Skill B",
+                "namespaces": ["file_ops"],
+                "health_score": 0.85,
+                "dependencies": [],
+            },
+        )
         resolver = SkillResolver()
         request = SkillResolveRequest(skill_ids=["skill_a", "skill_b"])
         response = resolver.resolve(request)
@@ -145,6 +162,7 @@ class TestCircuitBreaker:
         cb.record_failure()
         assert cb.state == CircuitState.OPEN
         import time
+
         time.sleep(0.02)
         assert cb.state == CircuitState.HALF_OPEN
 
@@ -153,6 +171,7 @@ class TestCircuitBreaker:
         cb = CircuitBreaker(failure_threshold=1, recovery_timeout=0.01, half_open_max_calls=1)
         cb.record_failure()  # Opens the breaker
         import time
+
         time.sleep(0.02)  # Wait for recovery timeout
         assert cb.state == CircuitState.HALF_OPEN
         cb.allow_request()  # Consume the half-open probe slot
@@ -162,6 +181,7 @@ class TestCircuitBreaker:
 
 class TestRateLimiting:
     """Scenarios for rate limiting."""
+
     def test_rate_limiter_blocks_excess_requests(self):
         limiter = RateLimiter(max_requests=5, window_seconds=1.0)
         for _ in range(5):
@@ -177,6 +197,7 @@ class TestRateLimiting:
         assert not limiter.allow()  # 4th blocked
         # Wait for window to expire
         import time
+
         time.sleep(0.02)
         assert limiter.allow()  # Should allow again
 
@@ -187,6 +208,7 @@ class TestResolverSchemaAlignment:
     def test_resolve_status_enum(self):
         """Scenario: ResolveStatus has RESOLVED/PARTIAL/UNRESOLVED values."""
         from skillpool.resolver.models import ResolveStatus
+
         assert ResolveStatus.RESOLVED == "resolved"
         assert ResolveStatus.PARTIAL == "partial"
         assert ResolveStatus.UNRESOLVED == "unresolved"
@@ -194,12 +216,14 @@ class TestResolverSchemaAlignment:
     def test_resolve_response_status_field(self):
         """Scenario: SkillResolveResponse includes status field."""
         from skillpool.resolver.models import SkillResolveResponse, ResolveStatus
+
         resp = SkillResolveResponse(error="no_skills_found", status=ResolveStatus.UNRESOLVED)
         assert resp.status == ResolveStatus.UNRESOLVED
 
     def test_resolve_request_schema_fields(self):
         """Scenario: SkillResolveRequest includes schema-aligned fields."""
         from skillpool.resolver.models import SkillResolveRequest, Domain
+
         req = SkillResolveRequest(
             skill_ids=["S09"],
             task="review code",
@@ -213,17 +237,20 @@ class TestResolverSchemaAlignment:
     def test_health_scores_in_response(self):
         """Scenario: SkillResolveResponse includes health_scores dict."""
         from skillpool.resolver.models import SkillResolveResponse
+
         resp = SkillResolveResponse(health_scores={"s1": 0.9})
         assert resp.health_scores["s1"] == 0.9
 
     def test_feasibility_score_in_response(self):
         """Scenario: SkillResolveResponse includes feasibility_score."""
         from skillpool.resolver.models import SkillResolveResponse
+
         resp = SkillResolveResponse(feasibility_score=0.85)
         assert resp.feasibility_score == 0.85
 
     def test_dag_edge_type_enum(self):
         """Scenario: DagEdgeType has DEPENDS_ON/CONFLICTS/SAME_DOMAIN/OVERLAP values."""
         from skillpool.resolver.models import DagEdgeType
+
         assert DagEdgeType.DEPENDS_ON == "depends_on"
         assert DagEdgeType.CONFLICTS_WITH == "conflicts_with"

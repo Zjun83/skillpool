@@ -6,6 +6,7 @@ Environment variables:
   SKILLPOOL_HOST      — Server host (default: 127.0.0.1)
   SKILLPOOL_PORT      — Server port (default: 8101)
 """
+
 from __future__ import annotations
 
 import os

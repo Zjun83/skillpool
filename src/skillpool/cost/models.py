@@ -1,4 +1,5 @@
 """Cost models — Pydantic schemas for cost tracking and budgeting."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -18,6 +19,7 @@ class ThrottleAction(StrEnum):
 
 class AgentConfig(BaseModel):
     """Per-agent token budget configuration."""
+
     agent_id: str
     agent_type: str = "worker"
     daily_limit_tokens: int = Field(default=0, description="0 means unlimited")
@@ -28,6 +30,7 @@ class AgentConfig(BaseModel):
 
 class CostRecord(BaseModel):
     """A single cost event record."""
+
     agent_id: str
     tokens_input: int = 0
     tokens_output: int = 0
@@ -44,6 +47,7 @@ class CostQuery(BaseModel):
 
     V4.1: Supports multi-dimension grouping and granularity.
     """
+
     window: str = Field(default="24h", pattern=r"^(1h|6h|24h|7d|30d)$")
     group_by: list[str] = Field(default_factory=lambda: ["agent_id"])
     agent_id: Optional[str] = None
@@ -52,6 +56,7 @@ class CostQuery(BaseModel):
 
 class AgentCost(BaseModel):
     """Cost summary for a single agent."""
+
     agent_id: str
     agent_type: str = ""
     tokens: int = 0
@@ -68,21 +73,33 @@ class CostDashboardResponse(BaseModel):
     V4.1: Multi-dimension grouping (by_agent, by_model, by_skill, by_operation)
     and time series data.
     """
+
     window: str
     total_cost_usd: float = 0.0
     total_tokens: int = 0
     monthly_budget_usd: float = 0.0
     monthly_budget_consumed_pct: float = 0.0
     by_agent: list[AgentCost] = Field(default_factory=list)
-    by_model: dict[str, dict] = Field(default_factory=dict, description="Cost grouped by model: {model: {tokens, cost_usd}}")
-    by_skill: dict[str, dict] = Field(default_factory=dict, description="Cost grouped by skill_id: {skill_id: {tokens, cost_usd}}")
-    by_operation: dict[str, dict] = Field(default_factory=dict, description="Cost grouped by operation: {op: {tokens, cost_usd}}")
-    series: list[dict] = Field(default_factory=list, description="Time series data [{timestamp, agent_id, tokens, cost_usd}]")
-    projected_overspend_pct: float = Field(default=0.0, description="Projected overspend percentage if current burn rate continues")
+    by_model: dict[str, dict] = Field(
+        default_factory=dict, description="Cost grouped by model: {model: {tokens, cost_usd}}"
+    )
+    by_skill: dict[str, dict] = Field(
+        default_factory=dict, description="Cost grouped by skill_id: {skill_id: {tokens, cost_usd}}"
+    )
+    by_operation: dict[str, dict] = Field(
+        default_factory=dict, description="Cost grouped by operation: {op: {tokens, cost_usd}}"
+    )
+    series: list[dict] = Field(
+        default_factory=list, description="Time series data [{timestamp, agent_id, tokens, cost_usd}]"
+    )
+    projected_overspend_pct: float = Field(
+        default=0.0, description="Projected overspend percentage if current burn rate continues"
+    )
 
 
 class BudgetStatus(BaseModel):
     """Monthly budget status."""
+
     monthly_budget_usd: float
     consumed_usd: float = 0.0
     remaining_usd: float = 0.0
@@ -97,6 +114,7 @@ class CostEstimate(BaseModel):
     V4.2: P50 conservative pricing model for cost estimation.
     Combines skill execution cost + review overhead + checkpoint overhead.
     """
+
     skill_id: str
     skill_length: int = Field(description="Character count of skill definition")
     token_count: int = Field(description="Estimated token count")

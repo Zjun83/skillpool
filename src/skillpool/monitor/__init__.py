@@ -10,6 +10,7 @@ Open source enhancements:
 - Trajectory aggregation G(s) (SkillClaw)
 - PRM scoring support
 """
+
 from __future__ import annotations
 
 __all__ = [
@@ -51,6 +52,7 @@ from skillpool.monitor.self_healing import (
 
 class MetricType(StrEnum):
     """Metric types."""
+
     COUNTER = "counter"
     GAUGE = "gauge"
     HISTOGRAM = "histogram"
@@ -58,6 +60,7 @@ class MetricType(StrEnum):
 
 class AlertSeverity(StrEnum):
     """Alert severity levels."""
+
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
@@ -66,6 +69,7 @@ class AlertSeverity(StrEnum):
 
 class EvaluationLevel(StrEnum):
     """Evaluation quality levels."""
+
     GOOD = "Good"
     AVERAGE = "Average"
     POOR = "Poor"
@@ -83,6 +87,7 @@ class FiveDimensionEvaluation:
     - Maintainability: Code quality and update frequency
     - Cost_awareness: Resource efficiency
     """
+
     skill_id: str
     safety: EvaluationLevel
     safety_score: float
@@ -110,17 +115,18 @@ class FiveDimensionEvaluation:
     def __post_init__(self) -> None:
         """Calculate overall score from five dimensions."""
         self.overall_score = (
-            self.safety_score * 0.25 +
-            self.completeness_score * 0.20 +
-            self.executability_score * 0.25 +
-            self.maintainability_score * 0.15 +
-            self.cost_awareness_score * 0.15
+            self.safety_score * 0.25
+            + self.completeness_score * 0.20
+            + self.executability_score * 0.25
+            + self.maintainability_score * 0.15
+            + self.cost_awareness_score * 0.15
         )
 
 
 @dataclass
 class Metric:
     """Single metric measurement."""
+
     name: str
     value: float
     metric_type: MetricType
@@ -131,6 +137,7 @@ class Metric:
 @dataclass
 class Alert:
     """Monitoring alert."""
+
     alert_id: str
     severity: AlertSeverity
     message: str
@@ -350,17 +357,16 @@ class MonitorLayer:
         safety_level = self._score_to_level(safety_score)
         safety_reason = f"Error rate: {metrics.get('error_rate', 0):.2%}, Security issues: {security_issues}"
 
-        completeness_score = (
-            metrics.get("coverage", 0.5) * 0.5 +
-            metrics.get("doc_completeness", 0.5) * 0.5
-        )
+        completeness_score = metrics.get("coverage", 0.5) * 0.5 + metrics.get("doc_completeness", 0.5) * 0.5
         completeness_level = self._score_to_level(completeness_score)
-        completeness_reason = f"Coverage: {metrics.get('coverage', 0):.2%}, Docs: {metrics.get('doc_completeness', 0):.2%}"
+        completeness_reason = (
+            f"Coverage: {metrics.get('coverage', 0):.2%}, Docs: {metrics.get('doc_completeness', 0):.2%}"
+        )
 
         p99_latency = metrics.get("p99_latency_ms", 1000)
         latency_score = max(0, 1.0 - (p99_latency / 10000))
         success_rate = 1.0 - metrics.get("error_rate", 0)
-        executability_score = (latency_score * 0.5 + success_rate * 0.5)
+        executability_score = latency_score * 0.5 + success_rate * 0.5
         executability_level = self._score_to_level(executability_score)
         executability_reason = f"P99 latency: {p99_latency}ms, Success rate: {success_rate:.2%}"
 
@@ -420,10 +426,12 @@ class MonitorLayer:
         """Record an execution trajectory for aggregation."""
         if skill_id not in self._trajectories:
             self._trajectories[skill_id] = []
-        self._trajectories[skill_id].append({
-            "trajectory": trajectory,
-            "timestamp": datetime.now(UTC).isoformat(),
-        })
+        self._trajectories[skill_id].append(
+            {
+                "trajectory": trajectory,
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+        )
 
         if prm_score is not None:
             if skill_id not in self._prm_scores:

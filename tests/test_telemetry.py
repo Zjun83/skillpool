@@ -9,6 +9,7 @@ from skillpool.telemetry import TelemetryBridge, TelemetryChannel, TelemetryEven
 
 # ── TelemetryChannel ──────────────────────────────────────────────
 
+
 class TestTelemetryChannel:
     """TelemetryChannel enum correctness."""
 
@@ -33,6 +34,7 @@ class TestTelemetryChannel:
 
 
 # ── TelemetryEvent ────────────────────────────────────────────────
+
 
 class TestTelemetryEvent:
     """TelemetryEvent Pydantic model validation."""
@@ -90,6 +92,7 @@ class TestTelemetryEvent:
 
 
 # ── TelemetryBridge ───────────────────────────────────────────────
+
 
 class TestTelemetryBridge:
     """TelemetryBridge emit / register_hook / read_events."""

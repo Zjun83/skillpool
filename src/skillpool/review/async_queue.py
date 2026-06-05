@@ -1,4 +1,5 @@
 """AsyncReviewQueue — in-memory review queue with cooldown tracking."""
+
 from __future__ import annotations
 
 import time
@@ -11,6 +12,7 @@ from skillpool.review.models import ReviewStatus, ReviewTriggerRequest
 @dataclass
 class _QueueEntry:
     """Internal tracking entry for a submitted review."""
+
     review_id: str
     request: ReviewTriggerRequest
     status: ReviewStatus = ReviewStatus.QUEUED
@@ -47,19 +49,12 @@ class AsyncReviewQueue:
             last = self._skill_last_review.get(skill_id, 0.0)
             if now - last < self.cooldown_seconds:
                 remaining = round(self.cooldown_seconds - (now - last), 1)
-                raise ValueError(
-                    f"Skill '{skill_id}' is in cooldown ({remaining}s remaining)"
-                )
+                raise ValueError(f"Skill '{skill_id}' is in cooldown ({remaining}s remaining)")
 
         # Check max concurrent
-        processing_count = sum(
-            1 for e in self._entries.values()
-            if e.status == ReviewStatus.PROCESSING
-        )
+        processing_count = sum(1 for e in self._entries.values() if e.status == ReviewStatus.PROCESSING)
         if processing_count >= self.max_concurrent:
-            raise RuntimeError(
-                f"Max concurrent reviews ({self.max_concurrent}) reached"
-            )
+            raise RuntimeError(f"Max concurrent reviews ({self.max_concurrent}) reached")
 
         review_id = uuid.uuid4().hex[:16]
         entry = _QueueEntry(

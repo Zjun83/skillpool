@@ -10,6 +10,7 @@ Trigger logic (from CLAUDE.md Section 8.5):
 
 Part of SkillPool — independent infrastructure, shared by all agents.
 """
+
 from __future__ import annotations
 
 __all__ = [
@@ -40,6 +41,7 @@ logger = logging.getLogger(__name__)
 
 class HealingAction(StrEnum):
     """Action taken by the healing loop."""
+
     PATCH = "PATCH"
     MINOR = "MINOR"
     MAJOR = "MAJOR"
@@ -49,6 +51,7 @@ class HealingAction(StrEnum):
 
 class HealingStatus(StrEnum):
     """Status of a healing proposal execution."""
+
     PROPOSED = "proposed"
     EXECUTING = "executing"
     VERIFIED = "verified"
@@ -60,6 +63,7 @@ class HealingStatus(StrEnum):
 @dataclass
 class HealingProposal:
     """A healing proposal generated from bug pattern analysis."""
+
     proposal_id: str
     skill_id: str
     defect_type: DefectType
@@ -131,8 +135,7 @@ class SelfHealingLoop:
 
             # Dedup: skip if a PROPOSED proposal already exists for this key
             existing = any(
-                p.skill_id == skill_id and p.defect_type.value == defect_type_str
-                and p.status == HealingStatus.PROPOSED
+                p.skill_id == skill_id and p.defect_type.value == defect_type_str and p.status == HealingStatus.PROPOSED
                 for p in self._proposals.values()
             )
             if existing:
@@ -170,15 +173,17 @@ class SelfHealingLoop:
 
             self._proposals[proposal_id] = healing
 
-            proposals.append({
-                "proposal_id": proposal_id,
-                "skill_id": skill_id,
-                "defect_type": defect_type_str,
-                "upgrade_type": action.value,
-                "bug_count": total,
-                "bug_counts": counts,
-                "status": healing.status.value,
-            })
+            proposals.append(
+                {
+                    "proposal_id": proposal_id,
+                    "skill_id": skill_id,
+                    "defect_type": defect_type_str,
+                    "upgrade_type": action.value,
+                    "bug_count": total,
+                    "bug_counts": counts,
+                    "status": healing.status.value,
+                }
+            )
 
         if self._audit:
             self._audit.append(
@@ -286,10 +291,12 @@ class SelfHealingLoop:
             healing.verification_result = {
                 "bdd_passed": True,
                 "bug_count_before": count_before,
-                "bug_count_after": len(self._bug_collector.get_bugs(
-                    skill_id=healing.skill_id,
-                    defect_type=healing.defect_type,
-                )),
+                "bug_count_after": len(
+                    self._bug_collector.get_bugs(
+                        skill_id=healing.skill_id,
+                        defect_type=healing.defect_type,
+                    )
+                ),
             }
             # Persist evolution to CSDF YAML on disk
             self._persist_evolution(healing.skill_id, healing)
@@ -345,14 +352,16 @@ class SelfHealingLoop:
         for healing in self._proposals.values():
             status_key = healing.status.value
             by_status[status_key] = by_status.get(status_key, 0) + 1
-            summaries.append({
-                "proposal_id": healing.proposal_id,
-                "skill_id": healing.skill_id,
-                "defect_type": healing.defect_type.value,
-                "upgrade_type": healing.upgrade_type.value,
-                "bug_count": healing.bug_count,
-                "status": healing.status.value,
-            })
+            summaries.append(
+                {
+                    "proposal_id": healing.proposal_id,
+                    "skill_id": healing.skill_id,
+                    "defect_type": healing.defect_type.value,
+                    "upgrade_type": healing.upgrade_type.value,
+                    "bug_count": healing.bug_count,
+                    "status": healing.status.value,
+                }
+            )
 
         return {
             "total_proposals": len(self._proposals),
@@ -488,6 +497,7 @@ class SelfHealingLoop:
 
         # Apply healing metadata
         from skillpool.utils.time_utils import utc_now
+
         data["last_healed"] = utc_now().isoformat()
         data["last_healing_type"] = healing.upgrade_type.value
         data["last_healing_defect"] = healing.defect_type.value

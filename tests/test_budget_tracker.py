@@ -1,4 +1,5 @@
 """Tests for BudgetTracker — monthly budget enforcement with threshold alerts."""
+
 import pytest
 
 from skillpool.cost.budget_tracker import BudgetTracker

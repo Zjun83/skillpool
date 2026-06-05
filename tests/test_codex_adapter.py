@@ -1,4 +1,5 @@
 """Tests for CodexAdapter including on_startup hook."""
+
 from __future__ import annotations
 
 from pathlib import Path

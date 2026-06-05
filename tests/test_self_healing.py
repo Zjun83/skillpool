@@ -2,6 +2,7 @@
 
 Part of SkillPool — independent infrastructure, shared by all agents.
 """
+
 from __future__ import annotations
 
 import yaml
@@ -262,6 +263,7 @@ class TestCSDFReadWrite:
 
         # Manually create a proposal and snapshot
         from skillpool.monitor.self_healing import HealingProposal
+
         proposal = HealingProposal(
             proposal_id="heal-1",
             skill_id="S09",
@@ -580,12 +582,14 @@ class TestExecuteHealingEdgeCases:
         assert "verified" in status["by_status"]
         assert "needs_human" in status["by_status"]
 
+
 class TestRunReviewCheckpoint:
     """Tests for _run_review_checkpoint edge cases."""
 
     def test_review_infrastructure_unavailable(self):
         """When ReviewManager import fails, should default to pass."""
         from unittest.mock import patch
+
         bc = BugCollector()
         ev = EvolverLayer()
         loop = SelfHealingLoop(bug_collector=bc, evolver=ev)

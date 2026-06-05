@@ -7,6 +7,7 @@ SKILL.md 运行时格式，供 Agent 在协作中消费。
 核心流程:
   CSDF YAML → Mapper(14条规则) → Lifecycle Filter → Budget Cropper → SKILL.md
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -62,11 +63,13 @@ class Materializer:
         csdf = self._load_csdf(csdf_path, csdf_dict)
 
         # 2. 能力匹配检查
-        can_exec, reason = self.profile.can_execute({
-            "required_capabilities": csdf.get("required_agent_capabilities", set()),
-            "min_trust_level": csdf.get("min_trust_level", 0),
-            "paradigm": csdf.get("paradigm"),
-        })
+        can_exec, reason = self.profile.can_execute(
+            {
+                "required_capabilities": csdf.get("required_agent_capabilities", set()),
+                "min_trust_level": csdf.get("min_trust_level", 0),
+                "paradigm": csdf.get("paradigm"),
+            }
+        )
         if not can_exec:
             return MaterializationResult(
                 status="rejected",
@@ -116,5 +119,6 @@ class Materializer:
             return csdf_dict
         if csdf_path is not None:
             import yaml
+
             return yaml.safe_load(csdf_path.read_text())
         raise ValueError("必须提供 csdf_path 或 csdf_dict")

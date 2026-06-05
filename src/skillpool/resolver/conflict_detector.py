@@ -1,4 +1,5 @@
 """ConflictDetector — Jaccard similarity conflict detection between skills."""
+
 from __future__ import annotations
 
 import re
@@ -67,15 +68,17 @@ class ConflictDetector:
                 if score >= thresh:
                     overlapping = a_info["namespaces"] & b_info["namespaces"]
                     severity = self._classify_severity(score, overlapping)
-                    conflicts.append({
-                        "skill_a": a_id,
-                        "skill_b": b_id,
-                        "jaccard_score": round(score, 4),
-                        "severity": severity,
-                        "conflict_type": self._classify_conflict_type(overlapping, score),
-                        "overlapping_namespaces": sorted(overlapping),
-                        "recommendation": self._generate_recommendation(severity, overlapping),
-                    })
+                    conflicts.append(
+                        {
+                            "skill_a": a_id,
+                            "skill_b": b_id,
+                            "jaccard_score": round(score, 4),
+                            "severity": severity,
+                            "conflict_type": self._classify_conflict_type(overlapping, score),
+                            "overlapping_namespaces": sorted(overlapping),
+                            "recommendation": self._generate_recommendation(severity, overlapping),
+                        }
+                    )
 
         return conflicts
 

@@ -1,4 +1,5 @@
 """Tests for Graph PPR — Personalized PageRank with 3-layer implementation."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -14,9 +15,7 @@ def _make_chain_adj(n: int) -> sp.spmatrix:
     for i in range(n - 1):
         rows.append(i)
         cols.append(i + 1)
-    return sp.csr_matrix(
-        (np.ones(len(rows)), (rows, cols)), shape=(n, n)
-    )
+    return sp.csr_matrix((np.ones(len(rows)), (rows, cols)), shape=(n, n))
 
 
 def _make_star_adj(n: int) -> sp.spmatrix:
@@ -25,9 +24,7 @@ def _make_star_adj(n: int) -> sp.spmatrix:
     for i in range(1, n):
         rows.append(0)
         cols.append(i)
-    return sp.csr_matrix(
-        (np.ones(len(rows)), (rows, cols)), shape=(n, n)
-    )
+    return sp.csr_matrix((np.ones(len(rows)), (rows, cols)), shape=(n, n))
 
 
 def _make_cycle_adj(n: int) -> sp.spmatrix:
@@ -36,9 +33,7 @@ def _make_cycle_adj(n: int) -> sp.spmatrix:
     for i in range(n):
         rows.append(i)
         cols.append((i + 1) % n)
-    return sp.csr_matrix(
-        (np.ones(len(rows)), (rows, cols)), shape=(n, n)
-    )
+    return sp.csr_matrix((np.ones(len(rows)), (rows, cols)), shape=(n, n))
 
 
 def _make_complete_adj(n: int) -> sp.spmatrix:
@@ -49,9 +44,7 @@ def _make_complete_adj(n: int) -> sp.spmatrix:
             if i != j:
                 rows.append(i)
                 cols.append(j)
-    return sp.csr_matrix(
-        (np.ones(len(rows)), (rows, cols)), shape=(n, n)
-    )
+    return sp.csr_matrix((np.ones(len(rows)), (rows, cols)), shape=(n, n))
 
 
 class TestValidateInputs:
@@ -169,9 +162,7 @@ class TestPersonalizedPagerank:
     def test_csr_convergence_with_dangling(self):
         """Test CSR handles dangling nodes (no outgoing edges)."""
         # Node 2 has no outgoing edges (dangling)
-        adj = sp.csr_matrix(
-            (np.ones(2), ([0, 1], [1, 2])), shape=(3, 3)
-        )
+        adj = sp.csr_matrix((np.ones(2), ([0, 1], [1, 2])), shape=(3, 3))
         scores = personalized_pagerank(adj, [0], method="csr")
         np.testing.assert_almost_equal(scores.sum(), 1.0, decimal=5)
 
@@ -334,9 +325,7 @@ class TestPersonalizedPagerankExtended:
 
     def test_python_method_with_dangling(self):
         """Python push method with dangling nodes."""
-        adj = sp.csr_matrix(
-            (np.ones(2), ([0, 1], [1, 2])), shape=(3, 3)
-        )
+        adj = sp.csr_matrix((np.ones(2), ([0, 1], [1, 2])), shape=(3, 3))
         scores = personalized_pagerank(adj, [0], method="python")
         np.testing.assert_almost_equal(scores.sum(), 1.0, decimal=4)
 

@@ -5,6 +5,7 @@ Focus areas:
 - Line 182: weight < 0.05 filtering
 - Line 235: _load_from_registry returning None (Registry() succeeds but no synergy data)
 """
+
 from __future__ import annotations
 
 import sys
@@ -30,6 +31,7 @@ def detector(skills_dir):
 # ---------------------------------------------------------------------------
 # Helpers: mock the combiner module for load_combination_synergies tests
 # ---------------------------------------------------------------------------
+
 
 def _install_combiner_mock(combos_dict):
     """Install a mock skillpool.combiner + skillpool.combiner.models into sys.modules."""
@@ -57,6 +59,7 @@ def _uninstall_combiner_mock():
 # ---------------------------------------------------------------------------
 # load_combination_synergies — VALIDATING state (line 172-173)
 # ---------------------------------------------------------------------------
+
 
 class TestValidatingState:
     """VALIDATING combinations get 0.7x weight."""
@@ -88,6 +91,7 @@ class TestValidatingState:
 # load_combination_synergies — DEPRECATED state (line 174-175)
 # ---------------------------------------------------------------------------
 
+
 class TestDeprecatedState:
     """DEPRECATED combinations get 0.5x weight."""
 
@@ -116,6 +120,7 @@ class TestDeprecatedState:
 # ---------------------------------------------------------------------------
 # load_combination_synergies — DISCOVERED state (line 176-177)
 # ---------------------------------------------------------------------------
+
 
 class TestDiscoveredState:
     """DISCOVERED combinations get 0.3x weight."""
@@ -146,6 +151,7 @@ class TestDiscoveredState:
 # load_combination_synergies — REJECTED state (line 178-179)
 # ---------------------------------------------------------------------------
 
+
 class TestRejectedState:
     """REJECTED combinations should be skipped entirely."""
 
@@ -172,6 +178,7 @@ class TestRejectedState:
 # ---------------------------------------------------------------------------
 # load_combination_synergies — weight < 0.05 filter (line 181-182)
 # ---------------------------------------------------------------------------
+
 
 class TestLowWeightFiltering:
     """Combinations with weight < 0.05 after adjustment are excluded."""
@@ -222,6 +229,7 @@ class TestLowWeightFiltering:
 # _load_from_registry — line 235 (Registry() succeeds, returns None)
 # ---------------------------------------------------------------------------
 
+
 class TestLoadFromRegistrySuccessPath:
     """When Registry imports fine but has no synergy data, returns None."""
 
@@ -240,6 +248,7 @@ class TestLoadFromRegistrySuccessPath:
 # ---------------------------------------------------------------------------
 # load_combination_synergies — new edges merged and deduped (lines 197-199)
 # ---------------------------------------------------------------------------
+
 
 class TestCombinationMergeDedup:
     """Combination synergies are merged with existing, deduped by source+target."""

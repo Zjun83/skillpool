@@ -6,6 +6,7 @@ Targeted gaps:
 - L60-64: non-critical component NOT_SERVING -> DEGRADED
 - L78-83: get_component_status missing component
 """
+
 from __future__ import annotations
 
 
@@ -32,7 +33,9 @@ class TestHealthCheckerNoCheckFn:
 class TestHealthCheckerException:
     def test_check_fn_raises_not_serving(self, checker):
         """Lines 56-58: check_fn raises -> NOT_SERVING."""
-        checker.register("failing_component", check_fn=lambda: (_ for _ in ()).throw(RuntimeError("fail")), critical=True)
+        checker.register(
+            "failing_component", check_fn=lambda: (_ for _ in ()).throw(RuntimeError("fail")), critical=True
+        )
         result = checker.check()
         comp = [c for c in result.components if c.component == "failing_component"][0]
         assert comp.status == ServingStatus.NOT_SERVING

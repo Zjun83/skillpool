@@ -6,6 +6,7 @@ Levels (aligned with cross-system-interfaces.yaml §5.2):
   L2_bm25_only: Vector search (VPLS) unavailable, BM25-only fallback
   L3_disabled:  Multiple critical failures, minimal/disabled operation
 """
+
 from __future__ import annotations
 
 from skillpool.health.models import DegradationLevel

@@ -4,6 +4,7 @@ Targeted gaps from:
 - csdf_loader.py (79%): L37, 60-62, 73-74, 85-86
 - lazy_loader.py (89%): L153, 181-182, 194-195, 197-198, 255-256
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -78,7 +79,9 @@ class TestCsdfLoaderGaps:
         skill_dir = tmp_path / "fm-skill"
         skill_dir.mkdir()
         skill_md = skill_dir / "SKILL.md"
-        skill_md.write_text("---\nid: fm-skill\nname: Frontmatter Skill\nversion: 2.0\n---\nBody here\n", encoding="utf-8")
+        skill_md.write_text(
+            "---\nid: fm-skill\nname: Frontmatter Skill\nversion: 2.0\n---\nBody here\n", encoding="utf-8"
+        )
         result = _parse_directory_skill("fm-skill", skill_md, skill_dir)
         assert result["id"] == "fm-skill"
         assert result["name"] == "Frontmatter Skill"

@@ -346,6 +346,7 @@ class GateStateMachine:
             if not expires_at:
                 return False  # No expiry set → bypass active indefinitely
             from datetime import datetime
+
             expiry = datetime.fromisoformat(expires_at)
             now = utc_now()
             if now >= expiry:

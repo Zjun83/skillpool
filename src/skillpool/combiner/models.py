@@ -1,4 +1,5 @@
 """Combination data models — SkillCombination + lifecycle state enum."""
+
 from __future__ import annotations
 
 from enum import IntEnum
@@ -13,16 +14,18 @@ MIN_VALIDATION_EXECUTIONS = 5
 
 class CombinationLifecycleState(IntEnum):
     """Lifecycle states for skill combinations."""
-    DISCOVERED = 0   # New combination, awaiting validation
-    VALIDATING = 1   # Collecting execution data
-    PROMOTED = 2     # Validated, positive gain, officially recommended
-    REJECTED = 3     # Validation failed, negative or insufficient gain
-    DEPRECATED = 4   # Gain decayed, no longer recommended
-    RETIRED = 5      # Permanently removed
+
+    DISCOVERED = 0  # New combination, awaiting validation
+    VALIDATING = 1  # Collecting execution data
+    PROMOTED = 2  # Validated, positive gain, officially recommended
+    REJECTED = 3  # Validation failed, negative or insufficient gain
+    DEPRECATED = 4  # Gain decayed, no longer recommended
+    RETIRED = 5  # Permanently removed
 
 
 class SkillCombination(BaseModel):
     """A skill combination with lifecycle state and gain data."""
+
     combination_id: str = Field(default="", description="Unique combination ID")
     primary: str = Field(description="Primary skill ID")
     enhancers: list[str] = Field(default_factory=list, description="Enhancing skill IDs")
@@ -36,7 +39,9 @@ class SkillCombination(BaseModel):
     )
     gain_avg: float = Field(default=0.0, description="Average gain across executions")
     gain_confidence: float = Field(
-        default=0.0, ge=0.0, le=1.0,
+        default=0.0,
+        ge=0.0,
+        le=1.0,
         description="Confidence in gain estimate [0,1]",
     )
     execution_count: int = Field(default=0, description="Total executions")
@@ -68,6 +73,7 @@ class SkillCombination(BaseModel):
         # Time decay
         if self.last_execution:
             from datetime import datetime
+
             try:
                 last = datetime.fromisoformat(self.last_execution)
                 days = (utc_now() - last).days
@@ -85,6 +91,7 @@ class SkillCombination(BaseModel):
 
 class CombinationTransitionResult(BaseModel):
     """Result of a lifecycle state transition."""
+
     combination_id: str
     from_state: CombinationLifecycleState
     to_state: CombinationLifecycleState

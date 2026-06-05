@@ -5,6 +5,7 @@ Uncovered lines:
 - 111-113: since filter — timestamp comparison and skip
 - 115-116: generic Exception in read_events line parsing
 """
+
 from __future__ import annotations
 
 import time
@@ -18,6 +19,7 @@ from skillpool.telemetry import TelemetryBridge, TelemetryChannel, TelemetryEven
 # read_events — empty line handling (line 102)
 # ---------------------------------------------------------------------------
 
+
 class TestReadEventsEmptyLine:
     """Empty lines in log file are skipped."""
 
@@ -26,9 +28,7 @@ class TestReadEventsEmptyLine:
         # Write a log file with empty lines
         log_file = tmp_path / f"telemetry-{datetime.now().strftime('%Y%m%d')}.jsonl"
         ev = TelemetryEvent(event_type="test", skill_id="s1", channel=TelemetryChannel.LOG_FILE)
-        log_file.write_text(
-            ev.model_dump_json() + "\n\n\n" + ev.model_dump_json() + "\n"
-        )
+        log_file.write_text(ev.model_dump_json() + "\n\n\n" + ev.model_dump_json() + "\n")
         events = bridge.read_events()
         assert len(events) == 2
 
@@ -43,6 +43,7 @@ class TestReadEventsEmptyLine:
 # ---------------------------------------------------------------------------
 # read_events — since filter (lines 111-113)
 # ---------------------------------------------------------------------------
+
 
 class TestReadEventsSinceFilter:
     """Events before the 'since' timestamp are filtered out."""
@@ -106,6 +107,7 @@ class TestReadEventsSinceFilter:
 # read_events — generic Exception in line parsing (lines 115-116)
 # ---------------------------------------------------------------------------
 
+
 class TestReadEventsExceptionHandling:
     """Lines that cause exceptions during parsing are skipped."""
 
@@ -115,11 +117,7 @@ class TestReadEventsExceptionHandling:
 
         # Valid event followed by malformed JSON, then another valid event
         valid = TelemetryEvent(event_type="valid", skill_id="s1", channel=TelemetryChannel.LOG_FILE)
-        log_file.write_text(
-            valid.model_dump_json() + "\n"
-            + "{bad json\n"
-            + valid.model_dump_json() + "\n"
-        )
+        log_file.write_text(valid.model_dump_json() + "\n" + "{bad json\n" + valid.model_dump_json() + "\n")
         events = bridge.read_events()
         # Two valid events, one malformed skipped
         assert len(events) == 2

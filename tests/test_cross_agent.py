@@ -31,9 +31,7 @@ class TestCrossAgentCombinationConsistency:
         combo_dir = shared_data_dir / "combinations"
 
         mgr_a = CombinationLifecycleManager(data_dir=combo_dir)
-        combo = mgr_a.create_combination(
-            "review", ["karpathy"], source="human_specified"
-        )
+        combo = mgr_a.create_combination("review", ["karpathy"], source="human_specified")
         for i in range(6):
             mgr_a.record_execution(combo.combination_id, gain=1.5)
         mgr_a.try_promote(combo.combination_id)
@@ -69,21 +67,25 @@ class TestCrossAgentCombinationConsistency:
 
         # Agent A (claude-code) reports usage
         tracker_a = GainTracker(data_dir=gain_dir)
-        tracker_a.record(SkillExecution(
-            skill_ids=["review", "karpathy"],
-            intent="code review",
-            scores=GainScores(effectiveness=8.0, efficiency=7.0, quality=9.0, gain=1.5),
-            source="explicit",
-        ))
+        tracker_a.record(
+            SkillExecution(
+                skill_ids=["review", "karpathy"],
+                intent="code review",
+                scores=GainScores(effectiveness=8.0, efficiency=7.0, quality=9.0, gain=1.5),
+                source="explicit",
+            )
+        )
 
         # Agent B (codex) reports usage for same combination
         tracker_b = GainTracker(data_dir=gain_dir)
-        tracker_b.record(SkillExecution(
-            skill_ids=["review", "karpathy"],
-            intent="security audit",
-            scores=GainScores(effectiveness=7.5, efficiency=6.5, quality=8.0, gain=1.0),
-            source="explicit",
-        ))
+        tracker_b.record(
+            SkillExecution(
+                skill_ids=["review", "karpathy"],
+                intent="security audit",
+                scores=GainScores(effectiveness=7.5, efficiency=6.5, quality=8.0, gain=1.0),
+                source="explicit",
+            )
+        )
 
         # Both executions visible to any agent
         tracker_c = GainTracker(data_dir=gain_dir)
@@ -102,6 +104,7 @@ class TestSearchFirstEnforcement:
         # Fresh process — no search done for any agent
         # Reset the module-level tracking set
         import skillpool.mcp_server as mcp_mod
+
         mcp_mod._search_done_callers.clear()
 
         result = skill_get(skill_id="multi-dim-review", agent_type="claude-code")
@@ -117,6 +120,7 @@ class TestSearchFirstEnforcement:
         """skill_get allows access after skill_search called for that agent_type."""
         from skillpool.mcp_server import skill_get
         import skillpool.mcp_server as mcp_mod
+
         mcp_mod._search_done_callers.clear()
 
         # Simulate skill_search being called by claude-code
@@ -134,6 +138,7 @@ class TestSearchFirstEnforcement:
     def test_search_tracking_is_agent_neutral(self):
         """Search tracking uses agent_type, not Claude Code session IDs."""
         import skillpool.mcp_server as mcp_mod
+
         mcp_mod._search_done_callers.clear()
 
         # Verify the tracking mechanism uses agent_type strings
@@ -159,9 +164,7 @@ class TestIntentRouterAgentNeutral:
         # Create a test skill
         review_dir = skills_dir / "multi-dim-review"
         review_dir.mkdir()
-        (review_dir / "SKILL.md").write_text(
-            "Multi-dimension code review skill for security, quality, and resilience"
-        )
+        (review_dir / "SKILL.md").write_text("Multi-dimension code review skill for security, quality, and resilience")
 
         router = IntentRouter(skills_dir=skills_dir)
 
@@ -184,9 +187,7 @@ class TestSkillAutoDeprecationCrossAgent:
 
         # Create a promoted combination
         mgr = CombinationLifecycleManager(data_dir=combo_dir)
-        combo = mgr.create_combination(
-            "review", ["karpathy"], source="human_specified"
-        )
+        combo = mgr.create_combination("review", ["karpathy"], source="human_specified")
         for i in range(6):
             mgr.record_execution(combo.combination_id, gain=1.5)
         mgr.try_promote(combo.combination_id)
@@ -198,14 +199,17 @@ class TestSkillAutoDeprecationCrossAgent:
         # Simulate skill degradation: add low-effectiveness executions
         tracker = GainTracker(data_dir=gain_dir)
         for i in range(6):
-            tracker.record(SkillExecution(
-                skill_ids=["review"],
-                scores=GainScores(effectiveness=2.0, efficiency=5.0, quality=3.0, gain=0),
-                source="implicit",
-            ))
+            tracker.record(
+                SkillExecution(
+                    skill_ids=["review"],
+                    scores=GainScores(effectiveness=2.0, efficiency=5.0, quality=3.0, gain=0),
+                    source="implicit",
+                )
+            )
 
         # Auto-deprecation check
         from skillpool.lifecycle import check_auto_deprecation
+
         _deprecated = check_auto_deprecation("review")
         # May or may not deprecate depending on gain data path
         # The key test is that the mechanism exists and is agent-neutral
@@ -218,6 +222,7 @@ class TestCombinationMCPTools:
         """combination_create requires agent_type, no default."""
         from skillpool.mcp_server import combination_create
         import inspect
+
         sig = inspect.signature(combination_create)
         assert "agent_type" in sig.parameters
         # agent_type should have no default (required parameter)
@@ -272,6 +277,7 @@ class TestCombinationMCPTools:
         """combination_transition requires agent_type for audit trail."""
         from skillpool.mcp_server import combination_transition
         import inspect
+
         sig = inspect.signature(combination_transition)
         param = sig.parameters["agent_type"]
         assert param.default is inspect.Parameter.empty

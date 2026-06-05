@@ -8,6 +8,7 @@ simultaneously. Verifies:
 2. All agents receive consistent responses
 3. 100 concurrent requests succeed without error
 """
+
 from __future__ import annotations
 
 import json
@@ -20,11 +21,13 @@ from dataclasses import dataclass
 
 # ── Agent profiles ─────────────────────────────────────────
 
+
 @dataclass
 class AgentProfile:
     name: str
     client_info: dict
     requests: list[dict]  # MCP requests this agent would make
+
 
 PROFILES = [
     AgentProfile(
@@ -33,7 +36,13 @@ PROFILES = [
         requests=[
             {"method": "resources/read", "params": {"uri": "skill://multi-dim-review/definition"}},
             {"method": "resources/read", "params": {"uri": "skill://multi-dim-review/rules"}},
-            {"method": "tools/call", "params": {"name": "gate_check", "arguments": {"skill_id": "S09", "agent_type": "claude-code", "task_complexity": "high"}}},
+            {
+                "method": "tools/call",
+                "params": {
+                    "name": "gate_check",
+                    "arguments": {"skill_id": "S09", "agent_type": "claude-code", "task_complexity": "high"},
+                },
+            },
             {"method": "tools/call", "params": {"name": "health_check", "arguments": {}}},
         ],
     ),
@@ -43,8 +52,20 @@ PROFILES = [
         requests=[
             {"method": "resources/read", "params": {"uri": "skill://list"}},
             {"method": "resources/read", "params": {"uri": "skill://multi-dim-review/manifest.yaml"}},
-            {"method": "tools/call", "params": {"name": "telemetry_report", "arguments": {"event_type": "usage", "skill_id": "S09", "agent_type": "codex"}}},
-            {"method": "tools/call", "params": {"name": "gate_check", "arguments": {"skill_id": "S13a", "agent_type": "codex", "task_complexity": "medium"}}},
+            {
+                "method": "tools/call",
+                "params": {
+                    "name": "telemetry_report",
+                    "arguments": {"event_type": "usage", "skill_id": "S09", "agent_type": "codex"},
+                },
+            },
+            {
+                "method": "tools/call",
+                "params": {
+                    "name": "gate_check",
+                    "arguments": {"skill_id": "S13a", "agent_type": "codex", "task_complexity": "medium"},
+                },
+            },
         ],
     ),
     AgentProfile(
@@ -53,7 +74,13 @@ PROFILES = [
         requests=[
             {"method": "resources/read", "params": {"uri": "skill://multi-dim-review/summary"}},
             {"method": "resources/read", "params": {"uri": "skill://list"}},
-            {"method": "tools/call", "params": {"name": "gate_check", "arguments": {"skill_id": "S05a", "agent_type": "hermes", "task_complexity": "low"}}},
+            {
+                "method": "tools/call",
+                "params": {
+                    "name": "gate_check",
+                    "arguments": {"skill_id": "S05a", "agent_type": "hermes", "task_complexity": "low"},
+                },
+            },
             {"method": "tools/call", "params": {"name": "health_check", "arguments": {}}},
         ],
     ),
@@ -62,9 +89,10 @@ PROFILES = [
 # ── Test configuration ──────────────────────────────────────
 
 TOTAL_ROUNDS = 33  # 33 rounds × 3 agents × 1 request = 99 ≈ 100
-CONCURRENCY = 6    # 2 concurrent requests per agent type
+CONCURRENCY = 6  # 2 concurrent requests per agent type
 
 # ── MCP stdio client ───────────────────────────────────────
+
 
 def send_mcp_requests(profile: AgentProfile, round_id: int) -> list[dict]:
     """Send all requests for one agent round via a single MCP session."""
@@ -77,15 +105,21 @@ def send_mcp_requests(profile: AgentProfile, round_id: int) -> list[dict]:
     )
     try:
         # Initialize
-        init = json.dumps({
-            "jsonrpc": "2.0", "id": "init",
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2025-03-26",
-                "capabilities": {},
-                "clientInfo": profile.client_info,
-            },
-        }) + "\n"
+        init = (
+            json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": "init",
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2025-03-26",
+                        "capabilities": {},
+                        "clientInfo": profile.client_info,
+                    },
+                }
+            )
+            + "\n"
+        )
         proc.stdin.write(init.encode())
         proc.stdin.flush()
 
@@ -137,6 +171,7 @@ def send_mcp_requests(profile: AgentProfile, round_id: int) -> list[dict]:
 
 
 # ── Main test ──────────────────────────────────────────────
+
 
 def main():
     total_requests = TOTAL_ROUNDS * 3 * 1  # Each agent makes 1 request per round (rotating)
@@ -202,7 +237,7 @@ def main():
 
     print("Per-Agent Results:")
     print(f"  {'Agent':<15} {'Success':>8} {'Fail':>6} {'Rate':>8}")
-    print(f"  {'-'*15} {'-'*8} {'-'*6} {'-'*8}")
+    print(f"  {'-' * 15} {'-' * 8} {'-' * 6} {'-' * 8}")
     for name, stats in agent_stats.items():
         total_agent = stats["success"] + stats["fail"]
         rate = stats["success"] / total_agent * 100 if total_agent else 0
@@ -215,7 +250,11 @@ def main():
     print("Data Consistency:")
     consistency_ok = True
     # (We can't easily compare across sessions, so we just verify no corruption)
-    corrupted = [r for r in all_results if r.get("success") and not isinstance(r.get("response", {}).get("result"), (dict, type(None)))]
+    corrupted = [
+        r
+        for r in all_results
+        if r.get("success") and not isinstance(r.get("response", {}).get("result"), (dict, type(None)))
+    ]
     if corrupted:
         print(f"  WARNING: {len(corrupted)} responses may be corrupted")
         consistency_ok = False

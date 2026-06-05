@@ -1,4 +1,5 @@
 """Tests for Resolver cache with TTL expiration."""
+
 import time
 
 from skillpool.resolver.cache import LRUCache
@@ -57,7 +58,7 @@ class TestLRUCacheBasic:
     def test_stats(self) -> None:
         cache = LRUCache()
         cache.put("key", "value")
-        cache.get("key")   # hit
+        cache.get("key")  # hit
         cache.get("miss")  # miss
         stats = cache.stats()
         assert stats["hits"] == 1

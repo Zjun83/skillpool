@@ -5,6 +5,7 @@ Architecture constraint:
 - TelemetryBridge is observation only, no control
 - MUST NOT publish versions or replace Audit
 """
+
 from __future__ import annotations
 
 __all__ = ["TelemetryBridge"]
@@ -50,6 +51,7 @@ class TelemetryBridge:
 
         if self._sink is not None:
             from contextlib import suppress
+
             with suppress(Exception):
                 self._sink(metric)
 
@@ -110,18 +112,12 @@ class TelemetryBridge:
                 success_count += 1
 
         if total_count > 0:
-            scores["correctness"] = round(
-                min(5.0, 1.0 + 4.0 * (success_count / total_count)), 2
-            )
-            scores["robustness"] = round(
-                min(5.0, max(1.0, 5.0 - error_count * 0.5)), 2
-            )
+            scores["correctness"] = round(min(5.0, 1.0 + 4.0 * (success_count / total_count)), 2)
+            scores["robustness"] = round(min(5.0, max(1.0, 5.0 - error_count * 0.5)), 2)
 
         if latency_count > 0:
             avg_latency = latency_sum / latency_count
-            scores["efficiency"] = round(
-                min(5.0, max(1.0, 5.0 - avg_latency / 1000)), 2
-            )
+            scores["efficiency"] = round(min(5.0, max(1.0, 5.0 - avg_latency / 1000)), 2)
 
         overall = round(sum(scores.values()) / len(scores), 2)
 
@@ -155,25 +151,31 @@ class TelemetryBridge:
         overall = evaluation.get("overall", 1.0)
 
         if overall < 2.0:
-            alerts.append({
-                "severity": "critical",
-                "message": f"Overall evaluation critically low: {overall}",
-                "dimension": "overall",
-            })
+            alerts.append(
+                {
+                    "severity": "critical",
+                    "message": f"Overall evaluation critically low: {overall}",
+                    "dimension": "overall",
+                }
+            )
 
         for dim_name, score in dimensions.items():
             if score < 2.0:
-                alerts.append({
-                    "severity": "warning",
-                    "message": f"Dimension '{dim_name}' below threshold: {score}",
-                    "dimension": dim_name,
-                })
+                alerts.append(
+                    {
+                        "severity": "warning",
+                        "message": f"Dimension '{dim_name}' below threshold: {score}",
+                        "dimension": dim_name,
+                    }
+                )
             elif score < 3.0:
-                alerts.append({
-                    "severity": "info",
-                    "message": f"Dimension '{dim_name}' needs attention: {score}",
-                    "dimension": dim_name,
-                })
+                alerts.append(
+                    {
+                        "severity": "info",
+                        "message": f"Dimension '{dim_name}' needs attention: {score}",
+                        "dimension": dim_name,
+                    }
+                )
 
         self._alerts.extend(alerts)
         return alerts

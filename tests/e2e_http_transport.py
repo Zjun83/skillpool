@@ -4,6 +4,7 @@ Tests the streamable-http transport by starting skillpool-mcp on a test port
 and sending MCP protocol requests via httpx. Requires session ID handling
 per MCP Streamable HTTP spec.
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -29,7 +30,17 @@ PYTHON = str(Path(sys.executable))
 def mcp_server():
     """Start skillpool-mcp in HTTP mode for testing."""
     proc = subprocess.Popen(
-        [PYTHON, "-m", "skillpool.mcp_server", "--transport", "streamable-http", "--port", str(MCP_PORT), "--host", "127.0.0.1"],
+        [
+            PYTHON,
+            "-m",
+            "skillpool.mcp_server",
+            "--transport",
+            "streamable-http",
+            "--port",
+            str(MCP_PORT),
+            "--host",
+            "127.0.0.1",
+        ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
@@ -45,11 +56,20 @@ def mcp_server():
 def _init_session(client: httpx.Client, port: int = MCP_PORT) -> dict:
     """Initialize MCP session and return headers with session ID."""
     url = f"http://127.0.0.1:{port}/mcp"
-    resp = client.post(url, json={
-        "jsonrpc": "2.0", "method": "initialize", "id": 1,
-        "params": {"protocolVersion": "2025-03-26", "capabilities": {},
-                   "clientInfo": {"name": "test", "version": "1.0"}},
-    }, headers=MCP_BASE_HEADERS)
+    resp = client.post(
+        url,
+        json={
+            "jsonrpc": "2.0",
+            "method": "initialize",
+            "id": 1,
+            "params": {
+                "protocolVersion": "2025-03-26",
+                "capabilities": {},
+                "clientInfo": {"name": "test", "version": "1.0"},
+            },
+        },
+        headers=MCP_BASE_HEADERS,
+    )
     assert resp.status_code == 200, f"Initialize failed: {resp.status_code}"
     session_id = resp.headers.get("mcp-session-id", "")
     headers = {**MCP_BASE_HEADERS, "Mcp-Session-Id": session_id}
@@ -69,13 +89,17 @@ class TestHTTPTransport:
     def test_tools_list(self, mcp_server):
         with httpx.Client(timeout=10) as client:
             session = _init_session(client)
-            resp = client.post(session["url"], json={"jsonrpc": "2.0", "method": "tools/list", "id": 2}, headers=session["headers"])
+            resp = client.post(
+                session["url"], json={"jsonrpc": "2.0", "method": "tools/list", "id": 2}, headers=session["headers"]
+            )
             assert resp.status_code == 200
 
     def test_resources_list(self, mcp_server):
         with httpx.Client(timeout=10) as client:
             session = _init_session(client)
-            resp = client.post(session["url"], json={"jsonrpc": "2.0", "method": "resources/list", "id": 3}, headers=session["headers"])
+            resp = client.post(
+                session["url"], json={"jsonrpc": "2.0", "method": "resources/list", "id": 3}, headers=session["headers"]
+            )
             assert resp.status_code == 200
 
 
@@ -88,7 +112,11 @@ class TestConcurrency:
             results = []
             for i in range(10):
                 try:
-                    resp = client.post(session["url"], json={"jsonrpc": "2.0", "method": "tools/list", "id": 100 + i}, headers=session["headers"])
+                    resp = client.post(
+                        session["url"],
+                        json={"jsonrpc": "2.0", "method": "tools/list", "id": 100 + i},
+                        headers=session["headers"],
+                    )
                     results.append(("ok", i) if resp.status_code == 200 else ("fail", i, resp.status_code))
                 except Exception as e:
                     results.append(("error", i, str(e)))
@@ -102,8 +130,19 @@ class TestGracefulShutdown:
 
     def test_sigterm_exit(self):
         proc = subprocess.Popen(
-            [PYTHON, "-m", "skillpool.mcp_server", "--transport", "streamable-http", "--port", "18102", "--host", "127.0.0.1"],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            [
+                PYTHON,
+                "-m",
+                "skillpool.mcp_server",
+                "--transport",
+                "streamable-http",
+                "--port",
+                "18102",
+                "--host",
+                "127.0.0.1",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
         time.sleep(4)
         proc.send_signal(signal.SIGTERM)

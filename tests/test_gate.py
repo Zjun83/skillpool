@@ -1,4 +1,5 @@
 """Unit tests for GateManager and ComplexityAssessor."""
+
 from skillpool.gate import (
     ComplexityAssessor,
     ComplexityScore,
@@ -10,6 +11,7 @@ from skillpool.telemetry import TelemetryBridge
 
 
 # ---- Fixtures ----
+
 
 def _sample_csdf(**overrides):
     base = {
@@ -36,8 +38,8 @@ def _telemetry_bridge(tmp_path):
 
 # ---- ComplexityAssessor ----
 
-class TestComplexityAssessor:
 
+class TestComplexityAssessor:
     def test_low_complexity(self):
         assessor = ComplexityAssessor()
         csdf = {"checklist": [], "min_trust_level": 0, "veto_rule": None}
@@ -87,12 +89,14 @@ class TestComplexityAssessor:
         assert without_veto.veto_risk == 0.1
 
     def test_custom_weights(self):
-        assessor = ComplexityAssessor(weights={
-            "context_size": 0.5,
-            "dependency_depth": 0.2,
-            "trust_requirement": 0.2,
-            "veto_risk": 0.1,
-        })
+        assessor = ComplexityAssessor(
+            weights={
+                "context_size": 0.5,
+                "dependency_depth": 0.2,
+                "trust_requirement": 0.2,
+                "veto_risk": 0.1,
+            }
+        )
         csdf = {"checklist": [{"item": "x"}] * 10, "min_trust_level": 0, "veto_rule": None}
         score = assessor.assess(csdf)
         assert score.total > 0
@@ -116,8 +120,8 @@ class TestComplexityAssessor:
 
 # ---- GateManager ----
 
-class TestGateManager:
 
+class TestGateManager:
     def test_allow_low_complexity(self):
         gm = GateManager(profile=CLAUDE_CODE_PROFILE)
         csdf = _sample_csdf(checklist=[], veto_rule=None, min_trust_level=0)

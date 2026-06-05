@@ -11,6 +11,7 @@ Uncovered lines:
 - 450-451: verify_evidence_integrity SBOM claimed but no field
 - 453-454: verify_evidence_integrity signature claimed but no field
 """
+
 from __future__ import annotations
 
 import json
@@ -57,6 +58,7 @@ def _make_audit() -> AuditLayer:
 # SkillRecord.from_dict — invalid status (lines 83-84)
 # ---------------------------------------------------------------------------
 
+
 class TestSkillRecordFromDictInvalidStatus:
     """When status string is not a valid SkillStatus, fallback to DRAFT."""
 
@@ -84,6 +86,7 @@ class TestSkillRecordFromDictInvalidStatus:
 # SkillRecord.from_dict — metadata already a SkillMetadata object (line 100)
 # ---------------------------------------------------------------------------
 
+
 class TestSkillRecordFromDictMetadataObject:
     """When metadata field is already a SkillMetadata, use it directly."""
 
@@ -106,6 +109,7 @@ class TestSkillRecordFromDictMetadataObject:
 # _load — empty file content (line 206)
 # ---------------------------------------------------------------------------
 
+
 class TestRegistryLoadEmptyFile:
     """Loading from an empty file should produce empty registry."""
 
@@ -127,6 +131,7 @@ class TestRegistryLoadEmptyFile:
 # ---------------------------------------------------------------------------
 # _load — JSONL format (lines 217-232)
 # ---------------------------------------------------------------------------
+
 
 class TestRegistryLoadJSONL:
     """Registry supports JSONL format (one record per line).
@@ -257,6 +262,7 @@ class TestRegistryLoadJSONL:
 # _load — general exception (line 232)
 # ---------------------------------------------------------------------------
 
+
 class TestRegistryLoadException:
     """Registry load handles general exceptions gracefully."""
 
@@ -273,6 +279,7 @@ class TestRegistryLoadException:
 # ---------------------------------------------------------------------------
 # _save — OSError handling (lines 244-245)
 # ---------------------------------------------------------------------------
+
 
 class TestRegistrySaveOSError:
     """Registry save handles OSError gracefully."""
@@ -294,6 +301,7 @@ class TestRegistrySaveOSError:
 # ---------------------------------------------------------------------------
 # get_skill by name index (line 408)
 # ---------------------------------------------------------------------------
+
 
 class TestGetSkillByName:
     """get_skill supports lookup by name via _by_name index."""
@@ -323,6 +331,7 @@ class TestGetSkillByName:
 # verify_evidence_integrity — missing evidence (line 445)
 # ---------------------------------------------------------------------------
 
+
 class TestVerifyEvidenceIntegrityMissing:
     """When required evidence is missing, issues are reported."""
 
@@ -335,7 +344,9 @@ class TestVerifyEvidenceIntegrityMissing:
         reg._required_evidence = SUPPLY_CHAIN_PROFILES["dev"]
 
         meta = SkillMetadata(
-            skill_id="s1", name="Test", version="1.0",
+            skill_id="s1",
+            name="Test",
+            version="1.0",
             security={},
         )
         req = RegisterSkillRequest(skill_metadata=meta)
@@ -352,6 +363,7 @@ class TestVerifyEvidenceIntegrityMissing:
 # ---------------------------------------------------------------------------
 # verify_evidence_integrity — SBOM claimed but no field (lines 450-451)
 # ---------------------------------------------------------------------------
+
 
 class TestVerifyEvidenceSBOMClaimedButNoField:
     """When SBOM evidence is claimed but no sbom_ref/sbom field exists."""
@@ -375,6 +387,7 @@ class TestVerifyEvidenceSBOMClaimedButNoField:
 # ---------------------------------------------------------------------------
 # verify_evidence_integrity — signature claimed but no field (lines 453-454)
 # ---------------------------------------------------------------------------
+
 
 class TestVerifyEvidenceSignatureClaimedButNoField:
     """When signature evidence is claimed but no signature field exists."""
@@ -416,6 +429,7 @@ class TestVerifyEvidenceSignatureClaimedButNoField:
 # Evidence mapping alternate field names (lines 275-282)
 # ---------------------------------------------------------------------------
 
+
 class TestEvidenceAlternateFieldNames:
     """Test all alternate security field names that map to evidence types."""
 
@@ -424,7 +438,9 @@ class TestEvidenceAlternateFieldNames:
         audit = _make_audit()
         reg = Registry(audit_layer=audit)
         meta = SkillMetadata(
-            skill_id="s1", name="Test", version="1.0",
+            skill_id="s1",
+            name="Test",
+            version="1.0",
             security={"sbom": "data", "provenance_ref": "p", "source_pin": "s", "signature_ref": "sig"},
         )
         req = RegisterSkillRequest(skill_metadata=meta)
@@ -438,7 +454,9 @@ class TestEvidenceAlternateFieldNames:
         audit = _make_audit()
         reg = Registry(audit_layer=audit)
         meta = SkillMetadata(
-            skill_id="s1", name="Test", version="1.0",
+            skill_id="s1",
+            name="Test",
+            version="1.0",
             security={"sbom_ref": "sbom", "provenance": "data", "source_pin": "s", "signature_ref": "sig"},
         )
         req = RegisterSkillRequest(skill_metadata=meta)
@@ -452,7 +470,9 @@ class TestEvidenceAlternateFieldNames:
         audit = _make_audit()
         reg = Registry(audit_layer=audit)
         meta = SkillMetadata(
-            skill_id="s1", name="Test", version="1.0",
+            skill_id="s1",
+            name="Test",
+            version="1.0",
             security={"sbom_ref": "sbom", "provenance_ref": "p", "source_ref": "src", "signature_ref": "sig"},
         )
         req = RegisterSkillRequest(skill_metadata=meta)
@@ -465,7 +485,9 @@ class TestEvidenceAlternateFieldNames:
         audit = _make_audit()
         reg = Registry(audit_layer=audit)
         meta = SkillMetadata(
-            skill_id="s1", name="Test", version="1.0",
+            skill_id="s1",
+            name="Test",
+            version="1.0",
             security={"sbom_ref": "sbom", "provenance_ref": "p", "source": "src", "signature_ref": "sig"},
         )
         req = RegisterSkillRequest(skill_metadata=meta)
@@ -478,7 +500,9 @@ class TestEvidenceAlternateFieldNames:
         audit = _make_audit()
         reg = Registry(audit_layer=audit)
         meta = SkillMetadata(
-            skill_id="s1", name="Test", version="1.0",
+            skill_id="s1",
+            name="Test",
+            version="1.0",
             security={"sbom_ref": "sbom", "provenance_ref": "p", "source_pin": "s", "digest": "sha256:abc"},
         )
         req = RegisterSkillRequest(skill_metadata=meta)
@@ -491,7 +515,9 @@ class TestEvidenceAlternateFieldNames:
         audit = _make_audit()
         reg = Registry(audit_layer=audit)
         meta = SkillMetadata(
-            skill_id="s1", name="Test", version="1.0",
+            skill_id="s1",
+            name="Test",
+            version="1.0",
             security={"sbom_ref": "sbom", "provenance_ref": "p", "source_pin": "s", "signature": "sig-data"},
         )
         req = RegisterSkillRequest(skill_metadata=meta)

@@ -1,4 +1,5 @@
 """Tests for SkillGraph — DAG construction, topological sort, cycle detection."""
+
 import pytest
 
 from skillpool.resolver.skill_graph import CycleDetected, SkillGraph

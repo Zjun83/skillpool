@@ -1,4 +1,5 @@
 """Tests for Graph PPR — Personalized PageRank with 3-layer implementation."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -14,9 +15,7 @@ def _make_chain_adj(n: int) -> sp.spmatrix:
     for i in range(n - 1):
         rows.append(i)
         cols.append(i + 1)
-    return sp.csr_matrix(
-        (np.ones(len(rows)), (rows, cols)), shape=(n, n)
-    )
+    return sp.csr_matrix((np.ones(len(rows)), (rows, cols)), shape=(n, n))
 
 
 def _make_star_adj(n: int) -> sp.spmatrix:
@@ -25,9 +24,7 @@ def _make_star_adj(n: int) -> sp.spmatrix:
     for i in range(1, n):
         rows.append(0)
         cols.append(i)
-    return sp.csr_matrix(
-        (np.ones(len(rows)), (rows, cols)), shape=(n, n)
-    )
+    return sp.csr_matrix((np.ones(len(rows)), (rows, cols)), shape=(n, n))
 
 
 class TestValidateInputs:
@@ -129,9 +126,7 @@ class TestPersonalizedPagerank:
     def test_csr_convergence_with_dangling(self):
         """Test CSR handles dangling nodes (no outgoing edges)."""
         # Node 2 has no outgoing edges (dangling)
-        adj = sp.csr_matrix(
-            (np.ones(2), ([0, 1], [1, 2])), shape=(3, 3)
-        )
+        adj = sp.csr_matrix((np.ones(2), ([0, 1], [1, 2])), shape=(3, 3))
         scores = personalized_pagerank(adj, [0], method="csr")
         np.testing.assert_almost_equal(scores.sum(), 1.0, decimal=5)
 

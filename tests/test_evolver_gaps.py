@@ -18,6 +18,7 @@ Targeted gaps:
 - L864-865: execute_evolution not found / no skill_id
 - L914-915: execute_evolution yaml error
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -270,9 +271,7 @@ class TestExternalEvolution:
     def test_returns_recommendation(self):
         """Lines 618-620: external evolution returns structured result."""
         evolver = EvolverLayer()
-        result = evolver.process_external_evolution(
-            "s1", {"version": "2.0.0", "type": "security_fix"}
-        )
+        result = evolver.process_external_evolution("s1", {"version": "2.0.0", "type": "security_fix"})
         assert result is not None
         assert result["skill_id"] == "s1"
         assert result["recommendation"] == "review_for_adoption"

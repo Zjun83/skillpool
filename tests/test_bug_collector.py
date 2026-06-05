@@ -1,4 +1,5 @@
 """Tests for BugCollector and pytest hook integration."""
+
 from __future__ import annotations
 
 import json
@@ -14,6 +15,7 @@ def isolated_collector(tmp_path):
     """Reset BugCollector and use temp log path for each test."""
     # Reset the module-level collector in conftest
     import conftest
+
     conftest._collector = None
 
     # Create a fresh collector with temp log dir
@@ -239,6 +241,7 @@ class TestExceptionClassification:
     def test_unknown_exception(self):
         class CustomError(Exception):
             pass
+
         assert BugCollector._classify_exception(CustomError()) == DefectType.UNKNOWN
 
 
@@ -340,6 +343,7 @@ class TestBeforePersistHook:
 
     def test_hook_exception_defaults_to_persist(self, isolated_collector):
         """If before_persist hook raises, record should be persisted by default."""
+
         def bad_hook(rec: BugRecord) -> bool:
             raise RuntimeError("hook crashed")
 
@@ -355,6 +359,7 @@ class TestBeforePersistHook:
 
     def test_hook_accept_persists(self, isolated_collector):
         """before_persist returning True should persist."""
+
         def accept(rec: BugRecord) -> bool:
             return True
 
@@ -455,18 +460,22 @@ class TestConftestHook:
 
     def test_classify_error_type_typeerror(self):
         import conftest
+
         assert conftest._classify_error_type("TypeError") == DefectType.PARAM_ERROR
 
     def test_classify_error_type_timeout(self):
         import conftest
+
         assert conftest._classify_error_type("TimeoutError") == DefectType.TIMEOUT
 
     def test_classify_error_type_assertion(self):
         import conftest
+
         assert conftest._classify_error_type("AssertionError") == DefectType.OUTPUT_INVALID
 
     def test_classify_error_type_unknown(self):
         import conftest
+
         assert conftest._classify_error_type("SomeRandomError") == DefectType.UNKNOWN
 
 
@@ -476,6 +485,7 @@ class TestPersistEdgeCases:
     def test_audit_chain_error_does_not_crash(self, isolated_collector):
         """If audit_layer.append raises, persist should log warning and continue."""
         from unittest.mock import MagicMock
+
         bad_audit = MagicMock()
         bad_audit.append.side_effect = RuntimeError("audit broken")
 

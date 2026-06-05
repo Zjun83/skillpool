@@ -1,4 +1,5 @@
 """SkillResolver — skill chain resolution engine."""
+
 from __future__ import annotations
 
 import threading
@@ -181,10 +182,7 @@ class SkillResolver:
         raw_conflicts = conflict_detector.detect()
 
         # 5. Health filter
-        skills_list = [
-            {"skill_id": sid, **sdata}
-            for sid, sdata in fetched.items()
-        ]
+        skills_list = [{"skill_id": sid, **sdata} for sid, sdata in fetched.items()]
         hf = HealthFilter(min_score=request.min_health_score)
         passed, excluded = hf.filter(skills_list)
 
@@ -212,24 +210,24 @@ class SkillResolver:
                     conflict_sev = ConflictSeverity(c["severity"])
                     break
 
-            resolved.append(ResolvedSkill(
-                skill_id=sid,
-                name=sdata.get("name", ""),
-                version=sdata.get("version", "1.0.0"),
-                dimension=sdata.get("dimension", ""),
-                domain=sdata.get("domain", ""),
-                weight=sdata.get("weight", 0.0),
-                health_score=sdata.get("health_score", 1.0),
-                trust_level=sdata.get("trust_level", 3),
-                dependencies=sdata.get("dependencies", []),
-                estimated_tokens=sdata.get("estimated_tokens", 0),
-                provides=sdata.get("provides", []),
-                conflict=conflict_sev,
-            ))
+            resolved.append(
+                ResolvedSkill(
+                    skill_id=sid,
+                    name=sdata.get("name", ""),
+                    version=sdata.get("version", "1.0.0"),
+                    dimension=sdata.get("dimension", ""),
+                    domain=sdata.get("domain", ""),
+                    weight=sdata.get("weight", 0.0),
+                    health_score=sdata.get("health_score", 1.0),
+                    trust_level=sdata.get("trust_level", 3),
+                    dependencies=sdata.get("dependencies", []),
+                    estimated_tokens=sdata.get("estimated_tokens", 0),
+                    provides=sdata.get("provides", []),
+                    conflict=conflict_sev,
+                )
+            )
 
-        conflicts = [
-            Conflict(**c) for c in raw_conflicts
-        ]
+        conflicts = [Conflict(**c) for c in raw_conflicts]
 
         dag_edges = [
             DagEdge(source=src, target=tgt, weight=w, type=DagEdgeType.DEPENDS_ON)

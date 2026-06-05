@@ -1,4 +1,5 @@
 """Health module — component health checking and degradation management."""
+
 from __future__ import annotations
 
 from skillpool.health.check import HealthChecker
@@ -57,6 +58,7 @@ class HealthManager:
         # Feed results to monitor layer if available
         if self._monitor is not None:
             from skillpool.monitor import MetricType
+
             for comp in response.components:
                 status_val = 1.0 if comp.status == ServingStatus.SERVING else 0.0
                 self._monitor.record_metric(

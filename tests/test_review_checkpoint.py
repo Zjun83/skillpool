@@ -6,6 +6,7 @@ Focuses on:
 - CheckpointRunner: unknown checkpoint level, YAML parse errors, dimension-specific
   scorers (D3/D5/D7/D10/D11), generic scoring branches, _find_skill_yaml edge cases
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -415,11 +416,18 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d3_security_scanner_safe_bonus(self, tmp_path: Path):
         """Lines 144-145: SecurityScanner is_safe → +2.0 bonus."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S05a", {
-            "id": "S05a", "name": "Security", "version": "1.0.0",
-            "dimension": "D3", "description": "Security compliance scanning skill",
-            "checklist": [{"description": "Check access controls", "severity": "critical"}],
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S05a",
+            {
+                "id": "S05a",
+                "name": "Security",
+                "version": "1.0.0",
+                "dimension": "D3",
+                "description": "Security compliance scanning skill",
+                "checklist": [{"description": "Check access controls", "severity": "critical"}],
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         # Mock SecurityScanner at its import location (lazy import inside method)
@@ -435,11 +443,18 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d3_security_scanner_warning_bonus(self, tmp_path: Path):
         """Lines 146-147: SecurityScanner warning → +0.5 bonus."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S05a", {
-            "id": "S05a", "name": "Security", "version": "1.0.0",
-            "dimension": "D3", "description": "Security compliance scanning skill",
-            "checklist": [{"description": "Check access controls", "severity": "critical"}],
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S05a",
+            {
+                "id": "S05a",
+                "name": "Security",
+                "version": "1.0.0",
+                "dimension": "D3",
+                "description": "Security compliance scanning skill",
+                "checklist": [{"description": "Check access controls", "severity": "critical"}],
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         mock_result = MagicMock()
@@ -455,11 +470,18 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d3_security_scanner_unavailable(self, tmp_path: Path):
         """Lines 149-150: SecurityScanner import fails → skip bonus, no crash."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S05a", {
-            "id": "S05a", "name": "Security", "version": "1.0.0",
-            "dimension": "D3", "description": "Security compliance scanning skill",
-            "checklist": [{"description": "Check access controls", "severity": "critical"}],
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S05a",
+            {
+                "id": "S05a",
+                "name": "Security",
+                "version": "1.0.0",
+                "dimension": "D3",
+                "description": "Security compliance scanning skill",
+                "checklist": [{"description": "Check access controls", "severity": "critical"}],
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         with patch("skillpool.hooks.security_scanner.SecurityScanner", side_effect=ImportError("no scanner")):
@@ -471,11 +493,18 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d3_security_scan_required_bonus(self, tmp_path: Path):
         """Line 153-154: security_scan_required field → +0.5."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S05a", {
-            "id": "S05a", "name": "Security", "version": "1.0.0",
-            "dimension": "D3", "description": "Security compliance scanning skill",
-            "security_scan_required": True,
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S05a",
+            {
+                "id": "S05a",
+                "name": "Security",
+                "version": "1.0.0",
+                "dimension": "D3",
+                "description": "Security compliance scanning skill",
+                "security_scan_required": True,
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         with patch("skillpool.hooks.security_scanner.SecurityScanner", side_effect=ImportError):
@@ -486,11 +515,18 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d3_veto_rule_bonus(self, tmp_path: Path):
         """Line 155-156: veto_rule field → +0.5."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S05a", {
-            "id": "S05a", "name": "Security", "version": "1.0.0",
-            "dimension": "D3", "description": "Security compliance scanning skill",
-            "veto_rule": "V1",
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S05a",
+            {
+                "id": "S05a",
+                "name": "Security",
+                "version": "1.0.0",
+                "dimension": "D3",
+                "description": "Security compliance scanning skill",
+                "veto_rule": "V1",
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         with patch("skillpool.hooks.security_scanner.SecurityScanner", side_effect=ImportError):
@@ -503,11 +539,18 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d5_fallback_bonus(self, tmp_path: Path):
         """Line 165-166: fallback field → +1.5."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S09", {
-            "id": "S09", "name": "Resilience", "version": "1.0.0",
-            "dimension": "D5", "description": "Fault tolerance and resilience skill",
-            "fallback": "retry_with_backoff",
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S09",
+            {
+                "id": "S09",
+                "name": "Resilience",
+                "version": "1.0.0",
+                "dimension": "D5",
+                "description": "Fault tolerance and resilience skill",
+                "fallback": "retry_with_backoff",
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score = runner._score_skill("S09")
@@ -516,11 +559,18 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d5_degradation_bonus(self, tmp_path: Path):
         """Line 165-166: degradation field → +1.5."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S09", {
-            "id": "S09", "name": "Resilience", "version": "1.0.0",
-            "dimension": "D5", "description": "Fault tolerance and resilience skill",
-            "degradation": "graceful_shutdown",
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S09",
+            {
+                "id": "S09",
+                "name": "Resilience",
+                "version": "1.0.0",
+                "dimension": "D5",
+                "description": "Fault tolerance and resilience skill",
+                "degradation": "graceful_shutdown",
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score = runner._score_skill("S09")
@@ -529,11 +579,18 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d5_recovery_bonus(self, tmp_path: Path):
         """Line 168-169: recovery field → +1.0."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S09", {
-            "id": "S09", "name": "Resilience", "version": "1.0.0",
-            "dimension": "D5", "description": "Fault tolerance and resilience skill",
-            "recovery": "auto_restart",
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S09",
+            {
+                "id": "S09",
+                "name": "Resilience",
+                "version": "1.0.0",
+                "dimension": "D5",
+                "description": "Fault tolerance and resilience skill",
+                "recovery": "auto_restart",
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score = runner._score_skill("S09")
@@ -542,11 +599,18 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d5_circuit_breaker_bonus(self, tmp_path: Path):
         """Line 171-172: circuit_breaker field → +0.5."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S09", {
-            "id": "S09", "name": "Resilience", "version": "1.0.0",
-            "dimension": "D5", "description": "Fault tolerance and resilience skill",
-            "circuit_breaker": "3_failures_in_60s",
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S09",
+            {
+                "id": "S09",
+                "name": "Resilience",
+                "version": "1.0.0",
+                "dimension": "D5",
+                "description": "Fault tolerance and resilience skill",
+                "circuit_breaker": "3_failures_in_60s",
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score = runner._score_skill("S09")
@@ -555,11 +619,18 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d5_no_resilience_fields_penalty(self, tmp_path: Path):
         """Lines 175-188: no resilience fields and no resilience checklist items → -1.0."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S09", {
-            "id": "S09", "name": "Resilience", "version": "1.0.0",
-            "dimension": "D5", "description": "Fault tolerance skill",
-            "checklist": [{"description": "Check something unrelated"}],
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S09",
+            {
+                "id": "S09",
+                "name": "Resilience",
+                "version": "1.0.0",
+                "dimension": "D5",
+                "description": "Fault tolerance skill",
+                "checklist": [{"description": "Check something unrelated"}],
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score = runner._score_skill("S09")
@@ -569,20 +640,34 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d5_resilience_checklist_item_avoids_penalty(self, tmp_path: Path):
         """Lines 179-186: resilience keyword in checklist avoids penalty."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S09", {
-            "id": "S09", "name": "Resilience", "version": "1.0.0",
-            "dimension": "D5", "description": "Fault tolerance skill",
-            "checklist": [{"description": "Implement fallback mechanism for failures"}],
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S09",
+            {
+                "id": "S09",
+                "name": "Resilience",
+                "version": "1.0.0",
+                "dimension": "D5",
+                "description": "Fault tolerance skill",
+                "checklist": [{"description": "Implement fallback mechanism for failures"}],
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score_no_penalty = runner._score_skill("S09")
 
         # Compare with no checklist at all
-        self._write_skill_yaml(skills_dir, "S09", {
-            "id": "S09", "name": "Resilience", "version": "1.0.0",
-            "dimension": "D5", "description": "Fault tolerance skill",
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S09",
+            {
+                "id": "S09",
+                "name": "Resilience",
+                "version": "1.0.0",
+                "dimension": "D5",
+                "description": "Fault tolerance skill",
+            },
+        )
         score_with_penalty = runner._score_skill("S09")
 
         assert score_no_penalty > score_with_penalty
@@ -592,11 +677,18 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d7_coverage_90_plus(self, tmp_path: Path):
         """Lines 199-200: test_coverage >= 90 → +2.0."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S13a", {
-            "id": "S13a", "name": "Testability", "version": "1.0.0",
-            "dimension": "D7", "description": "Test coverage and BDD specification skill",
-            "test_coverage": 95,
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S13a",
+            {
+                "id": "S13a",
+                "name": "Testability",
+                "version": "1.0.0",
+                "dimension": "D7",
+                "description": "Test coverage and BDD specification skill",
+                "test_coverage": 95,
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score = runner._score_skill("S13a")
@@ -605,11 +697,18 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d7_coverage_80_plus(self, tmp_path: Path):
         """Lines 201-202: test_coverage >= 80 → +1.5."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S13a", {
-            "id": "S13a", "name": "Testability", "version": "1.0.0",
-            "dimension": "D7", "description": "Test coverage and BDD specification skill",
-            "test_coverage": 85,
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S13a",
+            {
+                "id": "S13a",
+                "name": "Testability",
+                "version": "1.0.0",
+                "dimension": "D7",
+                "description": "Test coverage and BDD specification skill",
+                "test_coverage": 85,
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score = runner._score_skill("S13a")
@@ -618,11 +717,18 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d7_coverage_70_plus(self, tmp_path: Path):
         """Lines 203-204: test_coverage >= 70 → +1.0."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S13a", {
-            "id": "S13a", "name": "Testability", "version": "1.0.0",
-            "dimension": "D7", "description": "Test coverage and BDD specification skill",
-            "test_coverage": 75,
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S13a",
+            {
+                "id": "S13a",
+                "name": "Testability",
+                "version": "1.0.0",
+                "dimension": "D7",
+                "description": "Test coverage and BDD specification skill",
+                "test_coverage": 75,
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score = runner._score_skill("S13a")
@@ -631,11 +737,18 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d7_coverage_below_70(self, tmp_path: Path):
         """Lines 205-206: test_coverage < 70 → +0.5."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S13a", {
-            "id": "S13a", "name": "Testability", "version": "1.0.0",
-            "dimension": "D7", "description": "Test coverage and BDD specification skill",
-            "test_coverage": 50,
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S13a",
+            {
+                "id": "S13a",
+                "name": "Testability",
+                "version": "1.0.0",
+                "dimension": "D7",
+                "description": "Test coverage and BDD specification skill",
+                "test_coverage": 50,
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score = runner._score_skill("S13a")
@@ -644,11 +757,18 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d7_coverage_truthy_non_numeric(self, tmp_path: Path):
         """Line 207-208: test_coverage truthy but not int/float → +0.5."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S13a", {
-            "id": "S13a", "name": "Testability", "version": "1.0.0",
-            "dimension": "D7", "description": "Test coverage and BDD specification skill",
-            "test_coverage": "high",
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S13a",
+            {
+                "id": "S13a",
+                "name": "Testability",
+                "version": "1.0.0",
+                "dimension": "D7",
+                "description": "Test coverage and BDD specification skill",
+                "test_coverage": "high",
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score = runner._score_skill("S13a")
@@ -657,15 +777,22 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d7_bdd_3_plus_items(self, tmp_path: Path):
         """Lines 218-219: bdd_count >= 3 → +1.5."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S13a", {
-            "id": "S13a", "name": "Testability", "version": "1.0.0",
-            "dimension": "D7", "description": "Test coverage and BDD specification skill",
-            "checklist": [
-                {"description": "Given a valid input, when processed, then output is correct"},
-                {"description": "Should handle edge cases properly"},
-                {"description": "Must verify all return values"},
-            ],
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S13a",
+            {
+                "id": "S13a",
+                "name": "Testability",
+                "version": "1.0.0",
+                "dimension": "D7",
+                "description": "Test coverage and BDD specification skill",
+                "checklist": [
+                    {"description": "Given a valid input, when processed, then output is correct"},
+                    {"description": "Should handle edge cases properly"},
+                    {"description": "Must verify all return values"},
+                ],
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score = runner._score_skill("S13a")
@@ -674,13 +801,20 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d7_bdd_1_item(self, tmp_path: Path):
         """Lines 220-221: bdd_count >= 1 → +0.5."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S13a", {
-            "id": "S13a", "name": "Testability", "version": "1.0.0",
-            "dimension": "D7", "description": "Test coverage and BDD specification skill",
-            "checklist": [
-                {"description": "Should validate inputs correctly"},
-            ],
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S13a",
+            {
+                "id": "S13a",
+                "name": "Testability",
+                "version": "1.0.0",
+                "dimension": "D7",
+                "description": "Test coverage and BDD specification skill",
+                "checklist": [
+                    {"description": "Should validate inputs correctly"},
+                ],
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score = runner._score_skill("S13a")
@@ -691,10 +825,17 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d10_semver_bonus(self, tmp_path: Path):
         """Lines 231-233: semver version → +0.5."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S19", {
-            "id": "S19", "name": "Protocol", "version": "2.1.0",
-            "dimension": "D10", "description": "Protocol timeliness and versioning skill",
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S19",
+            {
+                "id": "S19",
+                "name": "Protocol",
+                "version": "2.1.0",
+                "dimension": "D10",
+                "description": "Protocol timeliness and versioning skill",
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score = runner._score_skill("S19")
@@ -704,19 +845,33 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d10_non_semver_no_bonus(self, tmp_path: Path):
         """Non-semver version gets no bonus."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S19", {
-            "id": "S19", "name": "Protocol", "version": "v2-latest",
-            "dimension": "D10", "description": "Protocol timeliness and versioning skill",
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S19",
+            {
+                "id": "S19",
+                "name": "Protocol",
+                "version": "v2-latest",
+                "dimension": "D10",
+                "description": "Protocol timeliness and versioning skill",
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score_non_semver = runner._score_skill("S19")
 
         # Compare with semver
-        self._write_skill_yaml(skills_dir, "S19", {
-            "id": "S19", "name": "Protocol", "version": "2.1.0",
-            "dimension": "D10", "description": "Protocol timeliness and versioning skill",
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S19",
+            {
+                "id": "S19",
+                "name": "Protocol",
+                "version": "2.1.0",
+                "dimension": "D10",
+                "description": "Protocol timeliness and versioning skill",
+            },
+        )
         score_semver = runner._score_skill("S19")
 
         assert score_semver > score_non_semver
@@ -724,11 +879,18 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d10_last_updated_bonus(self, tmp_path: Path):
         """Lines 236-237: last_updated field → +0.5."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S19", {
-            "id": "S19", "name": "Protocol", "version": "1.0.0",
-            "dimension": "D10", "description": "Protocol timeliness and versioning skill",
-            "last_updated": "2026-01-15",
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S19",
+            {
+                "id": "S19",
+                "name": "Protocol",
+                "version": "1.0.0",
+                "dimension": "D10",
+                "description": "Protocol timeliness and versioning skill",
+                "last_updated": "2026-01-15",
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score = runner._score_skill("S19")
@@ -737,11 +899,18 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d10_effective_date_bonus(self, tmp_path: Path):
         """Lines 236-237: effective_date field → +0.5."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S19", {
-            "id": "S19", "name": "Protocol", "version": "1.0.0",
-            "dimension": "D10", "description": "Protocol timeliness and versioning skill",
-            "effective_date": "2026-03-01",
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S19",
+            {
+                "id": "S19",
+                "name": "Protocol",
+                "version": "1.0.0",
+                "dimension": "D10",
+                "description": "Protocol timeliness and versioning skill",
+                "effective_date": "2026-03-01",
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score = runner._score_skill("S19")
@@ -750,20 +919,34 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d10_deprecated_without_replacement_penalty(self, tmp_path: Path):
         """Lines 240-243: deprecated=True without replacement → -1.0."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S19", {
-            "id": "S19", "name": "Protocol", "version": "1.0.0",
-            "dimension": "D10", "description": "Protocol timeliness and versioning skill",
-            "deprecated": True,
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S19",
+            {
+                "id": "S19",
+                "name": "Protocol",
+                "version": "1.0.0",
+                "dimension": "D10",
+                "description": "Protocol timeliness and versioning skill",
+                "deprecated": True,
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score_with_penalty = runner._score_skill("S19")
 
         # Compare with same file but not deprecated
-        self._write_skill_yaml(skills_dir, "S19", {
-            "id": "S19", "name": "Protocol", "version": "1.0.0",
-            "dimension": "D10", "description": "Protocol timeliness and versioning skill",
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S19",
+            {
+                "id": "S19",
+                "name": "Protocol",
+                "version": "1.0.0",
+                "dimension": "D10",
+                "description": "Protocol timeliness and versioning skill",
+            },
+        )
         score_without_penalty = runner._score_skill("S19")
 
         # Deprecated without replacement should be 1.0 lower
@@ -773,22 +956,36 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d10_deprecated_with_replacement_no_penalty(self, tmp_path: Path):
         """deprecated=True with replacement → no penalty."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S19", {
-            "id": "S19", "name": "Protocol", "version": "1.0.0",
-            "dimension": "D10", "description": "Protocol timeliness and versioning skill",
-            "deprecated": True,
-            "replacement": "S19b",
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S19",
+            {
+                "id": "S19",
+                "name": "Protocol",
+                "version": "1.0.0",
+                "dimension": "D10",
+                "description": "Protocol timeliness and versioning skill",
+                "deprecated": True,
+                "replacement": "S19b",
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score_with_replacement = runner._score_skill("S19")
 
         # Compare with deprecated without replacement
-        self._write_skill_yaml(skills_dir, "S19", {
-            "id": "S19", "name": "Protocol", "version": "1.0.0",
-            "dimension": "D10", "description": "Protocol timeliness and versioning skill",
-            "deprecated": True,
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S19",
+            {
+                "id": "S19",
+                "name": "Protocol",
+                "version": "1.0.0",
+                "dimension": "D10",
+                "description": "Protocol timeliness and versioning skill",
+                "deprecated": True,
+            },
+        )
         score_without_replacement = runner._score_skill("S19")
 
         assert score_with_replacement > score_without_replacement
@@ -798,11 +995,18 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d11_dependencies_declared_bonus(self, tmp_path: Path):
         """Lines 252-253: dependencies key exists → +0.5."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S20", {
-            "id": "S20", "name": "Feasibility", "version": "1.0.0",
-            "dimension": "D11", "description": "Engineering feasibility assessment skill",
-            "dependencies": [],
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S20",
+            {
+                "id": "S20",
+                "name": "Feasibility",
+                "version": "1.0.0",
+                "dimension": "D11",
+                "description": "Engineering feasibility assessment skill",
+                "dependencies": [],
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score = runner._score_skill("S20")
@@ -811,21 +1015,35 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d11_dependencies_with_items_bonus(self, tmp_path: Path):
         """Lines 254-256: dependencies list with items → +0.5 more."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S20", {
-            "id": "S20", "name": "Feasibility", "version": "1.0.0",
-            "dimension": "D11", "description": "Engineering feasibility assessment skill",
-            "dependencies": ["S05a", "S09"],
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S20",
+            {
+                "id": "S20",
+                "name": "Feasibility",
+                "version": "1.0.0",
+                "dimension": "D11",
+                "description": "Engineering feasibility assessment skill",
+                "dependencies": ["S05a", "S09"],
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score_with_items = runner._score_skill("S20")
 
         # Compare with empty dependencies
-        self._write_skill_yaml(skills_dir, "S20", {
-            "id": "S20", "name": "Feasibility", "version": "1.0.0",
-            "dimension": "D11", "description": "Engineering feasibility assessment skill",
-            "dependencies": [],
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S20",
+            {
+                "id": "S20",
+                "name": "Feasibility",
+                "version": "1.0.0",
+                "dimension": "D11",
+                "description": "Engineering feasibility assessment skill",
+                "dependencies": [],
+            },
+        )
         score_empty = runner._score_skill("S20")
 
         assert score_with_items > score_empty
@@ -833,11 +1051,18 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d11_implementation_bonus(self, tmp_path: Path):
         """Lines 259-260: implementation field → +1.0."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S20", {
-            "id": "S20", "name": "Feasibility", "version": "1.0.0",
-            "dimension": "D11", "description": "Engineering feasibility assessment skill",
-            "implementation": "Python module with pytest",
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S20",
+            {
+                "id": "S20",
+                "name": "Feasibility",
+                "version": "1.0.0",
+                "dimension": "D11",
+                "description": "Engineering feasibility assessment skill",
+                "implementation": "Python module with pytest",
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score = runner._score_skill("S20")
@@ -846,11 +1071,18 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d11_implementation_notes_bonus(self, tmp_path: Path):
         """Lines 259-260: implementation_notes field → +1.0."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S20", {
-            "id": "S20", "name": "Feasibility", "version": "1.0.0",
-            "dimension": "D11", "description": "Engineering feasibility assessment skill",
-            "implementation_notes": "Use subprocess for isolation",
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S20",
+            {
+                "id": "S20",
+                "name": "Feasibility",
+                "version": "1.0.0",
+                "dimension": "D11",
+                "description": "Engineering feasibility assessment skill",
+                "implementation_notes": "Use subprocess for isolation",
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score = runner._score_skill("S20")
@@ -859,10 +1091,17 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d11_no_deps_no_checklist_penalty(self, tmp_path: Path):
         """Lines 262-264: no dependencies and no checklist → -1.0."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S20", {
-            "id": "S20", "name": "Feasibility", "version": "1.0.0",
-            "dimension": "D11", "description": "Engineering feasibility assessment skill",
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S20",
+            {
+                "id": "S20",
+                "name": "Feasibility",
+                "version": "1.0.0",
+                "dimension": "D11",
+                "description": "Engineering feasibility assessment skill",
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score = runner._score_skill("S20")
@@ -872,20 +1111,34 @@ class TestCheckpointRunnerDimensionScorers:
     def test_d11_no_deps_but_has_checklist_no_penalty(self, tmp_path: Path):
         """Having checklist avoids the penalty even without dependencies."""
         skills_dir = tmp_path / "skills"
-        self._write_skill_yaml(skills_dir, "S20", {
-            "id": "S20", "name": "Feasibility", "version": "1.0.0",
-            "dimension": "D11", "description": "Engineering feasibility assessment skill",
-            "checklist": [{"description": "Verify dependencies"}],
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S20",
+            {
+                "id": "S20",
+                "name": "Feasibility",
+                "version": "1.0.0",
+                "dimension": "D11",
+                "description": "Engineering feasibility assessment skill",
+                "checklist": [{"description": "Verify dependencies"}],
+            },
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score_with_checklist = runner._score_skill("S20")
 
         # Compare with no checklist and no dependencies
-        self._write_skill_yaml(skills_dir, "S20", {
-            "id": "S20", "name": "Feasibility", "version": "1.0.0",
-            "dimension": "D11", "description": "Engineering feasibility assessment skill",
-        })
+        self._write_skill_yaml(
+            skills_dir,
+            "S20",
+            {
+                "id": "S20",
+                "name": "Feasibility",
+                "version": "1.0.0",
+                "dimension": "D11",
+                "description": "Engineering feasibility assessment skill",
+            },
+        )
         score_without = runner._score_skill("S20")
 
         assert score_with_checklist > score_without
@@ -901,8 +1154,11 @@ class TestScoreGeneric:
         """Lines 296-297: checklist with 1 item → +0.5."""
         runner = CheckpointRunner(seed=42)
         data = {
-            "id": "test", "name": "test", "version": "1.0.0",
-            "dimension": "D1", "description": "A test skill for checking",
+            "id": "test",
+            "name": "test",
+            "version": "1.0.0",
+            "dimension": "D1",
+            "description": "A test skill for checking",
             "checklist": [{"description": "One item"}],
         }
         score = runner._score_generic(data)
@@ -913,8 +1169,11 @@ class TestScoreGeneric:
         """Lines 294-295: checklist with 2-4 items → +1.0."""
         runner = CheckpointRunner(seed=42)
         data = {
-            "id": "test", "name": "test", "version": "1.0.0",
-            "dimension": "D1", "description": "A test skill for checking quality",
+            "id": "test",
+            "name": "test",
+            "version": "1.0.0",
+            "dimension": "D1",
+            "description": "A test skill for checking quality",
             "checklist": [{"description": "Item 1"}, {"description": "Item 2"}],
         }
         score = runner._score_generic(data)
@@ -924,8 +1183,11 @@ class TestScoreGeneric:
         """Lines 292-293: checklist with 5-7 items → +2.0."""
         runner = CheckpointRunner(seed=42)
         data = {
-            "id": "test", "name": "test", "version": "1.0.0",
-            "dimension": "D1", "description": "A test skill for checking quality",
+            "id": "test",
+            "name": "test",
+            "version": "1.0.0",
+            "dimension": "D1",
+            "description": "A test skill for checking quality",
             "checklist": [{"description": f"Item {i}"} for i in range(5)],
         }
         score = runner._score_generic(data)
@@ -935,8 +1197,11 @@ class TestScoreGeneric:
         """Lines 290-291: checklist with 8+ items → +3.0."""
         runner = CheckpointRunner(seed=42)
         data = {
-            "id": "test", "name": "test", "version": "1.0.0",
-            "dimension": "D1", "description": "A test skill for checking quality",
+            "id": "test",
+            "name": "test",
+            "version": "1.0.0",
+            "dimension": "D1",
+            "description": "A test skill for checking quality",
             "checklist": [{"description": f"Item {i}"} for i in range(8)],
         }
         score = runner._score_generic(data)
@@ -946,15 +1211,21 @@ class TestScoreGeneric:
         """Line 303: checklist with 'critical' severity → +0.5."""
         runner = CheckpointRunner(seed=42)
         data = {
-            "id": "test", "name": "test", "version": "1.0.0",
-            "dimension": "D1", "description": "A test skill for checking quality",
+            "id": "test",
+            "name": "test",
+            "version": "1.0.0",
+            "dimension": "D1",
+            "description": "A test skill for checking quality",
             "checklist": [{"description": "Critical item", "severity": "critical"}],
         }
         score_with_critical = runner._score_generic(data)
 
         data_no_critical = {
-            "id": "test", "name": "test", "version": "1.0.0",
-            "dimension": "D1", "description": "A test skill for checking quality",
+            "id": "test",
+            "name": "test",
+            "version": "1.0.0",
+            "dimension": "D1",
+            "description": "A test skill for checking quality",
             "checklist": [{"description": "Normal item", "severity": "normal"}],
         }
         score_without_critical = runner._score_generic(data_no_critical)
@@ -965,8 +1236,11 @@ class TestScoreGeneric:
         """Line 306: no checklist → +0.3."""
         runner = CheckpointRunner(seed=42)
         data = {
-            "id": "test", "name": "test", "version": "1.0.0",
-            "dimension": "D1", "description": "A test skill for checking quality",
+            "id": "test",
+            "name": "test",
+            "version": "1.0.0",
+            "dimension": "D1",
+            "description": "A test skill for checking quality",
         }
         score = runner._score_generic(data)
         # 4.0 (fields) + 0.3 (no checklist) + 1.5 (desc > 20) = 5.8
@@ -976,8 +1250,11 @@ class TestScoreGeneric:
         """Lines 312-313: description <= 20 chars → +0.7."""
         runner = CheckpointRunner(seed=42)
         data = {
-            "id": "test", "name": "test", "version": "1.0.0",
-            "dimension": "D1", "description": "Short",
+            "id": "test",
+            "name": "test",
+            "version": "1.0.0",
+            "dimension": "D1",
+            "description": "Short",
         }
         score = runner._score_generic(data)
         # 4.0 (fields) + 0.3 (no checklist) + 0.7 (short desc) = 5.0
@@ -987,13 +1264,19 @@ class TestScoreGeneric:
         """Line 317: weight field → +0.5."""
         runner = CheckpointRunner(seed=42)
         data_with_weight = {
-            "id": "test", "name": "test", "version": "1.0.0",
-            "dimension": "D1", "description": "A test skill for checking quality",
+            "id": "test",
+            "name": "test",
+            "version": "1.0.0",
+            "dimension": "D1",
+            "description": "A test skill for checking quality",
             "weight": 0.15,
         }
         data_without_weight = {
-            "id": "test", "name": "test", "version": "1.0.0",
-            "dimension": "D1", "description": "A test skill for checking quality",
+            "id": "test",
+            "name": "test",
+            "version": "1.0.0",
+            "dimension": "D1",
+            "description": "A test skill for checking quality",
         }
         score_with = runner._score_generic(data_with_weight)
         score_without = runner._score_generic(data_without_weight)
@@ -1003,13 +1286,19 @@ class TestScoreGeneric:
         """Line 318-319: veto_rule field → +0.5."""
         runner = CheckpointRunner(seed=42)
         data_with_veto = {
-            "id": "test", "name": "test", "version": "1.0.0",
-            "dimension": "D1", "description": "A test skill for checking quality",
+            "id": "test",
+            "name": "test",
+            "version": "1.0.0",
+            "dimension": "D1",
+            "description": "A test skill for checking quality",
             "veto_rule": "V1",
         }
         data_without_veto = {
-            "id": "test", "name": "test", "version": "1.0.0",
-            "dimension": "D1", "description": "A test skill for checking quality",
+            "id": "test",
+            "name": "test",
+            "version": "1.0.0",
+            "dimension": "D1",
+            "description": "A test skill for checking quality",
         }
         score_with = runner._score_generic(data_with_veto)
         score_without = runner._score_generic(data_without_veto)
@@ -1019,8 +1308,11 @@ class TestScoreGeneric:
         """Empty list checklist → +0.3 (same as no checklist)."""
         runner = CheckpointRunner(seed=42)
         data = {
-            "id": "test", "name": "test", "version": "1.0.0",
-            "dimension": "D1", "description": "A test skill for checking quality",
+            "id": "test",
+            "name": "test",
+            "version": "1.0.0",
+            "dimension": "D1",
+            "description": "A test skill for checking quality",
             "checklist": [],
         }
         score = runner._score_generic(data)
@@ -1117,10 +1409,17 @@ class TestScoreSkillNoPrimaryDim:
         skills_dir = tmp_path / "skills"
         skills_dir.mkdir()
         # Write a YAML for a skill not in DIMENSION_SKILLS
-        (skills_dir / "S99-custom.yaml").write_text(yaml.dump({
-            "id": "S99", "name": "Custom", "version": "1.0.0",
-            "description": "A custom skill not mapped to any dimension",
-        }), encoding="utf-8")
+        (skills_dir / "S99-custom.yaml").write_text(
+            yaml.dump(
+                {
+                    "id": "S99",
+                    "name": "Custom",
+                    "version": "1.0.0",
+                    "description": "A custom skill not mapped to any dimension",
+                }
+            ),
+            encoding="utf-8",
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         score = runner._score_skill("S99")
@@ -1242,12 +1541,19 @@ class TestBranchPartials:
         """
         skills_dir = tmp_path / "skills"
         skills_dir.mkdir()
-        (skills_dir / "S05a-security.yaml").write_text(yaml.dump({
-            "id": "S05a", "name": "Security", "version": "1.0.0",
-            "dimension": "D3",
-            "description": "Security compliance scanning skill for D3",
-            "security_scan_required": True,
-        }), encoding="utf-8")
+        (skills_dir / "S05a-security.yaml").write_text(
+            yaml.dump(
+                {
+                    "id": "S05a",
+                    "name": "Security",
+                    "version": "1.0.0",
+                    "dimension": "D3",
+                    "description": "Security compliance scanning skill for D3",
+                    "security_scan_required": True,
+                }
+            ),
+            encoding="utf-8",
+        )
 
         runner = CheckpointRunner(seed=42, skills_dir=skills_dir)
         mock_result = MagicMock()
@@ -1267,8 +1573,11 @@ class TestBranchPartials:
         """
         runner = CheckpointRunner(seed=42)
         data = {
-            "id": "test", "name": "test", "version": "1.0.0",
-            "dimension": "D1", "description": "Short",
+            "id": "test",
+            "name": "test",
+            "version": "1.0.0",
+            "dimension": "D1",
+            "description": "Short",
             "weight": 0.1,
         }
         score = runner._score_generic(data)

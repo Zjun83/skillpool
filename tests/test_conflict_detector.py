@@ -1,4 +1,5 @@
 """Tests for ConflictDetector — Jaccard similarity conflict detection."""
+
 import pytest
 
 from skillpool.resolver.conflict_detector import ConflictDetector, jaccard_similarity

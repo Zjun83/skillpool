@@ -3,6 +3,7 @@
 Each cache entry has a TTL (default 3600s). Entries past TTL are treated
 as misses and lazily evicted on access.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -17,6 +18,7 @@ from typing import Any, Optional
 @dataclass
 class CacheEntry:
     """A cached value with expiration timestamp."""
+
     value: Any
     expires_at: float  # time.monotonic() timestamp
 

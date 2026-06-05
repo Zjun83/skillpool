@@ -55,9 +55,7 @@ class WALManager:
         ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         return f"txn-{ts}-{self._txn_counter:04d}"
 
-    def append(
-        self, entry_type: WALEntryType, skill_name: str, data: dict[str, Any] | None = None
-    ) -> WALEntry:
+    def append(self, entry_type: WALEntryType, skill_name: str, data: dict[str, Any] | None = None) -> WALEntry:
         """Append a new WAL entry."""
         entry = WALEntry(
             entry_type=entry_type,

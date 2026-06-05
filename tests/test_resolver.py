@@ -1,4 +1,5 @@
 """Tests for SkillResolver — skill chain resolution engine."""
+
 from __future__ import annotations
 
 import pytest
@@ -23,6 +24,7 @@ def _clean_registry():
 
 
 # === Schema-Aligned Model Tests ===
+
 
 class TestResolveRequestSchemaFields:
     """Test new schema-aligned fields on SkillResolveRequest."""
@@ -97,10 +99,14 @@ class TestResolveResponseSchemaFields:
         assert resp.feasibility_score > 0.0
 
     def test_feasibility_penalized_by_conflicts(self):
-        register_skill("S01", {"name": "A", "dependencies": [], "health_score": 1.0,
-                                "namespaces": ["auth"], "dimension": "security"})
-        register_skill("S02", {"name": "A2", "dependencies": [], "health_score": 1.0,
-                                "namespaces": ["auth"], "dimension": "security"})
+        register_skill(
+            "S01",
+            {"name": "A", "dependencies": [], "health_score": 1.0, "namespaces": ["auth"], "dimension": "security"},
+        )
+        register_skill(
+            "S02",
+            {"name": "A2", "dependencies": [], "health_score": 1.0, "namespaces": ["auth"], "dimension": "security"},
+        )
         resolver = SkillResolver(conflict_threshold=0.01)
         resp = resolver.resolve(SkillResolveRequest(skill_ids=["S01", "S02"]))
         # With conflicts, feasibility should be lower than without
@@ -151,10 +157,14 @@ class TestConflictTypeAndRecommendation:
     """Test Conflict conflict_type and recommendation fields."""
 
     def test_conflict_type_populated(self):
-        register_skill("S01", {"name": "Auth", "dependencies": [], "health_score": 1.0,
-                                "namespaces": ["auth"], "dimension": "security"})
-        register_skill("S02", {"name": "Auth2", "dependencies": [], "health_score": 1.0,
-                                "namespaces": ["auth"], "dimension": "security"})
+        register_skill(
+            "S01",
+            {"name": "Auth", "dependencies": [], "health_score": 1.0, "namespaces": ["auth"], "dimension": "security"},
+        )
+        register_skill(
+            "S02",
+            {"name": "Auth2", "dependencies": [], "health_score": 1.0, "namespaces": ["auth"], "dimension": "security"},
+        )
         resolver = SkillResolver(conflict_threshold=0.01)
         resp = resolver.resolve(SkillResolveRequest(skill_ids=["S01", "S02"]))
         if resp.conflicts:
@@ -163,6 +173,7 @@ class TestConflictTypeAndRecommendation:
 
 
 # === Core Resolution Tests ===
+
 
 class TestSkillResolver:
     """Core resolution pipeline tests."""
@@ -235,16 +246,19 @@ class TestSkillResolver:
 # CircuitBreaker — Full State Machine Coverage
 # ============================================================
 
+
 class TestCircuitBreakerStateMachine:
     """Full coverage of CircuitBreaker state transitions."""
 
     def test_initial_state_is_closed(self):
         from skillpool.resolver.circuit_breaker import CircuitBreaker, CircuitState
+
         cb = CircuitBreaker(failure_threshold=3, recovery_timeout=1.0)
         assert cb.state == CircuitState.CLOSED
 
     def test_closed_to_open_after_threshold(self):
         from skillpool.resolver.circuit_breaker import CircuitBreaker, CircuitState
+
         cb = CircuitBreaker(failure_threshold=3, recovery_timeout=1.0)
         for _ in range(3):
             cb.record_failure()
@@ -252,6 +266,7 @@ class TestCircuitBreakerStateMachine:
 
     def test_open_rejects_calls(self):
         from skillpool.resolver.circuit_breaker import CircuitBreaker
+
         cb = CircuitBreaker(failure_threshold=2, recovery_timeout=10.0)
         cb.record_failure()
         cb.record_failure()
@@ -260,12 +275,14 @@ class TestCircuitBreakerStateMachine:
 
     def test_closed_allows_calls(self):
         from skillpool.resolver.circuit_breaker import CircuitBreaker
+
         cb = CircuitBreaker(failure_threshold=3, recovery_timeout=1.0)
         assert cb.allow_request()
 
     def test_open_to_half_open_after_timeout(self):
         from skillpool.resolver.circuit_breaker import CircuitBreaker, CircuitState
         import time
+
         cb = CircuitBreaker(failure_threshold=2, recovery_timeout=0.1)
         cb.record_failure()
         cb.record_failure()
@@ -277,6 +294,7 @@ class TestCircuitBreakerStateMachine:
     def test_half_open_success_closes(self):
         from skillpool.resolver.circuit_breaker import CircuitBreaker, CircuitState
         import time
+
         cb = CircuitBreaker(failure_threshold=2, recovery_timeout=0.1, half_open_max_calls=1)
         cb.record_failure()
         cb.record_failure()
@@ -288,6 +306,7 @@ class TestCircuitBreakerStateMachine:
     def test_half_open_failure_reopens(self):
         from skillpool.resolver.circuit_breaker import CircuitBreaker, CircuitState
         import time
+
         cb = CircuitBreaker(failure_threshold=2, recovery_timeout=0.1, half_open_max_calls=1)
         cb.record_failure()
         cb.record_failure()
@@ -298,6 +317,7 @@ class TestCircuitBreakerStateMachine:
 
     def test_below_threshold_stays_closed(self):
         from skillpool.resolver.circuit_breaker import CircuitBreaker, CircuitState
+
         cb = CircuitBreaker(failure_threshold=5, recovery_timeout=1.0)
         cb.record_failure()
         cb.record_failure()
@@ -305,6 +325,7 @@ class TestCircuitBreakerStateMachine:
 
     def test_record_success_resets_failure_count(self):
         from skillpool.resolver.circuit_breaker import CircuitBreaker, CircuitState
+
         cb = CircuitBreaker(failure_threshold=3, recovery_timeout=1.0)
         cb.record_failure()
         cb.record_failure()
@@ -316,6 +337,7 @@ class TestCircuitBreakerStateMachine:
 
     def test_success_count_tracking(self):
         from skillpool.resolver.circuit_breaker import CircuitBreaker
+
         cb = CircuitBreaker(failure_threshold=3, recovery_timeout=1.0)
         cb.record_success()
         cb.record_success()
@@ -326,11 +348,13 @@ class TestCircuitBreakerStateMachine:
 # RateLimiter — Additional Coverage
 # ============================================================
 
+
 class TestRateLimiterAdditional:
     """Additional edge cases for RateLimiter."""
 
     def test_single_request_allowed(self):
         from skillpool.resolver.rate_limiter import RateLimiter
+
         rl = RateLimiter(max_requests=1, window_seconds=1.0)
         assert rl.allow() is True
         assert rl.allow() is False
@@ -338,6 +362,7 @@ class TestRateLimiterAdditional:
     def test_current_count_after_expiry(self):
         from skillpool.resolver.rate_limiter import RateLimiter
         import time
+
         rl = RateLimiter(max_requests=5, window_seconds=0.05)
         rl.allow()
         rl.allow()
@@ -347,6 +372,7 @@ class TestRateLimiterAdditional:
 
     def test_reset_clears_counters(self):
         from skillpool.resolver.rate_limiter import RateLimiter
+
         rl = RateLimiter(max_requests=2, window_seconds=1.0)
         rl.allow()
         rl.allow()
@@ -359,39 +385,46 @@ class TestRateLimiterAdditional:
 # LRUCache — Additional Coverage
 # ============================================================
 
+
 class TestLRUCacheAdditional:
     """Additional edge cases for LRUCache."""
 
     def test_make_key_deterministic(self):
         from skillpool.resolver.cache import LRUCache
+
         key1 = LRUCache.make_key(["S01", "S02"], strategy="best_effort", max_skills=10)
         key2 = LRUCache.make_key(["S01", "S02"], strategy="best_effort", max_skills=10)
         assert key1 == key2
 
     def test_make_key_order_independent(self):
         from skillpool.resolver.cache import LRUCache
+
         key1 = LRUCache.make_key(["S01", "S02"])
         key2 = LRUCache.make_key(["S02", "S01"])
         assert key1 == key2  # Sorted internally
 
     def test_make_key_different_args_different_keys(self):
         from skillpool.resolver.cache import LRUCache
+
         key1 = LRUCache.make_key(["S01"], strategy="strict")
         key2 = LRUCache.make_key(["S01"], strategy="fuzzy")
         assert key1 != key2
 
     def test_invalidate_nonexistent_key(self):
         from skillpool.resolver.cache import LRUCache
+
         cache = LRUCache()
         assert cache.invalidate("nonexistent") is False
 
     def test_is_expired_nonexistent(self):
         from skillpool.resolver.cache import LRUCache
+
         cache = LRUCache()
         assert cache.is_expired("nonexistent") is False
 
     def test_stats_after_operations(self):
         from skillpool.resolver.cache import LRUCache
+
         cache = LRUCache()
         cache.put("a", 1)
         cache.put("b", 2)
@@ -407,6 +440,7 @@ class TestLRUCacheAdditional:
         """Test that concurrent put/get don't crash."""
         from skillpool.resolver.cache import LRUCache
         import threading
+
         cache = LRUCache(max_size=100)
         errors = []
 
@@ -436,6 +470,7 @@ class TestLRUCacheAdditional:
 # ============================================================
 # SkillGraph — Edge Cases
 # ============================================================
+
 
 class TestSkillGraphEdgeCases:
     """Edge cases for SkillGraph operations."""
@@ -502,17 +537,20 @@ class TestSkillGraphEdgeCases:
 # ConflictDetector — Edge Cases
 # ============================================================
 
+
 class TestConflictDetectorEdgeCases:
     """Edge cases for ConflictDetector."""
 
     def test_no_skills_no_conflicts(self):
         from skillpool.resolver.conflict_detector import ConflictDetector
+
         cd = ConflictDetector()
         conflicts = cd.detect()
         assert conflicts == []
 
     def test_single_skill_no_conflicts(self):
         from skillpool.resolver.conflict_detector import ConflictDetector
+
         cd = ConflictDetector()
         cd.register("S01", name="Test Skill")
         conflicts = cd.detect()
@@ -520,6 +558,7 @@ class TestConflictDetectorEdgeCases:
 
     def test_two_dissimilar_skills_no_conflicts(self):
         from skillpool.resolver.conflict_detector import ConflictDetector
+
         cd = ConflictDetector(threshold=0.5)
         cd.register("S01", name="Authentication", dimension="D3", namespaces=["auth"])
         cd.register("S09", name="Resilience", dimension="D5", namespaces=["resilience"])
@@ -528,6 +567,7 @@ class TestConflictDetectorEdgeCases:
 
     def test_two_similar_skills_with_conflict(self):
         from skillpool.resolver.conflict_detector import ConflictDetector
+
         cd = ConflictDetector(threshold=0.01)
         cd.register("S01", name="Auth Check", dimension="D3", namespaces=["auth"])
         cd.register("S02", name="Auth Verify", dimension="D3", namespaces=["auth"])
@@ -536,6 +576,7 @@ class TestConflictDetectorEdgeCases:
 
     def test_custom_threshold(self):
         from skillpool.resolver.conflict_detector import ConflictDetector
+
         cd = ConflictDetector(threshold=0.99)
         cd.register("S01", name="Auth Check", dimension="D3", namespaces=["auth"])
         cd.register("S02", name="Auth Verify", dimension="D3", namespaces=["auth"])
@@ -545,6 +586,7 @@ class TestConflictDetectorEdgeCases:
 
     def test_clear(self):
         from skillpool.resolver.conflict_detector import ConflictDetector
+
         cd = ConflictDetector()
         cd.register("S01", name="Test")
         cd.clear()
@@ -556,11 +598,13 @@ class TestConflictDetectorEdgeCases:
 # HealthFilter — Edge Cases
 # ============================================================
 
+
 class TestHealthFilterEdgeCases:
     """Edge cases for HealthFilter."""
 
     def test_all_healthy(self):
         from skillpool.resolver.health_filter import HealthFilter
+
         hf = HealthFilter(min_score=0.6)
         skills = [
             {"skill_id": "S01", "health_score": 1.0},
@@ -572,6 +616,7 @@ class TestHealthFilterEdgeCases:
 
     def test_all_unhealthy(self):
         from skillpool.resolver.health_filter import HealthFilter
+
         hf = HealthFilter(min_score=0.6)
         skills = [
             {"skill_id": "S01", "health_score": 0.3},
@@ -583,6 +628,7 @@ class TestHealthFilterEdgeCases:
 
     def test_mixed_health(self):
         from skillpool.resolver.health_filter import HealthFilter
+
         hf = HealthFilter(min_score=0.6)
         skills = [
             {"skill_id": "S01", "health_score": 0.9},
@@ -595,6 +641,7 @@ class TestHealthFilterEdgeCases:
 
     def test_empty_skills_list(self):
         from skillpool.resolver.health_filter import HealthFilter
+
         hf = HealthFilter()
         passed, excluded = hf.filter([])
         assert passed == []
@@ -602,6 +649,7 @@ class TestHealthFilterEdgeCases:
 
     def test_missing_health_score_defaults_healthy(self):
         from skillpool.resolver.health_filter import HealthFilter
+
         hf = HealthFilter(min_score=0.6)
         skills = [{"skill_id": "S01"}]  # No health_score key
         passed, excluded = hf.filter(skills)
@@ -609,6 +657,7 @@ class TestHealthFilterEdgeCases:
 
     def test_exact_threshold(self):
         from skillpool.resolver.health_filter import HealthFilter
+
         hf = HealthFilter(min_score=0.6)
         skills = [{"skill_id": "S01", "health_score": 0.6}]
         passed, excluded = hf.filter(skills)
@@ -618,6 +667,7 @@ class TestHealthFilterEdgeCases:
 # ============================================================
 # SkillResolver — Cache Integration
 # ============================================================
+
 
 class TestResolverCacheIntegration:
     """Test that resolver uses caching correctly."""
@@ -645,12 +695,14 @@ class TestResolverCacheIntegration:
     def test_circuit_state_property(self):
         resolver = SkillResolver()
         from skillpool.resolver.circuit_breaker import CircuitState
+
         assert resolver.circuit_state == CircuitState.CLOSED
 
 
 # ============================================================
 # SkillResolver — Transitive Dependencies
 # ============================================================
+
 
 class TestTransitiveDependencies:
     """Test that the resolver follows transitive dependencies."""
@@ -677,6 +729,7 @@ class TestTransitiveDependencies:
 # ============================================================
 # SkillResolver — Feasibility Score Edge Cases
 # ============================================================
+
 
 class TestFeasibilityScoreEdgeCases:
     """Edge cases for feasibility_score computation."""

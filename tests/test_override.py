@@ -1,4 +1,5 @@
 """Tests for EmergencyOverride — 紧急降权协议。"""
+
 from __future__ import annotations
 
 import json
@@ -20,6 +21,7 @@ from skillpool.paradigm.override import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def gate_dir(tmp_path: Path) -> Path:
     """Isolated gate directory under pytest's tmp_path."""
@@ -37,6 +39,7 @@ def override(gate_dir: Path) -> EmergencyOverride:
 # ---------------------------------------------------------------------------
 # 1. override() creates OverrideEvent with correct trust reduction
 # ---------------------------------------------------------------------------
+
 
 class TestOverride:
     def test_creates_event_with_correct_fields(self, override: EmergencyOverride) -> None:
@@ -98,6 +101,7 @@ class TestOverride:
 # 2. is_blocked() returns true after quarantine/kill
 # ---------------------------------------------------------------------------
 
+
 class TestIsBlocked:
     def test_blocked_after_quarantine(self, override: EmergencyOverride) -> None:
         override.override(
@@ -143,6 +147,7 @@ class TestIsBlocked:
 # 3. get_trust_level() reflects override
 # ---------------------------------------------------------------------------
 
+
 class TestGetTrustLevel:
     def test_reflects_warn(self, override: EmergencyOverride) -> None:
         override.override(
@@ -179,6 +184,7 @@ class TestGetTrustLevel:
 # 4. restore() resets trust_level
 # ---------------------------------------------------------------------------
 
+
 class TestRestore:
     def test_restore_resets_trust_and_unblocks(self, override: EmergencyOverride) -> None:
         override.override(
@@ -204,6 +210,7 @@ class TestRestore:
 # ---------------------------------------------------------------------------
 # 5. check_expired() auto-restores expired overrides (short TTL)
 # ---------------------------------------------------------------------------
+
 
 class TestCheckExpired:
     def test_auto_restores_expired(self, gate_dir: Path) -> None:
@@ -251,6 +258,7 @@ class TestCheckExpired:
 # 6. Gate file JSON persistence
 # ---------------------------------------------------------------------------
 
+
 class TestGateFilePersistence:
     def test_override_writes_gate_file(self, gate_dir: Path) -> None:
         eo = EmergencyOverride(gate_dir=gate_dir)
@@ -287,6 +295,7 @@ class TestGateFilePersistence:
 # 7. _compute_new_trust for WARN/DEGRADE/QUARANTINE/KILL
 # ---------------------------------------------------------------------------
 
+
 class TestComputeNewTrust:
     @pytest.mark.parametrize(
         "level, current, expected",
@@ -318,6 +327,7 @@ class TestComputeNewTrust:
 # 8. OverrideLevel and OverrideTrigger enums
 # ---------------------------------------------------------------------------
 
+
 class TestEnums:
     def test_override_level_values(self) -> None:
         assert OverrideLevel.WARN.value == "warn"
@@ -337,6 +347,7 @@ class TestEnums:
 # ---------------------------------------------------------------------------
 # 9. GateFile to_dict / from_dict roundtrip
 # ---------------------------------------------------------------------------
+
 
 class TestGateFileRoundtrip:
     def test_roundtrip(self) -> None:

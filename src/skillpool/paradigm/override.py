@@ -12,6 +12,7 @@ EmergencyOverride 可以紧急降权 Agent 的 trust_level，
   4. 记录降权事件（审计日志）
   5. 恢复机制（手动或超时后自动恢复）
 """
+
 from __future__ import annotations
 
 import json
@@ -36,15 +37,16 @@ class OverrideTrigger(StrEnum):
 
 
 class OverrideLevel(StrEnum):
-    WARN = "warn"          # 降低 trust_level 1 级
-    DEGRADE = "degrade"    # 降低 trust_level 2 级
+    WARN = "warn"  # 降低 trust_level 1 级
+    DEGRADE = "degrade"  # 降低 trust_level 2 级
     QUARANTINE = "quarantine"  # trust_level → 0，禁止执行
-    KILL = "kill"          # 完全禁止，需要人工恢复
+    KILL = "kill"  # 完全禁止，需要人工恢复
 
 
 @dataclass
 class OverrideEvent:
     """降权事件记录。"""
+
     trigger: OverrideTrigger
     level: OverrideLevel
     target_skill: str = ""
@@ -68,6 +70,7 @@ class GateFile:
       "override_history": [...]
     }
     """
+
     skill_id: str
     trust_level: int = 3
     blocked: bool = False
@@ -149,6 +152,7 @@ class EmergencyOverride:
         expires_at = None
         if ttl_seconds:
             from datetime import timedelta
+
             expires_at = (datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)).isoformat()
 
         event = OverrideEvent(
@@ -254,13 +258,15 @@ class EmergencyOverride:
         gate = self._read_gate_file(skill_id) or GateFile(skill_id=skill_id)
         gate.trust_level = trust
         gate.blocked = blocked
-        gate.override_history.append({
-            "trigger": str(event.trigger),
-            "level": str(event.level),
-            "new_trust": event.new_trust,
-            "reason": event.reason,
-            "timestamp": event.timestamp,
-        })
+        gate.override_history.append(
+            {
+                "trigger": str(event.trigger),
+                "level": str(event.level),
+                "new_trust": event.new_trust,
+                "reason": event.reason,
+                "timestamp": event.timestamp,
+            }
+        )
         self._write_gate_file(gate)
 
     def _read_gate_file(self, skill_id: str) -> Optional[GateFile]:

@@ -1,4 +1,5 @@
 """Tests for Registry Layer — Skill metadata and lifecycle governance."""
+
 from __future__ import annotations
 
 import tempfile
@@ -51,8 +52,15 @@ def _make_audit() -> AuditLayer:
 class TestSkillStatus:
     def test_all_9_states(self):
         states = [
-            "draft", "imported", "testing", "enabled", "disabled",
-            "deprecated", "archived", "rejected", "quarantined",
+            "draft",
+            "imported",
+            "testing",
+            "enabled",
+            "disabled",
+            "deprecated",
+            "archived",
+            "rejected",
+            "quarantined",
         ]
         for s in states:
             assert SkillStatus(s).value == s
@@ -60,10 +68,7 @@ class TestSkillStatus:
 
 class TestSkillMetadata:
     def test_creation(self):
-        meta = SkillMetadata(
-            skill_id="s1", name="Test", version="1.0",
-            status=SkillStatus.DRAFT
-        )
+        meta = SkillMetadata(skill_id="s1", name="Test", version="1.0", status=SkillStatus.DRAFT)
         assert meta.skill_id == "s1"
         assert meta.status == SkillStatus.DRAFT
 
@@ -71,11 +76,11 @@ class TestSkillMetadata:
 class TestSkillRecord:
     def test_to_dict_and_from_dict(self):
         from datetime import UTC, datetime
+
         now = datetime.now(UTC)
         meta = _make_metadata("s1")
         record = SkillRecord(
-            metadata=meta, created_at=now, updated_at=now,
-            evidence={"SPDX SBOM"}, audit_refs=["audit-1"]
+            metadata=meta, created_at=now, updated_at=now, evidence={"SPDX SBOM"}, audit_refs=["audit-1"]
         )
         d = record.to_dict()
         assert d["metadata"]["skill_id"] == "s1"
@@ -110,10 +115,7 @@ class TestRegistry:
         reg = Registry(audit_layer=audit)
         reg._evidence_profile = "prod"
         reg._required_evidence = SUPPLY_CHAIN_PROFILES["prod"]
-        meta = SkillMetadata(
-            skill_id="s1", name="Test", version="1.0",
-            security={"sbom_ref": "only_sbom"}
-        )
+        meta = SkillMetadata(skill_id="s1", name="Test", version="1.0", security={"sbom_ref": "only_sbom"})
         req = RegisterSkillRequest(skill_metadata=meta)
         with pytest.raises(SupplyChainEvidenceMissingError):
             reg.register_candidate(req)
@@ -139,10 +141,7 @@ class TestRegistry:
             from_status=SkillStatus.TESTING,
             to_status=SkillStatus.ENABLED,
         )
-        resp = reg.transition_state(
-            "s1", transition_req,
-            sandbox_result="pass", policy_approval=True
-        )
+        resp = reg.transition_state("s1", transition_req, sandbox_result="pass", policy_approval=True)
         assert resp.to_status == "enabled"
 
     def test_transition_illegal_draft_to_enabled(self):
@@ -152,6 +151,7 @@ class TestRegistry:
         meta.status = SkillStatus.DRAFT
         # Manually insert record in draft state
         from datetime import UTC, datetime
+
         now = datetime.now(UTC)
         reg._skills["s1"] = SkillRecord(metadata=meta, created_at=now, updated_at=now)
 
@@ -168,6 +168,7 @@ class TestRegistry:
         meta = _make_metadata("s1")
         meta.status = SkillStatus.ENABLED
         from datetime import UTC, datetime
+
         now = datetime.now(UTC)
         reg._skills["s1"] = SkillRecord(metadata=meta, created_at=now, updated_at=now)
 
@@ -225,19 +226,25 @@ class TestRegistry:
         audit = AuditLayer(available=False)
         reg = Registry(audit_layer=audit)
         with pytest.raises(AuditUnavailableError):
-            reg.transition_state("s1", StateTransitionRequest(
-                from_status=SkillStatus.TESTING,
-                to_status=SkillStatus.ENABLED,
-            ))
+            reg.transition_state(
+                "s1",
+                StateTransitionRequest(
+                    from_status=SkillStatus.TESTING,
+                    to_status=SkillStatus.ENABLED,
+                ),
+            )
 
     def test_skill_not_found(self):
         audit = _make_audit()
         reg = Registry(audit_layer=audit)
         with pytest.raises(SkillNotFoundError):
-            reg.transition_state("nonexistent", StateTransitionRequest(
-                from_status=SkillStatus.TESTING,
-                to_status=SkillStatus.ENABLED,
-            ))
+            reg.transition_state(
+                "nonexistent",
+                StateTransitionRequest(
+                    from_status=SkillStatus.TESTING,
+                    to_status=SkillStatus.ENABLED,
+                ),
+            )
 
     def test_get_skill(self):
         audit = _make_audit()
@@ -268,10 +275,15 @@ class TestRegistry:
         meta = _make_metadata("s1")
         req = RegisterSkillRequest(skill_metadata=meta)
         reg.register_candidate(req)
-        reg.transition_state("s1", StateTransitionRequest(
-            from_status=SkillStatus.TESTING,
-            to_status=SkillStatus.ENABLED,
-        ), sandbox_result="pass", policy_approval=True)
+        reg.transition_state(
+            "s1",
+            StateTransitionRequest(
+                from_status=SkillStatus.TESTING,
+                to_status=SkillStatus.ENABLED,
+            ),
+            sandbox_result="pass",
+            policy_approval=True,
+        )
         assert reg.is_enabled("s1")
 
     def test_persistence(self):
@@ -293,9 +305,10 @@ class TestRegistry:
         audit = _make_audit()
         reg = Registry(audit_layer=audit)
         meta = SkillMetadata(
-            skill_id="s1", name="Test", version="1.0",
-            security={"sbom": "sbom-data", "provenance": "prov",
-                      "source": "src", "signature": "sig"}
+            skill_id="s1",
+            name="Test",
+            version="1.0",
+            security={"sbom": "sbom-data", "provenance": "prov", "source": "src", "signature": "sig"},
         )
         req = RegisterSkillRequest(skill_metadata=meta)
         resp = reg.register_candidate(req)
@@ -310,24 +323,35 @@ class TestRegistry:
         reg.register_candidate(req)
 
         # testing → enabled
-        reg.transition_state("s1", StateTransitionRequest(
-            from_status=SkillStatus.TESTING,
-            to_status=SkillStatus.ENABLED,
-        ), sandbox_result="pass", policy_approval=True)
+        reg.transition_state(
+            "s1",
+            StateTransitionRequest(
+                from_status=SkillStatus.TESTING,
+                to_status=SkillStatus.ENABLED,
+            ),
+            sandbox_result="pass",
+            policy_approval=True,
+        )
         assert reg.is_enabled("s1")
 
         # enabled → disabled
-        reg.transition_state("s1", StateTransitionRequest(
-            from_status=SkillStatus.ENABLED,
-            to_status=SkillStatus.DISABLED,
-        ))
+        reg.transition_state(
+            "s1",
+            StateTransitionRequest(
+                from_status=SkillStatus.ENABLED,
+                to_status=SkillStatus.DISABLED,
+            ),
+        )
         assert not reg.is_enabled("s1")
 
         # disabled → testing
-        reg.transition_state("s1", StateTransitionRequest(
-            from_status=SkillStatus.DISABLED,
-            to_status=SkillStatus.TESTING,
-        ))
+        reg.transition_state(
+            "s1",
+            StateTransitionRequest(
+                from_status=SkillStatus.DISABLED,
+                to_status=SkillStatus.TESTING,
+            ),
+        )
         record = reg.get_skill("s1")
         assert record.metadata.status == SkillStatus.TESTING
 
@@ -404,10 +428,15 @@ class TestSaveLoadCycle:
         # Register and transition to enabled
         meta = _make_metadata("s1")
         reg.register_candidate(RegisterSkillRequest(skill_metadata=meta))
-        reg.transition_state("s1", StateTransitionRequest(
-            from_status=SkillStatus.TESTING,
-            to_status=SkillStatus.ENABLED,
-        ), sandbox_result="pass", policy_approval=True)
+        reg.transition_state(
+            "s1",
+            StateTransitionRequest(
+                from_status=SkillStatus.TESTING,
+                to_status=SkillStatus.ENABLED,
+            ),
+            sandbox_result="pass",
+            policy_approval=True,
+        )
         assert reg.is_enabled("s1")
 
         # Save and reload
@@ -429,16 +458,24 @@ class TestSaveLoadCycle:
             reg.register_candidate(RegisterSkillRequest(skill_metadata=meta))
 
         # Transition s1 to enabled
-        reg.transition_state("s1", StateTransitionRequest(
-            from_status=SkillStatus.TESTING,
-            to_status=SkillStatus.ENABLED,
-        ), sandbox_result="pass", policy_approval=True)
+        reg.transition_state(
+            "s1",
+            StateTransitionRequest(
+                from_status=SkillStatus.TESTING,
+                to_status=SkillStatus.ENABLED,
+            ),
+            sandbox_result="pass",
+            policy_approval=True,
+        )
 
         # Transition s2 to disabled
-        reg.transition_state("s2", StateTransitionRequest(
-            from_status=SkillStatus.TESTING,
-            to_status=SkillStatus.DISABLED,
-        ))
+        reg.transition_state(
+            "s2",
+            StateTransitionRequest(
+                from_status=SkillStatus.TESTING,
+                to_status=SkillStatus.DISABLED,
+            ),
+        )
 
         # Reload and verify all 3 skills with correct states
         reg2 = Registry(audit_layer=audit, registry_path=path)

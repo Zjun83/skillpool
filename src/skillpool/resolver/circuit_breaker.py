@@ -1,4 +1,5 @@
 """CircuitBreaker — 3-state circuit breaker for resolver resilience."""
+
 from __future__ import annotations
 
 import time

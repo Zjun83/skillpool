@@ -1,6 +1,6 @@
 """HealthFilter — filter skills by health score threshold."""
-from __future__ import annotations
 
+from __future__ import annotations
 
 
 class HealthFilter:

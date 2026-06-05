@@ -56,9 +56,7 @@ class QualityProfile:
     def __post_init__(self) -> None:
         """Auto-calculate overall score if not explicitly provided."""
         # If overall is 0.0 and any dimension is non-zero, recalculate
-        if self.overall == 0.0 and any(
-            [self.completeness, self.accuracy, self.usability, self.maintainability]
-        ):
+        if self.overall == 0.0 and any([self.completeness, self.accuracy, self.usability, self.maintainability]):
             self.overall = _compute_overall(
                 self.completeness,
                 self.accuracy,
@@ -179,6 +177,7 @@ class QualityProfiler:
 # ---------------------------------------------------------------------------
 # Auto-scoring helpers — compute dimension scores from document content
 # ---------------------------------------------------------------------------
+
 
 def _score_completeness(doc: CSDFDocument) -> float:
     """Score completeness based on presence of key fields and content."""

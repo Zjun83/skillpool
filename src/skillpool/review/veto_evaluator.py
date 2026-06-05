@@ -8,6 +8,7 @@ Rules:
   V5: D10 < 5.5 → risk_notice (not block)
   V6: baseline_avg < 7.5 → veto_explanation
 """
+
 from __future__ import annotations
 
 from skillpool.review.models import VetoDetail, VetoRule
@@ -45,14 +46,16 @@ class VetoEvaluator:
             triggered = score < threshold
 
             if triggered:
-                details.append(VetoDetail(
-                    rule=rule,
-                    dimension=dimension,
-                    score=score,
-                    threshold=threshold,
-                    blocks=blocks,
-                    recommendation=self._recommendation(rule, score, threshold),
-                ))
+                details.append(
+                    VetoDetail(
+                        rule=rule,
+                        dimension=dimension,
+                        score=score,
+                        threshold=threshold,
+                        blocks=blocks,
+                        recommendation=self._recommendation(rule, score, threshold),
+                    )
+                )
                 if blocks:
                     any_blocking = True
 
@@ -61,14 +64,16 @@ class VetoEvaluator:
         if baseline_scores:
             avg = sum(baseline_scores) / len(baseline_scores)
             if avg < 7.5:
-                details.append(VetoDetail(
-                    rule=VetoRule.V6,
-                    dimension="baseline_avg",
-                    score=avg,
-                    threshold=7.5,
-                    blocks=True,  # V6 blocks — veto explanation required
-                    recommendation="Improve baseline dimension scores above 7.5 average",
-                ))
+                details.append(
+                    VetoDetail(
+                        rule=VetoRule.V6,
+                        dimension="baseline_avg",
+                        score=avg,
+                        threshold=7.5,
+                        blocks=True,  # V6 blocks — veto explanation required
+                        recommendation="Improve baseline dimension scores above 7.5 average",
+                    )
+                )
                 any_blocking = True
 
         return details, any_blocking

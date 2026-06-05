@@ -12,6 +12,7 @@ Performance acceptance criteria (must record hardware + params):
   - 10K nodes × 50K edges: CSR path < 10ms
   - 100K nodes: CSR path < 50ms (P95), requires documented benchmarks
 """
+
 from __future__ import annotations
 
 __all__ = ["personalized_pagerank", "reverse_ppr"]
@@ -58,6 +59,7 @@ def _validate_inputs(
 
 
 # ── Layer 1: Pure Python (correctness baseline) ──
+
 
 def _ppr_push_python(
     adj: sp.spmatrix,
@@ -111,6 +113,7 @@ def _ppr_push_python(
 
 # ── Layer 2: SciPy CSR Sparse Matrix (production CPU path) ──
 
+
 def _ppr_csr_power_iteration(
     adj: sp.spmatrix,
     seeds_vec: np.ndarray,
@@ -157,6 +160,7 @@ def _ppr_csr_power_iteration(
 
 # ── Layer 3: scikit-network (optional, large graphs) ──
 
+
 def _ppr_sknetwork(
     adj: sp.spmatrix,
     seeds_vec: np.ndarray,
@@ -169,6 +173,7 @@ def _ppr_sknetwork(
     """
     try:
         from sknetwork.ranking import PageRank
+
         pr = PageRank(damping_factor=alpha, solver="piteration")
         scores = pr.fit_transform(adj)
         if seeds_vec.sum() > 0:
@@ -179,6 +184,7 @@ def _ppr_sknetwork(
 
 
 # ── Unified Public API ──
+
 
 def personalized_pagerank(
     adj: sp.spmatrix,
@@ -242,6 +248,7 @@ def personalized_pagerank(
 
 # ── Reverse PPR (V1.1 Section 8.5 target-centric query path) ──
 
+
 def reverse_ppr(
     adj: sp.spmatrix,
     target: int,
@@ -264,7 +271,7 @@ def reverse_ppr(
         Reverse PPR score vector (n,)
     """
     return personalized_pagerank(
-        adj.T.tocsr() if hasattr(adj, 'T') else adj.transpose().tocsr(),
+        adj.T.tocsr() if hasattr(adj, "T") else adj.transpose().tocsr(),
         [target],
         alpha=alpha,
         epsilon=epsilon,

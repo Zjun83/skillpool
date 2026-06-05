@@ -1,4 +1,5 @@
 """Tests for TokenGovernor — per-agent daily token budget enforcement + estimate_session_cost."""
+
 import json
 import pytest
 from pathlib import Path
@@ -246,6 +247,7 @@ class TestEstimateSessionCostSkillGetErrors:
 
     def test_skill_get_exception_uses_defaults(self, governor: TokenGovernor) -> None:
         """When skill_get raises an exception, fall back gracefully."""
+
         def failing_skill_get(skill_id: str) -> None:
             raise RuntimeError("MCP connection failed")
 
@@ -259,6 +261,7 @@ class TestEstimateSessionCostSkillGetErrors:
 
     def test_skill_get_with_content_attribute(self, governor: TokenGovernor) -> None:
         """When skill_get returns object with .content, use its length."""
+
         class MockSkill:
             content = "x" * 2_000  # 2K chars → 500 tokens
 
@@ -339,15 +342,17 @@ class TestEstimateSessionCostGateAndCheckpoint:
 class TestEstimateSessionCostEmergencyBypass:
     """Verify emergency bypass, basename matching, and enforcement mode scenarios."""
 
-    def test_emergency_bypass_active_when_override_file_exists(
-        self, governor: TokenGovernor, tmp_path: Path
-    ) -> None:
+    def test_emergency_bypass_active_when_override_file_exists(self, governor: TokenGovernor, tmp_path: Path) -> None:
         """Bypass active: override file exists and not expired → cost estimate shows bypass."""
         override_file = tmp_path / "emergency_overrides.json"
-        override_file.write_text(json.dumps({
-            "expires_at": "2099-12-31T23:59:59+00:00",
-            "reason": "Hotfix deployment",
-        }))
+        override_file.write_text(
+            json.dumps(
+                {
+                    "expires_at": "2099-12-31T23:59:59+00:00",
+                    "reason": "Hotfix deployment",
+                }
+            )
+        )
         estimate = governor.estimate_session_cost(
             skill_id="dev-4d-sdd",
             skill_length=5_000,
@@ -356,15 +361,17 @@ class TestEstimateSessionCostEmergencyBypass:
         assert estimate.emergency_bypass_active is True
         assert estimate.gate_passed is True
 
-    def test_emergency_bypass_expired_not_active(
-        self, governor: TokenGovernor, tmp_path: Path
-    ) -> None:
+    def test_emergency_bypass_expired_not_active(self, governor: TokenGovernor, tmp_path: Path) -> None:
         """Bypass expired: override file exists but expired → bypass not active."""
         override_file = tmp_path / "emergency_overrides.json"
-        override_file.write_text(json.dumps({
-            "expires_at": "2000-01-01T00:00:00+00:00",
-            "reason": "Old override",
-        }))
+        override_file.write_text(
+            json.dumps(
+                {
+                    "expires_at": "2000-01-01T00:00:00+00:00",
+                    "reason": "Old override",
+                }
+            )
+        )
         estimate = governor.estimate_session_cost(
             skill_id="dev-4d-sdd",
             skill_length=5_000,
@@ -384,9 +391,13 @@ class TestEstimateSessionCostEmergencyBypass:
     def test_emergency_bypass_indefinite_when_no_expiry(self, governor: TokenGovernor, tmp_path: Path) -> None:
         """Override file without expires_at → bypass active indefinitely."""
         override_file = tmp_path / "emergency_overrides.json"
-        override_file.write_text(json.dumps({
-            "reason": "Hotfix — no expiry set",
-        }))
+        override_file.write_text(
+            json.dumps(
+                {
+                    "reason": "Hotfix — no expiry set",
+                }
+            )
+        )
         estimate = governor.estimate_session_cost(
             skill_id="dev-4d-sdd",
             skill_length=5_000,
@@ -463,6 +474,7 @@ class TestCostEstimateMCPTool:
     def test_mcp_cost_estimate_returns_dict(self) -> None:
         """MCP cost_estimate returns a dict with all CostEstimate fields."""
         from skillpool.mcp_server import cost_estimate
+
         result = cost_estimate("dev-4d-sdd", skill_length=5000, review_level="L2")
         assert isinstance(result, dict)
         assert result["skill_id"] == "dev-4d-sdd"
@@ -472,6 +484,7 @@ class TestCostEstimateMCPTool:
     def test_mcp_cost_estimate_safe_deny_on_error(self) -> None:
         """MCP cost_estimate returns error dict on invalid input."""
         from skillpool.mcp_server import cost_estimate
+
         result = cost_estimate("dev-4d-sdd", skill_length=5000, review_level="INVALID")
         assert "error" in result or "skill_id" in result
 
@@ -487,6 +500,7 @@ class TestGateCLIReset:
     def test_gate_reset_clears_state(self, tmp_path: Path) -> None:
         """gate reset clears phase to IDLE and preserves created_at."""
         from skillpool.gate_policy.state_machine import GateStateMachine
+
         gate_path = tmp_path / "gate.json"
         sm = GateStateMachine(gate_path)
         sm.assess("L2", changed_files=[])

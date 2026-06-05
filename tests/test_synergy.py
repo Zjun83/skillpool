@@ -16,6 +16,7 @@ from skillpool.resolver.models import DagEdge, DagEdgeType
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def skills_dir(tmp_path):
     """Create a temporary skills directory with sample CSDF YAML files."""
@@ -46,6 +47,7 @@ def _write_skill_yaml(skills_dir: Path, skill_id: str, synergies: list[dict] | N
 # SynergyEdge model
 # ---------------------------------------------------------------------------
 
+
 class TestSynergyEdge:
     """Test the SynergyEdge Pydantic model."""
 
@@ -60,8 +62,12 @@ class TestSynergyEdge:
 
     def test_full_construction(self):
         edge = SynergyEdge(
-            source="review", target="security", gain="+15%", reason="security lens",
-            weight=0.65, evidence="observed",
+            source="review",
+            target="security",
+            gain="+15%",
+            reason="security lens",
+            weight=0.65,
+            evidence="observed",
         )
         assert edge.source == "review"
         assert edge.target == "security"
@@ -86,6 +92,7 @@ class TestSynergyEdge:
 # SynergyDetectionResult model
 # ---------------------------------------------------------------------------
 
+
 class TestSynergyDetectionResult:
     """Test the SynergyDetectionResult Pydantic model."""
 
@@ -99,7 +106,10 @@ class TestSynergyDetectionResult:
     def test_with_values(self):
         edge = SynergyEdge(source="a", target="b")
         result = SynergyDetectionResult(
-            edges_created=3, edges_updated=1, edges_total=4, new_discoveries=[edge],
+            edges_created=3,
+            edges_updated=1,
+            edges_total=4,
+            new_discoveries=[edge],
         )
         assert result.edges_created == 3
         assert result.edges_updated == 1
@@ -110,6 +120,7 @@ class TestSynergyDetectionResult:
 # ---------------------------------------------------------------------------
 # _parse_gain_to_weight
 # ---------------------------------------------------------------------------
+
 
 class TestParseGainToWeight:
     """Test the static gain-to-weight parser."""
@@ -157,6 +168,7 @@ class TestParseGainToWeight:
 # SynergyDetector — load_expert_synergies
 # ---------------------------------------------------------------------------
 
+
 class TestLoadExpertSynergies:
     """Test loading expert-annotated synergies from CSDF YAML files."""
 
@@ -180,6 +192,7 @@ class TestLoadExpertSynergies:
         _write_skill_yaml(skills_dir, "bare-skill", synergies=None)
         # synergies key not present in YAML
         import yaml
+
         skill_dir = skills_dir / "bare-skill"
         data = {"id": "bare-skill"}
         (skill_dir / "bare-skill.yaml").write_text(yaml.dump(data))
@@ -187,9 +200,13 @@ class TestLoadExpertSynergies:
         assert edges == []
 
     def test_single_skill_with_synergies(self, detector, skills_dir):
-        _write_skill_yaml(skills_dir, "review", synergies=[
-            {"skill_id": "security", "gain": "+15%", "reason": "security lens"},
-        ])
+        _write_skill_yaml(
+            skills_dir,
+            "review",
+            synergies=[
+                {"skill_id": "security", "gain": "+15%", "reason": "security lens"},
+            ],
+        )
         edges = detector.load_expert_synergies()
         assert len(edges) == 1
         assert edges[0].source == "review"
@@ -201,13 +218,21 @@ class TestLoadExpertSynergies:
         assert edges[0].weight == 0.5
 
     def test_multiple_skills_with_synergies(self, detector, skills_dir):
-        _write_skill_yaml(skills_dir, "review", synergies=[
-            {"skill_id": "security", "gain": "+15%", "reason": "security lens"},
-            {"skill_id": "testing", "gain": "+10%", "reason": "test coverage"},
-        ])
-        _write_skill_yaml(skills_dir, "security", synergies=[
-            {"skill_id": "compliance", "gain": "+20%", "reason": "compliance check"},
-        ])
+        _write_skill_yaml(
+            skills_dir,
+            "review",
+            synergies=[
+                {"skill_id": "security", "gain": "+15%", "reason": "security lens"},
+                {"skill_id": "testing", "gain": "+10%", "reason": "test coverage"},
+            ],
+        )
+        _write_skill_yaml(
+            skills_dir,
+            "security",
+            synergies=[
+                {"skill_id": "compliance", "gain": "+20%", "reason": "compliance check"},
+            ],
+        )
         edges = detector.load_expert_synergies()
         assert len(edges) == 3
         sources = {e.source for e in edges}
@@ -216,6 +241,7 @@ class TestLoadExpertSynergies:
     def test_skill_id_fallback_to_dir_name(self, detector, skills_dir):
         """When YAML has no 'id' field, skill_id falls back to directory name."""
         import yaml
+
         skill_dir = skills_dir / "my-skill"
         skill_dir.mkdir()
         data = {"synergies": [{"skill_id": "helper", "gain": "+5%", "reason": "helps"}]}
@@ -227,6 +253,7 @@ class TestLoadExpertSynergies:
     def test_synergy_entry_missing_skill_id_skipped(self, detector, skills_dir):
         """Synergy dicts without 'skill_id' key are skipped."""
         import yaml
+
         skill_dir = skills_dir / "bad-skill"
         skill_dir.mkdir()
         data = {
@@ -280,9 +307,13 @@ class TestLoadExpertSynergies:
 
     def test_registry_fallback_to_filesystem(self, detector, skills_dir):
         """When Registry returns None, filesystem fallback is used."""
-        _write_skill_yaml(skills_dir, "fs-skill", synergies=[
-            {"skill_id": "helper", "gain": "+10%", "reason": "helps"},
-        ])
+        _write_skill_yaml(
+            skills_dir,
+            "fs-skill",
+            synergies=[
+                {"skill_id": "helper", "gain": "+10%", "reason": "helps"},
+            ],
+        )
         with patch.object(detector, "_load_from_registry", return_value=None):
             edges = detector.load_expert_synergies()
         assert len(edges) == 1
@@ -298,9 +329,13 @@ class TestLoadExpertSynergies:
         assert edges[0].evidence == "expert"
 
     def test_load_populates_internal_edges(self, detector, skills_dir):
-        _write_skill_yaml(skills_dir, "a", synergies=[
-            {"skill_id": "b", "gain": "+10%", "reason": "test"},
-        ])
+        _write_skill_yaml(
+            skills_dir,
+            "a",
+            synergies=[
+                {"skill_id": "b", "gain": "+10%", "reason": "test"},
+            ],
+        )
         detector.load_expert_synergies()
         assert len(detector._synergy_edges) == 1
 
@@ -308,6 +343,7 @@ class TestLoadExpertSynergies:
 # ---------------------------------------------------------------------------
 # SynergyDetector — to_dag_edges
 # ---------------------------------------------------------------------------
+
 
 class TestToDagEdges:
     """Test conversion of synergy edges to DagEdge objects."""
@@ -343,6 +379,7 @@ class TestToDagEdges:
 # SynergyDetector — sync_expert_synergies
 # ---------------------------------------------------------------------------
 
+
 class TestSyncExpertSynergies:
     """Test the full sync entry point."""
 
@@ -355,10 +392,14 @@ class TestSyncExpertSynergies:
         assert result.new_discoveries == []
 
     def test_sync_with_data(self, detector, skills_dir):
-        _write_skill_yaml(skills_dir, "review", synergies=[
-            {"skill_id": "security", "gain": "+15%", "reason": "security lens"},
-            {"skill_id": "testing", "gain": "+10%", "reason": "test coverage"},
-        ])
+        _write_skill_yaml(
+            skills_dir,
+            "review",
+            synergies=[
+                {"skill_id": "security", "gain": "+15%", "reason": "security lens"},
+                {"skill_id": "testing", "gain": "+10%", "reason": "test coverage"},
+            ],
+        )
         result = detector.sync_expert_synergies()
         assert result.edges_created == 2
         assert result.edges_total == 2
@@ -368,6 +409,7 @@ class TestSyncExpertSynergies:
 # ---------------------------------------------------------------------------
 # SynergyDetector — get_synergies_for / get_enhancers_of
 # ---------------------------------------------------------------------------
+
 
 class TestGetSynergiesFor:
     """Test querying synergies by source skill."""
@@ -419,6 +461,7 @@ class TestGetEnhancersOf:
 # SynergyDetector — load_combination_synergies
 # ---------------------------------------------------------------------------
 
+
 class TestLoadCombinationSynergies:
     """Test loading synergies from the combiner module."""
 
@@ -450,6 +493,7 @@ class TestLoadCombinationSynergies:
 
         # Use the actual enum value for state comparison
         from skillpool.combiner.models import CombinationLifecycleState
+
         mock_combo.state = CombinationLifecycleState.PROMOTED
 
         mock_mgr = MagicMock()
@@ -458,6 +502,7 @@ class TestLoadCombinationSynergies:
         with patch("skillpool.synergy.CombinationLifecycleManager", return_value=mock_mgr, create=True):
             # Need to also patch the import inside the function
             import sys
+
             combiner_mock = MagicMock()
             combiner_mock.CombinationLifecycleManager = MagicMock(return_value=mock_mgr)
             combiner_models_mock = MagicMock()
@@ -489,6 +534,7 @@ class TestLoadCombinationSynergies:
         mock_mgr._combinations = {"c1": mock_combo}
 
         import sys
+
         combiner_mock = MagicMock()
         combiner_mock.CombinationLifecycleManager = MagicMock(return_value=mock_mgr)
         combiner_models_mock = MagicMock()
@@ -525,6 +571,7 @@ class TestLoadCombinationSynergies:
         mock_mgr._combinations = {"c1": mock_combo}
 
         import sys
+
         combiner_mock = MagicMock()
         combiner_mock.CombinationLifecycleManager = MagicMock(return_value=mock_mgr)
         combiner_models_mock = MagicMock()
@@ -547,6 +594,7 @@ class TestLoadCombinationSynergies:
 # SynergyDetector — _load_from_registry
 # ---------------------------------------------------------------------------
 
+
 class TestLoadFromRegistry:
     """Test the Registry loading path."""
 
@@ -566,6 +614,7 @@ class TestLoadFromRegistry:
 # ---------------------------------------------------------------------------
 # SynergyDetector — constructor
 # ---------------------------------------------------------------------------
+
 
 class TestSynergyDetectorInit:
     """Test constructor behavior."""

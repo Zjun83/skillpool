@@ -9,6 +9,7 @@ ParadigmRegistry — 4D 范式 Skill 注册 + 查询。
 
 每个范式注册为 CSDF 文档，ParadigmRegistry 负责存储和查询。
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -142,6 +143,7 @@ PARADigm_CSDFS: dict[Paradigm, dict] = {
 @dataclass
 class ParadigmEntry:
     """注册表中的一条范式记录。"""
+
     paradigm: Paradigm
     csdf: dict
     registered_at: str = ""
@@ -150,6 +152,7 @@ class ParadigmEntry:
 
 class OverrideLevel(StrEnum):
     """Emergency override severity levels."""
+
     WARN = "WARN"
     DEGRADE = "DEGRADE"
     QUARANTINE = "QUARANTINE"
@@ -159,6 +162,7 @@ class OverrideLevel(StrEnum):
 @dataclass
 class EmergencyOverride:
     """An emergency override applied to a paradigm or skill."""
+
     level: OverrideLevel
     target: str  # paradigm name or skill_id
     reason: str
@@ -184,6 +188,7 @@ class ParadigmRegistry:
     def register(self, paradigm: Paradigm, csdf: dict) -> ParadigmEntry:
         """注册一个范式 CSDF。"""
         from datetime import datetime, timezone
+
         entry = ParadigmEntry(
             paradigm=paradigm,
             csdf=csdf,
@@ -254,6 +259,7 @@ class ParadigmRegistry:
         KILL: Immediately stop all operations for the target.
         """
         from datetime import datetime, timezone
+
         override = EmergencyOverride(
             level=level,
             target=target,
@@ -266,7 +272,9 @@ class ParadigmRegistry:
         if level in (OverrideLevel.QUARANTINE, OverrideLevel.KILL):
             for p in list(self._entries.keys()):
                 if p.value == target.lower():
-                    self._entries[p].csdf["lifecycle_state"] = "QUARANTINED" if level == OverrideLevel.QUARANTINE else "KILLED"
+                    self._entries[p].csdf["lifecycle_state"] = (
+                        "QUARANTINED" if level == OverrideLevel.QUARANTINE else "KILLED"
+                    )
 
         return override
 

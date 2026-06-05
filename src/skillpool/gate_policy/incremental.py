@@ -93,7 +93,7 @@ class IncrementalAssessor:
             - Fallback: empty list on any error (B18).
         """
         # Validate base_ref to prevent injection
-        if not re.match(r'^[a-zA-Z0-9._/\-]+$', base_ref):
+        if not re.match(r"^[a-zA-Z0-9._/\-]+$", base_ref):
             return []
 
         try:

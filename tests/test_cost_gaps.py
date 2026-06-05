@@ -6,6 +6,7 @@ Targeted gaps:
 - L105: budget threshold check in get_budget
 - L109-110: check_throttle with audit
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -77,12 +78,14 @@ class TestCostManagerCheckThrottle:
     def test_check_throttle_returns_action(self, cost_manager):
         """Lines 109-110: check_throttle returns ThrottleAction."""
         from skillpool.cost.models import ThrottleAction
+
         action = cost_manager.check_throttle("agent-1", 1000)
         assert isinstance(action, ThrottleAction)
 
     def test_check_throttle_with_excessive_tokens(self, cost_manager):
         """Excessive tokens -> throttle action."""
         from skillpool.cost.models import ThrottleAction
+
         # Record lots of usage then check
         for _ in range(100):
             record = _make_record(cost_usd=0.01)

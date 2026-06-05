@@ -12,6 +12,7 @@ Also re-validates existing V4.1 endpoints that were modified in V4.3.
 
 Part of SkillPool — independent infrastructure, shared by all agents.
 """
+
 from __future__ import annotations
 
 import os
@@ -47,6 +48,7 @@ class TestSkillSummaryResource:
         text = getattr(data, "text", str(data))
         # L1 tier should include description and checklist_summary
         import json
+
         parsed = json.loads(text) if text.startswith("{") else {}
         assert "description" in parsed or "name" in parsed, f"L1 tier missing key fields: {list(parsed.keys())}"
 
@@ -82,6 +84,7 @@ class TestBugListResource:
         assert len(result) > 0
         text = getattr(result[0], "text", str(result[0]))
         import json
+
         data = json.loads(text)
         assert isinstance(data, dict)
         assert "bugs" in data
@@ -91,6 +94,7 @@ class TestBugListResource:
         result = await client.read_resource("bug://list/0")
         text = getattr(result[0], "text", str(result[0]))
         import json
+
         data = json.loads(text)
         assert isinstance(data, dict)
         assert data["limit"] <= 500
@@ -147,6 +151,7 @@ class TestSkillGraphResource:
 
     async def test_graph_returns_dict(self, client: Client) -> None:
         import json
+
         result = await client.read_resource("skill://graph")
         text = getattr(result[0], "text", str(result[0]))
         data = json.loads(text) if text.startswith("{") else {}
@@ -165,6 +170,7 @@ class TestSkillManifestResource:
 
     async def test_manifest_for_csdf_skill(self, client: Client) -> None:
         import json
+
         result = await client.read_resource("skill://S09/manifest.yaml")
         text = getattr(result[0], "text", str(result[0]))
         data = json.loads(text) if text.startswith("{") else {}
@@ -172,6 +178,7 @@ class TestSkillManifestResource:
 
     async def test_manifest_has_dependencies_field(self, client: Client) -> None:
         import json
+
         result = await client.read_resource("skill://S09/manifest.yaml")
         text = getattr(result[0], "text", str(result[0]))
         data = json.loads(text) if text.startswith("{") else {}
@@ -189,6 +196,7 @@ class TestSkillExecutionResource:
 
     async def test_execution_for_csdf_skill(self, client: Client) -> None:
         import json
+
         result = await client.read_resource("skill://S09/x-execution")
         text = getattr(result[0], "text", str(result[0]))
         data = json.loads(text) if text.startswith("{") else {}
@@ -233,67 +241,91 @@ class TestSecurityScanTool:
     """Verify security_scan Tool scans skill content for threats."""
 
     async def test_safe_content(self, client: Client) -> None:
-        result = await client.call_tool("security_scan", {
-            "content": "name: test\nversion: 1.0\n",
-        })
+        result = await client.call_tool(
+            "security_scan",
+            {
+                "content": "name: test\nversion: 1.0\n",
+            },
+        )
         assert not result.is_error
         assert result.data.get("is_safe") is True
         assert result.data.get("threat_level") == "safe"
 
     async def test_dangerous_exec_pattern(self, client: Client) -> None:
         # NOSONAR: testing detection of exec(), not using it
-        result = await client.call_tool("security_scan", {
-            "content": "```python\nexec('malicious')\n```",
-        })
+        result = await client.call_tool(
+            "security_scan",
+            {
+                "content": "```python\nexec('malicious')\n```",
+            },
+        )
         assert not result.is_error
         assert result.data.get("is_safe") is False
         assert result.data.get("threat_level") == "critical"
 
     async def test_dangerous_yaml_tag(self, client: Client) -> None:
-        result = await client.call_tool("security_scan", {
-            "content": "value: !!python/object:module.Class",
-        })
+        result = await client.call_tool(
+            "security_scan",
+            {
+                "content": "value: !!python/object:module.Class",
+            },
+        )
         assert not result.is_error
         assert result.data.get("is_safe") is False
         assert result.data.get("threat_level") == "critical"
 
     async def test_subprocess_warning(self, client: Client) -> None:
-        result = await client.call_tool("security_scan", {
-            "content": "```python\nsubprocess.run(['echo'])\n```",
-        })
+        result = await client.call_tool(
+            "security_scan",
+            {
+                "content": "```python\nsubprocess.run(['echo'])\n```",
+            },
+        )
         assert not result.is_error
         # subprocess is at least warning level
         assert result.data.get("threat_level") in ("warning", "critical")
 
     async def test_with_skill_id(self, client: Client) -> None:
-        result = await client.call_tool("security_scan", {
-            "content": "safe: true",
-            "skill_id": "S09",
-        })
+        result = await client.call_tool(
+            "security_scan",
+            {
+                "content": "safe: true",
+                "skill_id": "S09",
+            },
+        )
         assert not result.is_error
         assert result.data.get("skill_id") == "S09"
 
     async def test_checks_passed_includes_yaml_and_pattern(self, client: Client) -> None:
-        result = await client.call_tool("security_scan", {
-            "content": "name: test\nversion: 1.0\n",
-        })
+        result = await client.call_tool(
+            "security_scan",
+            {
+                "content": "name: test\nversion: 1.0\n",
+            },
+        )
         passed = result.data.get("checks_passed", [])
         assert "yaml_syntax" in passed
         assert "pattern_scan" in passed
 
     async def test_empty_content(self, client: Client) -> None:
-        result = await client.call_tool("security_scan", {
-            "content": "",
-        })
+        result = await client.call_tool(
+            "security_scan",
+            {
+                "content": "",
+            },
+        )
         assert not result.is_error
         assert result.data.get("is_safe") is True
 
     async def test_large_content(self, client: Client) -> None:
         """Large content should not crash the scanner."""
         large = "name: test\n" + "x: y\n" * 1000
-        result = await client.call_tool("security_scan", {
-            "content": large,
-        })
+        result = await client.call_tool(
+            "security_scan",
+            {
+                "content": large,
+            },
+        )
         assert not result.is_error
         assert "is_safe" in result.data
 
@@ -329,16 +361,22 @@ class TestHealingExecuteTool:
     """Verify healing_execute Tool executes proposed healing with BDD verification."""
 
     async def test_execute_nonexistent_proposal(self, client: Client) -> None:
-        result = await client.call_tool("healing_execute", {
-            "proposal_id": "nonexistent-xyz",
-        })
+        result = await client.call_tool(
+            "healing_execute",
+            {
+                "proposal_id": "nonexistent-xyz",
+            },
+        )
         assert not result.is_error
         assert result.data.get("status") in ("not_found", "error")
 
     async def test_execute_returns_proposal_id(self, client: Client) -> None:
-        result = await client.call_tool("healing_execute", {
-            "proposal_id": "nonexistent-xyz",
-        })
+        result = await client.call_tool(
+            "healing_execute",
+            {
+                "proposal_id": "nonexistent-xyz",
+            },
+        )
         assert result.data.get("proposal_id") == "nonexistent-xyz"
 
 
@@ -377,6 +415,7 @@ class TestLazyLoaderTiers:
     async def test_l0_metadata_only(self, client: Client) -> None:
         """skill://list uses L0 tier — should contain metadata fields only."""
         import json
+
         result = await client.read_resource("skill://list")
         text = getattr(result[0], "text", str(result[0]))
         data = json.loads(text) if text.startswith("[") else []
@@ -390,6 +429,7 @@ class TestLazyLoaderTiers:
     async def test_l1_summary_has_description(self, client: Client) -> None:
         """skill://S09/summary uses L1 tier — should include description."""
         import json
+
         result = await client.read_resource("skill://S09/summary")
         text = getattr(result[0], "text", str(result[0]))
         data = json.loads(text) if text.startswith("{") else {}
@@ -439,9 +479,7 @@ class TestTriggerReviewPrompt:
     async def test_no_hardcoded_root_path(self, client: Client) -> None:
         result = await client.get_prompt("trigger_review")
         messages = result.messages
-        combined_text = " ".join(
-            getattr(m.content, "text", str(m.content)) for m in messages
-        )
+        combined_text = " ".join(getattr(m.content, "text", str(m.content)) for m in messages)
         # Must NOT contain hardcoded /root/ paths
         assert "/root/.skillpool" not in combined_text
         # Must reference MCP Resources
@@ -450,9 +488,7 @@ class TestTriggerReviewPrompt:
     async def test_uses_skill_resource_uris(self, client: Client) -> None:
         result = await client.get_prompt("trigger_review")
         messages = result.messages
-        combined_text = " ".join(
-            getattr(m.content, "text", str(m.content)) for m in messages
-        )
+        combined_text = " ".join(getattr(m.content, "text", str(m.content)) for m in messages)
         # Should reference multi-dim-review via MCP URIs
         assert "skill://multi-dim-review/definition" in combined_text
         assert "skill://multi-dim-review/manifest.yaml" in combined_text
@@ -461,9 +497,7 @@ class TestTriggerReviewPrompt:
         """Fallback path should use ~, not /root."""
         result = await client.get_prompt("trigger_review")
         messages = result.messages
-        combined_text = " ".join(
-            getattr(m.content, "text", str(m.content)) for m in messages
-        )
+        combined_text = " ".join(getattr(m.content, "text", str(m.content)) for m in messages)
         # If fallback path is mentioned, it should use ~ not /root
         if "~/.skillpool" in combined_text or ".skillpool" in combined_text:
             assert "/root/.skillpool" not in combined_text
@@ -475,18 +509,14 @@ class TestSkillContextPrompt:
     async def test_skill_context_for_csdf_skill(self, client: Client) -> None:
         result = await client.get_prompt("skill_context", arguments={"skill_id": "S09"})
         messages = result.messages
-        combined_text = " ".join(
-            getattr(m.content, "text", str(m.content)) for m in messages
-        )
+        combined_text = " ".join(getattr(m.content, "text", str(m.content)) for m in messages)
         # Should contain skill definition content
         assert "S09" in combined_text or "Resilience" in combined_text or "Dependencies" in combined_text
 
     async def test_skill_context_unknown_skill(self, client: Client) -> None:
         result = await client.get_prompt("skill_context", arguments={"skill_id": "NONEXISTENT_CTX"})
         messages = result.messages
-        combined_text = " ".join(
-            getattr(m.content, "text", str(m.content)) for m in messages
-        )
+        combined_text = " ".join(getattr(m.content, "text", str(m.content)) for m in messages)
         # Should indicate not found
         assert "not found" in combined_text.lower() or "unavailable" in combined_text.lower()
 
@@ -497,18 +527,14 @@ class TestGateStatusPrompt:
     async def test_gate_status_for_csdf_skill(self, client: Client) -> None:
         result = await client.get_prompt("gate_status", arguments={"skill_id": "S09"})
         messages = result.messages
-        combined_text = " ".join(
-            getattr(m.content, "text", str(m.content)) for m in messages
-        )
+        combined_text = " ".join(getattr(m.content, "text", str(m.content)) for m in messages)
         # Should contain a gate decision
         assert any(word in combined_text for word in ["ALLOW", "GUARD", "ESCALATE", "DENY", "Decision"])
 
     async def test_gate_status_unknown_skill(self, client: Client) -> None:
         result = await client.get_prompt("gate_status", arguments={"skill_id": "NONEXISTENT_GATE"})
         messages = result.messages
-        combined_text = " ".join(
-            getattr(m.content, "text", str(m.content)) for m in messages
-        )
+        combined_text = " ".join(getattr(m.content, "text", str(m.content)) for m in messages)
         assert "not found" in combined_text.lower()
 
 
@@ -523,6 +549,7 @@ class TestCrossEndpointIntegration:
     async def test_skill_list_then_summary(self, client: Client) -> None:
         """Load L0 list, then upgrade to L1 summary for a specific skill."""
         import json
+
         list_result = await client.read_resource("skill://list")
         list_text = getattr(list_result[0], "text", str(list_result[0]))
         skills = json.loads(list_text) if list_text.startswith("[") else []
@@ -542,6 +569,7 @@ class TestCrossEndpointIntegration:
     async def test_skill_list_then_definition(self, client: Client) -> None:
         """Load L0 list, then load L2 definition for a specific skill."""
         import json
+
         list_result = await client.read_resource("skill://list")
         list_text = getattr(list_result[0], "text", str(list_result[0]))
         skills = json.loads(list_text) if list_text.startswith("[") else []
@@ -560,9 +588,12 @@ class TestCrossEndpointIntegration:
     async def test_security_scan_then_healing(self, client: Client) -> None:
         """security_scan finds threats, healing_scan checks for bugs."""
         # Scan safe content
-        scan_result = await client.call_tool("security_scan", {
-            "content": "name: safe\nversion: 1.0\n",
-        })
+        scan_result = await client.call_tool(
+            "security_scan",
+            {
+                "content": "name: safe\nversion: 1.0\n",
+            },
+        )
         assert scan_result.data.get("is_safe") is True
 
         # Check healing proposals
@@ -572,6 +603,7 @@ class TestCrossEndpointIntegration:
     async def test_bug_list_and_healing_consistency(self, client: Client) -> None:
         """bug://list and healing_scan should reference the same BugCollector."""
         import json
+
         bug_result = await client.read_resource("bug://list/0")
         bug_text = getattr(bug_result[0], "text", str(bug_result[0]))
         bugs = json.loads(bug_text) if bug_text.startswith("[") else []
@@ -597,18 +629,24 @@ class TestCrossEndpointIntegration:
         assert len(def_result) > 0
 
         # 4. Gate check
-        gate_result = await client.call_tool("gate_check", {
-            "csdf": {"id": "S09", "name": "Resilience", "min_trust_level": 1, "checklist": []},
-            "profile_name": "claude-code",
-        })
+        gate_result = await client.call_tool(
+            "gate_check",
+            {
+                "csdf": {"id": "S09", "name": "Resilience", "min_trust_level": 1, "checklist": []},
+                "profile_name": "claude-code",
+            },
+        )
         assert gate_result.data.get("decision") in ("allow", "ALLOW", "GUARD", "ESCALATE", "deny", "DENY")
 
         # 5. Security scan the definition
         def_text = getattr(def_result[0], "text", str(def_result[0]))
-        scan_result = await client.call_tool("security_scan", {
-            "content": def_text,
-            "skill_id": "S09",
-        })
+        scan_result = await client.call_tool(
+            "security_scan",
+            {
+                "content": def_text,
+                "skill_id": "S09",
+            },
+        )
         assert "is_safe" in scan_result.data
 
 
@@ -618,31 +656,40 @@ class TestCrossAgentSync:
     async def test_transition_visible_to_other_agent(self, client: Client) -> None:
         """Simulate: Agent A transitions a skill, Agent B queries status."""
         # 1. Register a skill
-        reg_result = await client.call_tool("skill_register", {
-            "skill_id": "sync-test-1",
-            "name": "SyncTest",
-            "version": "1.0.0",
-            "sbom_ref": "sbom",
-            "provenance_ref": "prov",
-            "source_pin": "src",
-            "signature_ref": "sig",
-        })
+        reg_result = await client.call_tool(
+            "skill_register",
+            {
+                "skill_id": "sync-test-1",
+                "name": "SyncTest",
+                "version": "1.0.0",
+                "sbom_ref": "sbom",
+                "provenance_ref": "prov",
+                "source_pin": "src",
+                "signature_ref": "sig",
+            },
+        )
         assert reg_result.data.get("skill_id") == "sync-test-1"
 
         # 2. Agent A transitions to enabled
-        trans_result = await client.call_tool("skill_transition", {
-            "skill_id": "sync-test-1",
-            "from_status": "testing",
-            "to_status": "enabled",
-            "sandbox_result": "pass",
-            "policy_approval": True,
-        })
+        trans_result = await client.call_tool(
+            "skill_transition",
+            {
+                "skill_id": "sync-test-1",
+                "from_status": "testing",
+                "to_status": "enabled",
+                "sandbox_result": "pass",
+                "policy_approval": True,
+            },
+        )
         assert trans_result.data.get("to_status") == "enabled"
 
         # 3. Agent B queries the same skill status
-        status_result = await client.call_tool("skill_status", {
-            "skill_id": "sync-test-1",
-        })
+        status_result = await client.call_tool(
+            "skill_status",
+            {
+                "skill_id": "sync-test-1",
+            },
+        )
         assert status_result.data.get("status") == "enabled"
         assert status_result.data.get("enabled") is True
 
@@ -653,31 +700,40 @@ class TestTraceIdPassthrough:
     async def test_skill_transition_trace_id(self, client: Client) -> None:
         """skill_transition should accept and return trace_id."""
         # Register first
-        await client.call_tool("skill_register", {
-            "skill_id": "trace-test-1",
-            "name": "TraceTest",
-            "version": "1.0.0",
-        })
+        await client.call_tool(
+            "skill_register",
+            {
+                "skill_id": "trace-test-1",
+                "name": "TraceTest",
+                "version": "1.0.0",
+            },
+        )
 
         # Transition with trace_id
-        result = await client.call_tool("skill_transition", {
-            "skill_id": "trace-test-1",
-            "from_status": "testing",
-            "to_status": "enabled",
-            "sandbox_result": "pass",
-            "policy_approval": True,
-            "trace_id": "0af7651916cd43dd8448eb211c80319c",
-        })
+        result = await client.call_tool(
+            "skill_transition",
+            {
+                "skill_id": "trace-test-1",
+                "from_status": "testing",
+                "to_status": "enabled",
+                "sandbox_result": "pass",
+                "policy_approval": True,
+                "trace_id": "0af7651916cd43dd8448eb211c80319c",
+            },
+        )
         assert result.data.get("trace_id") == "0af7651916cd43dd8448eb211c80319c"
 
     async def test_evolution_trigger_trace_id(self, client: Client) -> None:
         """evolution_trigger should accept trace_id."""
-        result = await client.call_tool("evolution_trigger", {
-            "skill_id": "S09",
-            "version": "1.0.0",
-            "severity": "minor",
-            "description": "test trace",
-            "trace_id": "0af7651916cd43dd8448eb211c80319c",
-        })
+        result = await client.call_tool(
+            "evolution_trigger",
+            {
+                "skill_id": "S09",
+                "version": "1.0.0",
+                "severity": "minor",
+                "description": "test trace",
+                "trace_id": "0af7651916cd43dd8448eb211c80319c",
+            },
+        )
         # Should not error — trace_id is accepted
         assert "error" not in result.data or result.data.get("error") is None

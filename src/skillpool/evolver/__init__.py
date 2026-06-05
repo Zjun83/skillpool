@@ -15,6 +15,7 @@ V4.1 additions:
 - 6 safety constraints (rate limit, MAJOR approval, rollback, cooldown, global CB lock, regression monitor)
 - approval_token for MAJOR upgrades
 """
+
 from __future__ import annotations
 
 __all__ = [
@@ -46,20 +47,23 @@ logger = logging.getLogger(__name__)
 
 class DefectSeverity(StrEnum):
     """Defect severity levels."""
+
     CRITICAL = "critical"  # 1 trigger
-    MAJOR = "major"        # 5 trigger
-    MINOR = "minor"        # 20 trigger
+    MAJOR = "major"  # 5 trigger
+    MINOR = "minor"  # 20 trigger
 
 
 class EvolutionAction(StrEnum):
     """Evolution action types (from AutoSkill)."""
-    ADD = "add"        # Create new skill
-    MERGE = "merge"    # Merge with existing
+
+    ADD = "add"  # Create new skill
+    MERGE = "merge"  # Merge with existing
     DISCARD = "discard"  # Discard candidate
 
 
 class VerificationStatus(StrEnum):
     """VERIFY phase result status."""
+
     PASSED = "passed"
     FAILED = "failed"
     ROLLED_BACK = "rolled_back"
@@ -68,6 +72,7 @@ class VerificationStatus(StrEnum):
 @dataclass
 class DefectRecord:
     """Single defect record."""
+
     defect_id: str
     skill_id: str
     version: str
@@ -80,6 +85,7 @@ class DefectRecord:
 @dataclass
 class EvolutionProposal:
     """Recommendation-only evolution proposal."""
+
     context: dict[str, Any]
     proposal_id: str = ""
     recommendation_only: bool = True  # ALWAYS true
@@ -94,6 +100,7 @@ class EvolutionProposal:
 @dataclass
 class VerificationReport:
     """VERIFY phase output — validates evolution results."""
+
     proposal_id: str
     status: VerificationStatus = VerificationStatus.PASSED
     bdd_regression_passed: bool = True
@@ -123,11 +130,13 @@ class VerificationReport:
 class DefectAccumulator:
     """Defect accumulation tracker (from open source design)."""
 
-    THRESHOLDS: dict[DefectSeverity, int] = field(default_factory=lambda: {
-        DefectSeverity.CRITICAL: 1,
-        DefectSeverity.MAJOR: 5,
-        DefectSeverity.MINOR: 20,
-    })
+    THRESHOLDS: dict[DefectSeverity, int] = field(
+        default_factory=lambda: {
+            DefectSeverity.CRITICAL: 1,
+            DefectSeverity.MAJOR: 5,
+            DefectSeverity.MINOR: 20,
+        }
+    )
 
     counts: dict[str, dict[DefectSeverity, int]] = field(default_factory=dict)
     defects: list[DefectRecord] = field(default_factory=list)
@@ -146,17 +155,11 @@ class DefectAccumulator:
         if key not in self.counts:
             return False
         counts = self.counts[key]
-        return any(
-            counts[sev] >= self.THRESHOLDS[sev]
-            for sev in DefectSeverity
-        )
+        return any(counts[sev] >= self.THRESHOLDS[sev] for sev in DefectSeverity)
 
     def get_pending_defects(self, skill_id: str, version: str) -> list[DefectRecord]:
         """Get unresolved defects for a skill version."""
-        return [
-            d for d in self.defects
-            if d.skill_id == skill_id and d.version == version and not d.resolved
-        ]
+        return [d for d in self.defects if d.skill_id == skill_id and d.version == version and not d.resolved]
 
 
 class EvolverLayer:
@@ -291,8 +294,7 @@ class EvolverLayer:
 
         # Similar skills → merge
         similar_exists = any(
-            self._calculate_similarity(candidate_id, existing) > similarity_threshold
-            for existing in existing_skills
+            self._calculate_similarity(candidate_id, existing) > similarity_threshold for existing in existing_skills
         )
 
         if similar_exists:
@@ -314,6 +316,7 @@ class EvolverLayer:
 
         # Extract base number: S05a → S05, S13b → S13
         import re
+
         match_a = re.match(r"S(\d+)", skill_a)
         match_b = re.match(r"S(\d+)", skill_b)
         if not match_a or not match_b:
@@ -331,6 +334,7 @@ class EvolverLayer:
 
         # Check if skills share a dimension
         from skillpool.review.checkpoint_runner import DIMENSION_SKILLS
+
         dims_a = {d for d, skills in DIMENSION_SKILLS.items() if skill_a in skills}
         dims_b = {d for d, skills in DIMENSION_SKILLS.items() if skill_b in skills}
         if dims_a & dims_b:
@@ -418,9 +422,7 @@ class EvolverLayer:
         self._save_to_disk()
         return proposal
 
-    def _create_blocked_proposal(
-        self, context: dict, reason: str, upgrade_type: str
-    ) -> EvolutionProposal:
+    def _create_blocked_proposal(self, context: dict, reason: str, upgrade_type: str) -> EvolutionProposal:
         """Create a proposal blocked by safety constraints."""
         proposal_id = f"proposal-{len(self._proposals) + 1}"
         proposal = EvolutionProposal(
@@ -532,6 +534,7 @@ class EvolverLayer:
 
         # Save snapshot for rollback (deep copy before mutation)
         import copy
+
         self.save_snapshot(proposal_id, copy.deepcopy(data))
 
         # Apply updates
@@ -587,6 +590,7 @@ class EvolverLayer:
     def _bump_version(version: str, upgrade_type: str) -> str:
         """Bump a semver version based on upgrade type."""
         import re
+
         match = re.match(r"(\d+)\.(\d+)\.(\d+)", version)
         if not match:
             return version
@@ -931,20 +935,24 @@ class EvolverLayer:
         suggestions = []
 
         if success_rate < 0.9:
-            suggestions.append({
-                "type": "performance_degradation",
-                "skill_id": skill_id,
-                "severity": DefectSeverity.MAJOR if success_rate < 0.7 else DefectSeverity.MINOR,
-                "action": "review_and_optimize",
-            })
+            suggestions.append(
+                {
+                    "type": "performance_degradation",
+                    "skill_id": skill_id,
+                    "severity": DefectSeverity.MAJOR if success_rate < 0.7 else DefectSeverity.MINOR,
+                    "action": "review_and_optimize",
+                }
+            )
 
         for pattern in error_patterns:
-            suggestions.append({
-                "type": "error_pattern",
-                "skill_id": skill_id,
-                "pattern": pattern,
-                "action": "investigate",
-            })
+            suggestions.append(
+                {
+                    "type": "error_pattern",
+                    "skill_id": skill_id,
+                    "pattern": pattern,
+                    "action": "investigate",
+                }
+            )
 
         return {"suggestions": suggestions} if suggestions else None
 

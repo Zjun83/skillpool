@@ -1,4 +1,5 @@
 """Tests for ParadigmRegistry — 4D 范式 Skill 注册 + 查询。"""
+
 from __future__ import annotations
 
 
@@ -10,6 +11,7 @@ from skillpool.paradigm import Paradigm, ParadigmEntry, ParadigmRegistry
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def registry() -> ParadigmRegistry:
@@ -27,6 +29,7 @@ def loaded(registry: ParadigmRegistry) -> ParadigmRegistry:
 # ---------------------------------------------------------------------------
 # 1. register_defaults() registers all 4 paradigms
 # ---------------------------------------------------------------------------
+
 
 class TestRegisterDefaults:
     def test_registers_four(self, registry: ParadigmRegistry) -> None:
@@ -49,6 +52,7 @@ class TestRegisterDefaults:
 # 2. get() returns correct ParadigmEntry
 # ---------------------------------------------------------------------------
 
+
 class TestGet:
     @pytest.mark.parametrize("paradigm", list(Paradigm))
     def test_returns_entry(self, loaded: ParadigmRegistry, paradigm: Paradigm) -> None:
@@ -65,6 +69,7 @@ class TestGet:
 # ---------------------------------------------------------------------------
 # 3. get_by_name() case-insensitive lookup
 # ---------------------------------------------------------------------------
+
 
 class TestGetByName:
     def test_uppercase(self, loaded: ParadigmRegistry) -> None:
@@ -90,6 +95,7 @@ class TestGetByName:
 # 4. list_all() returns 4 entries
 # ---------------------------------------------------------------------------
 
+
 class TestListAll:
     def test_count(self, loaded: ParadigmRegistry) -> None:
         assert len(loaded.list_all()) == 4
@@ -105,6 +111,7 @@ class TestListAll:
 # ---------------------------------------------------------------------------
 # 5. unregister() removes entry
 # ---------------------------------------------------------------------------
+
 
 class TestUnregister:
     def test_removes_entry(self, loaded: ParadigmRegistry) -> None:
@@ -126,6 +133,7 @@ class TestUnregister:
 # 6. validate() catches missing required fields
 # ---------------------------------------------------------------------------
 
+
 class TestValidate:
     REQUIRED_FIELDS = ("id", "name", "version", "dimension", "paradigm", "checklist")
 
@@ -144,19 +152,33 @@ class TestValidate:
         assert errors == []
 
     def test_empty_string_treated_as_missing(self, registry: ParadigmRegistry) -> None:
-        registry.register(Paradigm.BDD, {
-            "id": "x", "name": "", "version": "1.0",
-            "dimension": "D7", "paradigm": "bdd", "checklist": [],
-        })
+        registry.register(
+            Paradigm.BDD,
+            {
+                "id": "x",
+                "name": "",
+                "version": "1.0",
+                "dimension": "D7",
+                "paradigm": "bdd",
+                "checklist": [],
+            },
+        )
         errors = registry.validate(Paradigm.BDD)
         field_names = [e.split(": ")[1] for e in errors]
         assert "name" in field_names
 
     def test_empty_checklist_treated_as_missing(self, registry: ParadigmRegistry) -> None:
-        registry.register(Paradigm.SDD, {
-            "id": "x", "name": "SDD", "version": "1.0",
-            "dimension": "D7", "paradigm": "sdd", "checklist": [],
-        })
+        registry.register(
+            Paradigm.SDD,
+            {
+                "id": "x",
+                "name": "SDD",
+                "version": "1.0",
+                "dimension": "D7",
+                "paradigm": "sdd",
+                "checklist": [],
+            },
+        )
         errors = registry.validate(Paradigm.SDD)
         field_names = [e.split(": ")[1] for e in errors]
         assert "checklist" in field_names
@@ -165,6 +187,7 @@ class TestValidate:
 # ---------------------------------------------------------------------------
 # 7. Each paradigm CSDF has id, name, version, dimension, paradigm, checklist
 # ---------------------------------------------------------------------------
+
 
 class TestCSDFStructure:
     REQUIRED_KEYS = {"id", "name", "version", "dimension", "paradigm", "checklist"}
@@ -193,6 +216,7 @@ class TestEmergencyOverride:
 
     def test_apply_warn_override(self, registry: ParadigmRegistry) -> None:
         from skillpool.paradigm import OverrideLevel
+
         override = registry.apply_override(OverrideLevel.WARN, "tdd", "Test warning")
         assert override.level == OverrideLevel.WARN
         assert override.target == "tdd"
@@ -200,6 +224,7 @@ class TestEmergencyOverride:
 
     def test_apply_degrade_override(self, registry: ParadigmRegistry) -> None:
         from skillpool.paradigm import OverrideLevel
+
         registry.register_defaults()
         override = registry.apply_override(OverrideLevel.DEGRADE, "bdd", "Performance issue")
         assert override.level == OverrideLevel.DEGRADE
@@ -209,6 +234,7 @@ class TestEmergencyOverride:
 
     def test_quarantine_sets_lifecycle(self, registry: ParadigmRegistry) -> None:
         from skillpool.paradigm import OverrideLevel
+
         registry.register_defaults()
         registry.apply_override(OverrideLevel.QUARANTINE, "sdd", "Security concern")
         entry = registry.get(Paradigm.SDD)
@@ -216,6 +242,7 @@ class TestEmergencyOverride:
 
     def test_kill_sets_lifecycle(self, registry: ParadigmRegistry) -> None:
         from skillpool.paradigm import OverrideLevel
+
         registry.register_defaults()
         registry.apply_override(OverrideLevel.KILL, "docsdd", "Critical failure")
         entry = registry.get(Paradigm.DOCS_DD)
@@ -223,12 +250,14 @@ class TestEmergencyOverride:
 
     def test_revoke_override(self, registry: ParadigmRegistry) -> None:
         from skillpool.paradigm import OverrideLevel
+
         registry.apply_override(OverrideLevel.WARN, "tdd", "Warning")
         assert registry.revoke_override("tdd") is True
         assert registry.revoke_override("tdd") is False  # Already revoked
 
     def test_revoke_restores_lifecycle(self, registry: ParadigmRegistry) -> None:
         from skillpool.paradigm import OverrideLevel
+
         registry.register_defaults()
         registry.apply_override(OverrideLevel.QUARANTINE, "sdd", "Issue")
         registry.revoke_override("sdd")
@@ -237,6 +266,7 @@ class TestEmergencyOverride:
 
     def test_get_active_overrides(self, registry: ParadigmRegistry) -> None:
         from skillpool.paradigm import OverrideLevel
+
         registry.apply_override(OverrideLevel.WARN, "tdd", "Warn")
         registry.apply_override(OverrideLevel.DEGRADE, "bdd", "Degrade")
         registry.revoke_override("tdd")
@@ -246,6 +276,7 @@ class TestEmergencyOverride:
 
     def test_get_override_level_highest(self, registry: ParadigmRegistry) -> None:
         from skillpool.paradigm import OverrideLevel
+
         registry.apply_override(OverrideLevel.WARN, "tdd", "Low")
         registry.apply_override(OverrideLevel.KILL, "tdd", "Critical")
         level = registry.get_override_level("tdd")

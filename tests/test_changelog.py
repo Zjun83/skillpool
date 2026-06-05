@@ -1,4 +1,5 @@
 """Tests for changelog auto-append mechanism."""
+
 from __future__ import annotations
 
 import re
@@ -121,9 +122,7 @@ class TestFindOrCreateCategory:
 
         section_end = _find_version_section_end(content, "4.2.0")
 
-        insert_at = _find_or_create_category(
-            lines, section_start, section_end, "Fixed"
-        )
+        insert_at = _find_or_create_category(lines, section_start, section_end, "Fixed")
 
         # Should be after the existing Fixed entry
         assert insert_at > section_start
@@ -141,9 +140,7 @@ class TestFindOrCreateCategory:
 
         section_end = _find_version_section_end(content, "4.2.0")
 
-        insert_at = _find_or_create_category(
-            lines, section_start, section_end, "Security"
-        )
+        insert_at = _find_or_create_category(lines, section_start, section_end, "Security")
 
         # Should return a valid position within the section
         assert insert_at > section_start

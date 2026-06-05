@@ -12,6 +12,7 @@ Why Resources vs Tools (per MCP 2025-03-26 spec):
   - Skill content delivery is read-only context → Resources
   - Governance mutations are state-changing actions → Tools
 """
+
 from __future__ import annotations
 
 import logging
@@ -137,6 +138,7 @@ class TimingMiddleware(Middleware):
         logger.debug("mcp_resource_timing", extra={"uri": uri, "elapsed_ms": round(elapsed_ms, 2)})
         return result
 
+
 _PROFILES: dict[str, AgentCapabilityProfile] = {
     "claude-code": CLAUDE_CODE_PROFILE,
     "codex": CODEX_PROFILE,
@@ -172,10 +174,7 @@ mcp.add_middleware(TimingMiddleware(monitor=_monitor))
 def _get_profile(name: str) -> AgentCapabilityProfile:
     """Resolve profile by name. Raises ValueError for unknown agent types."""
     if name not in _PROFILES:
-        raise ValueError(
-            f"Unknown agent_type '{name}'. "
-            f"Must be one of: {', '.join(_PROFILES.keys())}"
-        )
+        raise ValueError(f"Unknown agent_type '{name}'. Must be one of: {', '.join(_PROFILES.keys())}")
     return _PROFILES[name]
 
 
@@ -389,7 +388,7 @@ def audit_records(cursor: int = 0, limit: int = 100) -> dict:
     limit = max(1, min(limit, 500))
     records = _audit.get_records()
     total = len(records)
-    page = records[cursor:cursor + limit]
+    page = records[cursor : cursor + limit]
     return {
         "total": total,
         "cursor": cursor,
@@ -426,7 +425,7 @@ def bug_list(cursor: int = 0, limit: int = 100) -> dict:
     limit = max(1, min(limit, 500))
     bugs = _bug_collector.get_bugs()
     total = len(bugs)
-    page = bugs[cursor:cursor + limit]
+    page = bugs[cursor : cursor + limit]
     return {
         "total": total,
         "cursor": cursor,
@@ -504,6 +503,7 @@ def gate_check_with_policy(
         gate = GateManager(profile=profile)
 
         from pathlib import Path as _Path
+
         pp = _Path(policy_path) if policy_path else None
 
         result = gate.check_with_policy(
@@ -684,7 +684,8 @@ def skill_transition(
             to_status=SkillStatus(to_status),
         )
         resp = _registry.transition_state(
-            skill_id, req,
+            skill_id,
+            req,
             sandbox_result=sandbox_result or None,
             policy_approval=policy_approval,
         )
@@ -821,15 +822,18 @@ def monitor_evaluate(
     """
     # Part of SkillPool — independent infrastructure, shared by all agents
     try:
-        eval_ = _monitor.evaluate_skill(skill_id, {
-            "error_rate": error_rate,
-            "security_issues": security_issues,
-            "coverage": coverage,
-            "doc_completeness": doc_completeness,
-            "p99_latency_ms": p99_latency_ms,
-            "update_frequency_days": update_frequency_days,
-            "resource_efficiency": resource_efficiency,
-        })
+        eval_ = _monitor.evaluate_skill(
+            skill_id,
+            {
+                "error_rate": error_rate,
+                "security_issues": security_issues,
+                "coverage": coverage,
+                "doc_completeness": doc_completeness,
+                "p99_latency_ms": p99_latency_ms,
+                "update_frequency_days": update_frequency_days,
+                "resource_efficiency": resource_efficiency,
+            },
+        )
         return {
             "skill_id": eval_.skill_id,
             "overall_score": round(eval_.overall_score, 4),
@@ -879,12 +883,17 @@ def health_check(include_gateway: bool = False) -> dict:
         if include_gateway:
             try:
                 import httpx
+
                 with httpx.Client(timeout=3.0) as client:
                     gw_resp = client.get("http://127.0.0.1:9000/health")
-                    result["gateway"] = gw_resp.json() if gw_resp.status_code == 200 else {
-                        "status": "unreachable",
-                        "http_status": gw_resp.status_code,
-                    }
+                    result["gateway"] = (
+                        gw_resp.json()
+                        if gw_resp.status_code == 200
+                        else {
+                            "status": "unreachable",
+                            "http_status": gw_resp.status_code,
+                        }
+                    )
             except Exception as e:
                 result["gateway"] = {"status": "unreachable", "error": str(e)}
 
@@ -937,9 +946,15 @@ def review_trigger(
             "scores": result.scores,
             "veto_triggered": result.veto_triggered,
             "veto_details": [
-                {"rule": v.rule.value, "dimension": v.dimension, "score": v.score,
-                 "threshold": v.threshold, "blocks": v.blocks, "decision": "block" if v.blocks else "risk_notice",
-                 "reason": v.recommendation}
+                {
+                    "rule": v.rule.value,
+                    "dimension": v.dimension,
+                    "score": v.score,
+                    "threshold": v.threshold,
+                    "blocks": v.blocks,
+                    "decision": "block" if v.blocks else "risk_notice",
+                    "reason": v.recommendation,
+                }
                 for v in result.veto_details
             ],
             "suspect_skills": [
@@ -1118,8 +1133,8 @@ def gate_status(skill_id: str, agent_type: str = "claude-code") -> str:
     return f"""Gate Check Result for {skill_id}:
 - Decision: {result.decision}
 - Reason: {result.reason}
-- Complexity Level: {result.complexity.level if result.complexity else 'N/A'}
-- Complexity Total: {result.complexity.total if result.complexity else 'N/A'}
+- Complexity Level: {result.complexity.level if result.complexity else "N/A"}
+- Complexity Total: {result.complexity.total if result.complexity else "N/A"}
 """
 
 
@@ -1175,7 +1190,9 @@ def skill_search(
             "score": primary.score if primary else 0,
             "layer": primary.layer if primary else "none",
             "reason": primary.reason if primary else "",
-        } if primary else None,
+        }
+        if primary
+        else None,
         "candidates": [
             {"id": c.skill_id, "score": c.score, "layer": c.layer, "reason": c.reason[:100]}
             for c in routing_result.candidates[:top_k]
@@ -1202,13 +1219,13 @@ def skill_search(
         synergies = detector.get_synergies_for(primary.skill_id)
         if synergies:
             result["expert_synergies"] = [
-                {"skill_id": s.target, "gain": s.gain, "reason": s.reason, "weight": s.weight}
-                for s in synergies
+                {"skill_id": s.target, "gain": s.gain, "reason": s.reason, "weight": s.weight} for s in synergies
             ]
 
     # Include combination lifecycle data
     if include_lifecycle:
         from skillpool.combiner import CombinationLifecycleManager
+
         lifecycle_mgr = CombinationLifecycleManager()
 
         # Get promoted combinations for the primary skill
@@ -1276,7 +1293,7 @@ def skill_get(
         return {
             "error": "search_required",
             "message": "Please call skill_search(intent=...) first to find the optimal skill combination. "
-                       "Direct skill access is blocked until you search for the best match.",
+            "Direct skill access is blocked until you search for the best match.",
             "skill_id": skill_id,
             "agent_type": agent_type,
         }
@@ -1353,7 +1370,7 @@ def skill_match(task_description: str, agent_type: str, include_combinations: bo
         task_description=task_description,
     )
     response = resolver.resolve(request)
-    matches = response.resolved if hasattr(response, 'resolved') else []
+    matches = response.resolved if hasattr(response, "resolved") else []
 
     # Combine results
     primary = routing_result.primary
@@ -1366,7 +1383,9 @@ def skill_match(task_description: str, agent_type: str, include_combinations: bo
             "score": primary.score if primary else 0,
             "layer": primary.layer if primary else "none",
             "reason": primary.reason if primary else "",
-        } if primary else None,
+        }
+        if primary
+        else None,
         "skill_candidates": [
             {"id": c.skill_id, "score": c.score, "layer": c.layer, "reason": c.reason[:100]}
             for c in routing_result.candidates[:10]
@@ -1382,6 +1401,7 @@ def skill_match(task_description: str, agent_type: str, include_combinations: bo
         try:
             from skillpool.combiner import CombinationLifecycleManager
             from skillpool.combiner.models import CombinationLifecycleState
+
             lifecycle_mgr = CombinationLifecycleManager()
             for e in routing_result.enhancers[:5]:
                 combos = lifecycle_mgr.get_combinations_for_skill(e.skill_id)
@@ -1406,13 +1426,13 @@ def skill_match(task_description: str, agent_type: str, include_combinations: bo
     # Add synergy data from CSDF
     if primary and include_combinations:
         from skillpool.synergy import SynergyDetector
+
         detector = SynergyDetector(skills_dir=_SKILLS_DIR)
         detector.load_expert_synergies()
         synergies = detector.get_synergies_for(primary.skill_id)
         if synergies:
             result["expert_synergies"] = [
-                {"skill_id": s.target, "gain": s.gain, "reason": s.reason, "weight": s.weight}
-                for s in synergies
+                {"skill_id": s.target, "gain": s.gain, "reason": s.reason, "weight": s.weight} for s in synergies
             ]
 
     return result
@@ -1477,6 +1497,7 @@ def report_usage(
     gain_recorded = False
     if effectiveness > 0 or efficiency > 0 or quality > 0 or gain != 0:
         from skillpool.gain import GainTracker, SkillExecution, GainScores
+
         tracker = GainTracker()
 
         skill_ids = [skill_name]
@@ -1491,13 +1512,15 @@ def report_usage(
         )
 
         source = "explicit" if effectiveness > 0 else "implicit"
-        tracker.record(SkillExecution(
-            skill_ids=skill_ids,
-            intent=intent,
-            scores=scores,
-            duration_ms=duration_ms,
-            source=source,
-        ))
+        tracker.record(
+            SkillExecution(
+                skill_ids=skill_ids,
+                intent=intent,
+                scores=scores,
+                duration_ms=duration_ms,
+                source=source,
+            )
+        )
         gain_recorded = True
 
     # 3. Update combination lifecycle if combination_skills provided
@@ -1506,12 +1529,15 @@ def report_usage(
     if combination_skills:
         from skillpool.combiner import CombinationLifecycleManager
         from skillpool.combiner.models import CombinationLifecycleState
+
         lifecycle_mgr = CombinationLifecycleManager()
 
         # Record execution for the combination
         combo_id = f"{skill_name}+{'+'.join(sorted(combination_skills))}"
         combo = lifecycle_mgr.record_execution(
-            combo_id, gain=gain, success=(result == "success"),
+            combo_id,
+            gain=gain,
+            success=(result == "success"),
         )
 
         if combo:
@@ -1520,7 +1546,8 @@ def report_usage(
             # DISCOVERED → VALIDATING: first execution triggers validation
             if combo.state == CombinationLifecycleState.DISCOVERED:
                 transition_result = lifecycle_mgr.transition(
-                    combo_id, CombinationLifecycleState.VALIDATING,
+                    combo_id,
+                    CombinationLifecycleState.VALIDATING,
                 )
                 if transition_result.success:
                     lifecycle_updated = True
@@ -1565,6 +1592,7 @@ def assess_paradigm(paradigm: str, agent_type: str, skill_id: str = "") -> dict:
     """
     # Part of SkillPool — independent infrastructure, shared by all agents
     from skillpool.paradigm import ParadigmRegistry
+
     profile = _get_profile(agent_type)
     registry = ParadigmRegistry()
 
@@ -1771,10 +1799,12 @@ def skill_lifecycle_check(
     if check_deprecation:
         if skill_id:
             deprecated = check_auto_deprecation(skill_id)
-            results["deprecation_checks"].append({
-                "skill_id": skill_id,
-                "deprecated": deprecated,
-            })
+            results["deprecation_checks"].append(
+                {
+                    "skill_id": skill_id,
+                    "deprecated": deprecated,
+                }
+            )
 
     if check_combinations:
         mgr = CombinationLifecycleManager()
@@ -1789,20 +1819,24 @@ def skill_lifecycle_check(
             if combo.state.value == 2:  # PROMOTED
                 result = mgr.check_deprecation(combo.combination_id)
                 if result:
-                    results["combination_checks"].append({
-                        "combination_id": combo.combination_id,
-                        "action": result.to_state.name,
-                        "reason": result.reason,
-                    })
+                    results["combination_checks"].append(
+                        {
+                            "combination_id": combo.combination_id,
+                            "action": result.to_state.name,
+                            "reason": result.reason,
+                        }
+                    )
 
             elif combo.state.value == 4:  # DEPRECATED
                 result = mgr.check_retirement(combo.combination_id)
                 if result:
-                    results["combination_checks"].append({
-                        "combination_id": combo.combination_id,
-                        "action": result.to_state.name,
-                        "reason": result.reason,
-                    })
+                    results["combination_checks"].append(
+                        {
+                            "combination_id": combo.combination_id,
+                            "action": result.to_state.name,
+                            "reason": result.reason,
+                        }
+                    )
 
     return results
 
@@ -1879,18 +1913,26 @@ def cost_estimate(
 def main():
     """Entry point for skillpool-mcp CLI command."""
     import argparse
+
     parser = argparse.ArgumentParser(description="SkillPool MCP Server")
     parser.add_argument("--agent-type", help="Agent type for logging/metadata (tools receive agent_type per-call)")
-    parser.add_argument("--transport", choices=["stdio", "sse", "streamable-http"], default="stdio",
-                        help="MCP transport protocol (default: stdio)")
-    parser.add_argument("--port", type=int, default=8101,
-                        help="HTTP port for streamable-http transport (default: 8101)")
-    parser.add_argument("--host", default="127.0.0.1",
-                        help="HTTP host for streamable-http transport (default: 127.0.0.1)")
+    parser.add_argument(
+        "--transport",
+        choices=["stdio", "sse", "streamable-http"],
+        default="stdio",
+        help="MCP transport protocol (default: stdio)",
+    )
+    parser.add_argument(
+        "--port", type=int, default=8101, help="HTTP port for streamable-http transport (default: 8101)"
+    )
+    parser.add_argument(
+        "--host", default="127.0.0.1", help="HTTP host for streamable-http transport (default: 127.0.0.1)"
+    )
     args = parser.parse_args()
 
     if args.transport in ("streamable-http", "sse"):
         import uvicorn
+
         logger.info("Starting SkillPool MCP on %s:%d (%s)", args.host, args.port, args.transport)
         app = mcp.http_app()
         uvicorn.run(app, host=args.host, port=args.port, log_level="info")

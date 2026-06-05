@@ -5,6 +5,7 @@ duplication. Both modules use this single implementation.
 
 Part of SkillPool — independent infrastructure, shared by all agents.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

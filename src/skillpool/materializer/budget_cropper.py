@@ -7,6 +7,7 @@
 4. Description（截断）
 5. Header + Dimension + Weight + Veto + Schema（最高优先级，保留）
 """
+
 from __future__ import annotations
 
 import re
@@ -173,5 +174,5 @@ class BudgetCropper:
         last_newline = truncated.rfind("\n")
         cut_point = max(last_period, last_newline)
         if cut_point > max_chars * 0.8:
-            return truncated[:cut_point + 1] + "\n\n... (truncated)"
+            return truncated[: cut_point + 1] + "\n\n... (truncated)"
         return truncated + "\n\n... (truncated)"

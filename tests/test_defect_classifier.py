@@ -1,4 +1,5 @@
 """Tests for DefectClassifier — ProcCtrlBench 11-type defect ontology."""
+
 from __future__ import annotations
 
 import asyncio
@@ -140,6 +141,7 @@ class TestDefectClassifier:
 
     def test_classify_custom_exception_subclass(self):
         """Subclass of a known exception should match parent."""
+
         class CustomValueError(ValueError):
             pass
 

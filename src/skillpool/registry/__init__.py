@@ -5,6 +5,7 @@ Architecture constraint:
 - Registry stores metadata, versions, state, signatures, SBOM, licenses
 - State transitions require Audit record
 """
+
 from __future__ import annotations
 
 __all__ = [
@@ -42,6 +43,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SkillRecord:
     """Internal skill record in Registry."""
+
     metadata: SkillMetadata
     created_at: datetime
     updated_at: datetime
@@ -138,31 +140,37 @@ REQUIRED_EVIDENCE = SUPPLY_CHAIN_PROFILES["prod"]
 
 class AuditUnavailableError(Exception):
     """Audit unavailable — fail closed."""
+
     pass
 
 
 class SupplyChainEvidenceMissingError(Exception):
     """Missing SPDX/SLSA/signature evidence."""
+
     pass
 
 
 class IllegalStateTransitionError(Exception):
     """Illegal lifecycle transition."""
+
     pass
 
 
 class SkillNotFoundError(Exception):
     """Skill not found in Registry."""
+
     pass
 
 
 class SandboxRequiredError(Exception):
     """Sandbox pass required."""
+
     pass
 
 
 class PolicyDeniedError(Exception):
     """Policy approval denied."""
+
     pass
 
 
@@ -237,9 +245,7 @@ class Registry:
         try:
             self._registry_path.parent.mkdir(parents=True, exist_ok=True)
             data = {sid: rec.to_dict() for sid, rec in self._skills.items()}
-            self._registry_path.write_text(
-                json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
+            self._registry_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         except OSError as exc:
             logger.warning("Registry save failed to %s: %s", self._registry_path, exc)
 
@@ -352,9 +358,7 @@ class Registry:
                 object_id=skill_id,
                 result="denied",
             )
-            raise IllegalStateTransitionError(
-                f"Illegal transition: {from_status} -> {to_status}"
-            )
+            raise IllegalStateTransitionError(f"Illegal transition: {from_status} -> {to_status}")
 
         if (from_status, to_status) not in LEGAL_TRANSITIONS:
             self._audit.append(
@@ -362,9 +366,7 @@ class Registry:
                 object_id=skill_id,
                 result="denied",
             )
-            raise IllegalStateTransitionError(
-                f"Unknown transition: {from_status} -> {to_status}"
-            )
+            raise IllegalStateTransitionError(f"Unknown transition: {from_status} -> {to_status}")
 
         if to_status == "enabled":
             if sandbox_result != "pass":

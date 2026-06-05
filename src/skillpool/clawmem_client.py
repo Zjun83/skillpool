@@ -9,6 +9,7 @@ Usage:
     client.write_upgrade("S09 MINOR upgrade", upgrade_type="MINOR")
     client.write_audit("cost_record accepted", trace_id="abc123")
 """
+
 from __future__ import annotations
 
 import json
@@ -29,6 +30,7 @@ class ClawMemStatus(StrEnum):
 @dataclass
 class ClawMemWriteResult:
     """Result of a ClawMem write attempt."""
+
     success: bool
     entry_id: str = ""
     error: str = ""
@@ -124,10 +126,13 @@ class ClawMemClient:
         """Write via ClawMem HTTP API."""
         try:
             import urllib.request
+
             url = f"{self._http_url}/diary/write"
             data = json.dumps({"entry": entry, "tags": tags}).encode()
             req = urllib.request.Request(
-                url, data=data, headers={"Content-Type": "application/json"},
+                url,
+                data=data,
+                headers={"Content-Type": "application/json"},
             )
             with urllib.request.urlopen(req, timeout=self._timeout) as resp:
                 if resp.status == 200:

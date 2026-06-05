@@ -1,4 +1,5 @@
 """Integration tests — verify 5 new modules are wired into existing modules."""
+
 from __future__ import annotations
 
 import asyncio
@@ -154,15 +155,18 @@ class TestRegistryResolverIntegration:
         # Resolver should see the skill from Registry
         resolver = SkillResolver(registry=registry)
         from skillpool.resolver.models import SkillResolveRequest
+
         response = resolver.resolve(SkillResolveRequest(skill_ids=["S01"]))
         assert response.total_skills == 1
         assert response.resolved[0].skill_id == "S01"
 
     def test_resolver_without_registry_backward_compat(self):
         from skillpool.resolver import register_skill
+
         register_skill("S01", {"name": "Test", "dependencies": [], "health_score": 1.0})
         resolver = SkillResolver()
         from skillpool.resolver.models import SkillResolveRequest
+
         response = resolver.resolve(SkillResolveRequest(skill_ids=["S01"]))
         assert response.total_skills == 1
 
@@ -172,6 +176,7 @@ class TestMCPNewTools:
 
     def test_mcp_tools_count(self):
         from skillpool.mcp_server import mcp
+
         tools = asyncio.run(mcp.list_tools())
         tool_names = [t.name for t in tools]
         # Should have at least 10 tools now (3 original + 7 new)
@@ -180,30 +185,35 @@ class TestMCPNewTools:
     def test_audit_records_resource_exists(self):
         """audit_query was refactored to audit://records/{cursor} Resource (read-only, paginated)."""
         from skillpool.mcp_server import mcp
+
         templates = asyncio.run(mcp.list_resource_templates())
         template_uris = [str(t.uri_template) for t in templates]
         assert "audit://records/{cursor}" in template_uris
 
     def test_skill_register_tool_exists(self):
         from skillpool.mcp_server import mcp
+
         tools = asyncio.run(mcp.list_tools())
         tool_names = [t.name for t in tools]
         assert "skill_register" in tool_names
 
     def test_evolution_trigger_tool_exists(self):
         from skillpool.mcp_server import mcp
+
         tools = asyncio.run(mcp.list_tools())
         tool_names = [t.name for t in tools]
         assert "evolution_trigger" in tool_names
 
     def test_monitor_evaluate_tool_exists(self):
         from skillpool.mcp_server import mcp
+
         tools = asyncio.run(mcp.list_tools())
         tool_names = [t.name for t in tools]
         assert "monitor_evaluate" in tool_names
 
     def test_health_check_tool_exists(self):
         from skillpool.mcp_server import mcp
+
         tools = asyncio.run(mcp.list_tools())
         tool_names = [t.name for t in tools]
         assert "health_check" in tool_names

@@ -6,6 +6,7 @@ and self-healing feedback loops.
 Uses MRO-based exception matching (more precise than string-based matching
 in BugCollector) and context-aware severity escalation.
 """
+
 from __future__ import annotations
 
 __all__ = [
@@ -26,6 +27,7 @@ class DefectType(StrEnum):
     UPPER_CASE DefectType for string-based matching). This enum is
     for class-based MRO classification via DefectClassifier.
     """
+
     PARAM_ERROR = "param_error"
     PERMISSION_BREACH = "permission_breach"
     TIMEOUT = "timeout"
@@ -50,6 +52,7 @@ def _get_domain_exceptions() -> dict[type[Exception], DefectType]:
             SupplyChainEvidenceMissingError,
             IllegalStateTransitionError,
         )
+
         mapping[SkillNotFoundError] = DefectType.DEPENDENCY_MISSING
         mapping[SupplyChainEvidenceMissingError] = DefectType.PERMISSION_BREACH
         mapping[IllegalStateTransitionError] = DefectType.STATE_CORRUPTION
@@ -58,6 +61,7 @@ def _get_domain_exceptions() -> dict[type[Exception], DefectType]:
 
     try:
         from skillpool.audit import AuditUnavailableError
+
         mapping[AuditUnavailableError] = DefectType.GATE_DENIED
     except ImportError:
         pass

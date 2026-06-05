@@ -1,4 +1,5 @@
 """SuspectMarker — tracks skills marked as suspect during review."""
+
 from __future__ import annotations
 
 from skillpool.review.models import SuspectSkill

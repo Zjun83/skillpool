@@ -4,6 +4,7 @@ NOTE: sys.addaudithook is process-global and cannot be removed once registered.
 Tests that need actual hook registration run in subprocesses to avoid
 contaminating the pytest process with I/O overhead.
 """
+
 from __future__ import annotations
 
 import json
@@ -117,9 +118,7 @@ class TestSerializeArgs:
 
     def test_serialize_primitives(self):
         """Primitive types should pass through unchanged."""
-        assert _serialize_args(("hello", 42, 3.14, True, None)) == [
-            "hello", 42, 3.14, True, None
-        ]
+        assert _serialize_args(("hello", 42, 3.14, True, None)) == ["hello", 42, 3.14, True, None]
 
     def test_serialize_bytes(self):
         """Bytes should be decoded to string."""
@@ -424,7 +423,9 @@ class TestRuntimeAuditHookSubprocess:
         """)
         result = subprocess.run(
             [sys.executable, "-c", script],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             env={**__import__("os").environ, "PYTHONPATH": "src"},
         )
         data = json.loads(result.stdout.strip())
@@ -456,7 +457,9 @@ class TestRuntimeAuditHookSubprocess:
         """)
         result = subprocess.run(
             [sys.executable, "-c", script],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             env={**__import__("os").environ, "PYTHONPATH": "src"},
         )
         data = json.loads(result.stdout.strip())
@@ -481,7 +484,9 @@ class TestRuntimeAuditHookSubprocess:
         """)
         result = subprocess.run(
             [sys.executable, "-c", script],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             env={**__import__("os").environ, "PYTHONPATH": "src"},
         )
         data = json.loads(result.stdout.strip())
@@ -512,7 +517,9 @@ class TestRuntimeAuditHookSubprocess:
         """)
         result = subprocess.run(
             [sys.executable, "-c", script],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             env={**__import__("os").environ, "PYTHONPATH": "src"},
         )
         data = json.loads(result.stdout.strip())
@@ -547,7 +554,9 @@ class TestRuntimeAuditHookSubprocess:
         """)
         result = subprocess.run(
             [sys.executable, "-c", script],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             env={**__import__("os").environ, "PYTHONPATH": "src"},
         )
         data = json.loads(result.stdout.strip())

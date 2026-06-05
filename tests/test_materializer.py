@@ -1,4 +1,5 @@
 """Unit tests for Materializer components: CSDFMapper, LifecycleFilter, BudgetCropper, and integration."""
+
 from __future__ import annotations
 
 import pytest
@@ -13,6 +14,7 @@ from skillpool.materializer import Materializer
 # ============================================================
 # Fixtures
 # ============================================================
+
 
 def _sample_csdf(**overrides) -> dict:
     """Build a minimal CSDF dict with sensible defaults."""
@@ -47,6 +49,7 @@ def _sample_csdf(**overrides) -> dict:
 # ============================================================
 # CSDFMapper — 14 rules
 # ============================================================
+
 
 class TestCSDFMapper:
     """Test all 14 CSDF→SKILL.md mapping rules."""
@@ -140,6 +143,7 @@ class TestCSDFMapper:
 # ============================================================
 # LifecycleFilter
 # ============================================================
+
 
 class TestLifecycleFilter:
     """Test lifecycle state filtering for all 9 states."""
@@ -239,6 +243,7 @@ class TestLifecycleFilter:
 # BudgetCropper
 # ============================================================
 
+
 class TestBudgetCropper:
     """Test token budget cropping strategies."""
 
@@ -255,7 +260,11 @@ class TestBudgetCropper:
 
     def test_remove_version_history(self):
         bc = BudgetCropper(max_tokens=10)
-        md = "# Title\n\n## Description\n" + "x" * 100 + "\n\n## Version History\n- v0.1: init\n- v0.2: fix\n\n## Dimension\nD3"
+        md = (
+            "# Title\n\n## Description\n"
+            + "x" * 100
+            + "\n\n## Version History\n- v0.1: init\n- v0.2: fix\n\n## Dimension\nD3"
+        )
         result = bc.crop(md)
         assert "Version History" not in result
 
@@ -292,8 +301,7 @@ class TestBudgetCropper:
             "## Weight\n0.9\n\n"
             "## Veto\nScore < 7.0 → reject\n\n"
             "## Version History\n- v1: init\n- v2: update\n- v3: patch\n\n"
-            "## Description\n"
-            + "Detailed description. " * 100
+            "## Description\n" + "Detailed description. " * 100
         )
         result = bc.crop(md)
         # High-priority sections should survive
@@ -310,11 +318,13 @@ class TestBudgetCropper:
 # Materializer Integration
 # ============================================================
 
+
 class TestMaterializerIntegration:
     """End-to-end test: CSDF → SKILL.md via Materializer."""
 
     def _make_materializer(self, **kwargs):
         from skillpool.profile import CLAUDE_CODE_PROFILE
+
         return Materializer(profile=CLAUDE_CODE_PROFILE, **kwargs)
 
     def test_materialize_active_skill(self):
@@ -361,6 +371,7 @@ class TestMaterializerIntegration:
 # ============================================================
 # CSDFMapper — Edge Cases & Additional Rules
 # ============================================================
+
 
 class TestCSDFMapperEdgeCases:
     """Additional edge-case coverage for CSDFMapper."""
@@ -481,6 +492,7 @@ class TestCSDFMapperEdgeCases:
 # LifecycleFilter — Additional Edge Cases
 # ============================================================
 
+
 class TestLifecycleFilterEdgeCases:
     """Additional edge-case coverage for LifecycleFilter."""
 
@@ -512,8 +524,17 @@ class TestLifecycleFilterEdgeCases:
     def test_all_lifecycle_states_produce_string(self):
         """Every valid lifecycle state should return a string, never raise."""
         f = LifecycleFilter()
-        for state in ["DRAFT", "PROPOSED", "UNDER_REVIEW", "APPROVED",
-                       "ACTIVE", "REJECTED", "DEPRECATED", "ARCHIVED", "REMOVED"]:
+        for state in [
+            "DRAFT",
+            "PROPOSED",
+            "UNDER_REVIEW",
+            "APPROVED",
+            "ACTIVE",
+            "REJECTED",
+            "DEPRECATED",
+            "ARCHIVED",
+            "REMOVED",
+        ]:
             result = f.filter("test content", {"lifecycle_state": state})
             assert isinstance(result, str)
 
@@ -532,6 +553,7 @@ class TestLifecycleFilterEdgeCases:
 # ============================================================
 # BudgetCropper — Additional Edge Cases
 # ============================================================
+
 
 class TestBudgetCropperEdgeCases:
     """Additional edge-case coverage for BudgetCropper."""
@@ -586,11 +608,13 @@ class TestBudgetCropperEdgeCases:
 # Materializer — Additional Integration & Error Paths
 # ============================================================
 
+
 class TestMaterializerErrorPaths:
     """Error paths and rejection scenarios in Materializer."""
 
     def _make_materializer(self, **kwargs):
         from skillpool.profile import CLAUDE_CODE_PROFILE
+
         return Materializer(profile=CLAUDE_CODE_PROFILE, **kwargs)
 
     def test_materialize_no_input_raises(self):
@@ -602,6 +626,7 @@ class TestMaterializerErrorPaths:
     def test_materialize_capability_mismatch_rejected(self):
         """Skill requiring capability not in profile should be rejected."""
         from skillpool.profile import AgentCapabilityProfile
+
         # Minimal profile with no capabilities
         profile = AgentCapabilityProfile(
             name="minimal",
@@ -621,6 +646,7 @@ class TestMaterializerErrorPaths:
     def test_materialize_trust_level_mismatch_rejected(self):
         """Skill requiring higher trust level than profile should be rejected."""
         from skillpool.profile import AgentCapabilityProfile
+
         profile = AgentCapabilityProfile(
             name="low-trust",
             trust_level=1,
@@ -634,6 +660,7 @@ class TestMaterializerErrorPaths:
     def test_materialize_paradigm_mismatch_rejected(self):
         """Skill requiring unsupported paradigm should be rejected."""
         from skillpool.profile import AgentCapabilityProfile
+
         profile = AgentCapabilityProfile(
             name="code-only",
             supported_paradigms={"code"},
@@ -682,6 +709,7 @@ class TestMaterializerErrorPaths:
 # ============================================================
 # CSDFDocument Model Tests
 # ============================================================
+
 
 class TestCSDFDocumentModel:
     """Test CSDFDocument Pydantic model."""

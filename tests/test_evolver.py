@@ -1,4 +1,5 @@
 """Tests for Evolver Layer — Evolution recommendations with defect accumulation."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -45,10 +46,7 @@ class TestVerificationStatus:
 
 class TestDefectRecord:
     def test_creation(self):
-        d = DefectRecord(
-            defect_id="d1", skill_id="s1", version="1.0",
-            severity=DefectSeverity.MAJOR, description="bug"
-        )
+        d = DefectRecord(defect_id="d1", skill_id="s1", version="1.0", severity=DefectSeverity.MAJOR, description="bug")
         assert d.defect_id == "d1"
         assert d.severity == DefectSeverity.MAJOR
         assert not d.resolved
@@ -57,10 +55,7 @@ class TestDefectRecord:
 class TestDefectAccumulator:
     def test_accumulate(self):
         acc = DefectAccumulator()
-        d = DefectRecord(
-            defect_id="d1", skill_id="s1", version="1.0",
-            severity=DefectSeverity.MINOR, description="bug"
-        )
+        d = DefectRecord(defect_id="d1", skill_id="s1", version="1.0", severity=DefectSeverity.MINOR, description="bug")
         acc.accumulate(d)
         assert len(acc.defects) == 1
         key = "s1@1.0"
@@ -69,8 +64,7 @@ class TestDefectAccumulator:
     def test_trigger_critical(self):
         acc = DefectAccumulator()
         d = DefectRecord(
-            defect_id="d1", skill_id="s1", version="1.0",
-            severity=DefectSeverity.CRITICAL, description="crash"
+            defect_id="d1", skill_id="s1", version="1.0", severity=DefectSeverity.CRITICAL, description="crash"
         )
         acc.accumulate(d)
         assert acc.should_trigger_evolution("s1", "1.0") is True
@@ -78,40 +72,60 @@ class TestDefectAccumulator:
     def test_trigger_major_after_5(self):
         acc = DefectAccumulator()
         for i in range(5):
-            acc.accumulate(DefectRecord(
-                defect_id=f"d{i}", skill_id="s1", version="1.0",
-                severity=DefectSeverity.MAJOR, description=f"bug-{i}"
-            ))
+            acc.accumulate(
+                DefectRecord(
+                    defect_id=f"d{i}",
+                    skill_id="s1",
+                    version="1.0",
+                    severity=DefectSeverity.MAJOR,
+                    description=f"bug-{i}",
+                )
+            )
         assert acc.should_trigger_evolution("s1", "1.0") is True
 
     def test_no_trigger_minor_below_20(self):
         acc = DefectAccumulator()
         for i in range(19):
-            acc.accumulate(DefectRecord(
-                defect_id=f"d{i}", skill_id="s1", version="1.0",
-                severity=DefectSeverity.MINOR, description=f"bug-{i}"
-            ))
+            acc.accumulate(
+                DefectRecord(
+                    defect_id=f"d{i}",
+                    skill_id="s1",
+                    version="1.0",
+                    severity=DefectSeverity.MINOR,
+                    description=f"bug-{i}",
+                )
+            )
         assert acc.should_trigger_evolution("s1", "1.0") is False
 
     def test_trigger_minor_at_20(self):
         acc = DefectAccumulator()
         for i in range(20):
-            acc.accumulate(DefectRecord(
-                defect_id=f"d{i}", skill_id="s1", version="1.0",
-                severity=DefectSeverity.MINOR, description=f"bug-{i}"
-            ))
+            acc.accumulate(
+                DefectRecord(
+                    defect_id=f"d{i}",
+                    skill_id="s1",
+                    version="1.0",
+                    severity=DefectSeverity.MINOR,
+                    description=f"bug-{i}",
+                )
+            )
         assert acc.should_trigger_evolution("s1", "1.0") is True
 
     def test_pending_defects(self):
         acc = DefectAccumulator()
-        acc.accumulate(DefectRecord(
-            defect_id="d1", skill_id="s1", version="1.0",
-            severity=DefectSeverity.MINOR, description="bug"
-        ))
-        acc.accumulate(DefectRecord(
-            defect_id="d2", skill_id="s1", version="1.0",
-            severity=DefectSeverity.MINOR, description="bug2", resolved=True
-        ))
+        acc.accumulate(
+            DefectRecord(defect_id="d1", skill_id="s1", version="1.0", severity=DefectSeverity.MINOR, description="bug")
+        )
+        acc.accumulate(
+            DefectRecord(
+                defect_id="d2",
+                skill_id="s1",
+                version="1.0",
+                severity=DefectSeverity.MINOR,
+                description="bug2",
+                resolved=True,
+            )
+        )
         pending = acc.get_pending_defects("s1", "1.0")
         assert len(pending) == 1
         assert pending[0].defect_id == "d1"
@@ -120,19 +134,13 @@ class TestDefectAccumulator:
 class TestEvolverLayer:
     def test_record_defect(self):
         evolver = EvolverLayer()
-        defect = evolver.record_defect(
-            skill_id="s1", version="1.0",
-            severity=DefectSeverity.MAJOR, description="bug"
-        )
+        defect = evolver.record_defect(skill_id="s1", version="1.0", severity=DefectSeverity.MAJOR, description="bug")
         assert defect.defect_id == "defect-1"
         assert defect.skill_id == "s1"
 
     def test_defect_triggers_evolution_queue(self):
         evolver = EvolverLayer()
-        evolver.record_defect(
-            skill_id="s1", version="1.0",
-            severity=DefectSeverity.CRITICAL, description="crash"
-        )
+        evolver.record_defect(skill_id="s1", version="1.0", severity=DefectSeverity.CRITICAL, description="crash")
         pending = evolver.get_pending_evolutions()
         assert len(pending) == 1
         assert pending[0]["skill_id"] == "s1"
@@ -150,26 +158,17 @@ class TestEvolverLayer:
 
     def test_judge_merge_similar(self):
         evolver = EvolverLayer()
-        action = evolver.judge_skill_candidate(
-            "my-great-skill-v2", ["my-great-skill-v1"],
-            similarity_threshold=0.5
-        )
+        action = evolver.judge_skill_candidate("my-great-skill-v2", ["my-great-skill-v1"], similarity_threshold=0.5)
         assert action == EvolutionAction.MERGE
 
     def test_judge_add_novel(self):
         evolver = EvolverLayer()
-        action = evolver.judge_skill_candidate(
-            "completely-different", ["existing-skill"],
-            similarity_threshold=0.8
-        )
+        action = evolver.judge_skill_candidate("completely-different", ["existing-skill"], similarity_threshold=0.8)
         assert action == EvolutionAction.ADD
 
     def test_create_proposal(self):
         evolver = EvolverLayer()
-        proposal = evolver.create_proposal(
-            context={"reason": "security fix"},
-            risk="high"
-        )
+        proposal = evolver.create_proposal(context={"reason": "security fix"}, risk="high")
         assert proposal.proposal_id == "proposal-1"
         assert proposal.recommendation_only is True
         assert proposal.risk == "high"
@@ -191,49 +190,40 @@ class TestEvolverLayer:
 
     def test_internal_feedback_low_success_rate(self):
         evolver = EvolverLayer()
-        result = evolver.process_internal_feedback(
-            "s1", {"success_rate": 0.5, "error_patterns": []}
-        )
+        result = evolver.process_internal_feedback("s1", {"success_rate": 0.5, "error_patterns": []})
         assert result is not None
         assert len(result["suggestions"]) >= 1
         assert result["suggestions"][0]["type"] == "performance_degradation"
 
     def test_internal_feedback_error_patterns(self):
         evolver = EvolverLayer()
-        result = evolver.process_internal_feedback(
-            "s1", {"success_rate": 1.0, "error_patterns": ["timeout"]}
-        )
+        result = evolver.process_internal_feedback("s1", {"success_rate": 1.0, "error_patterns": ["timeout"]})
         assert result is not None
         assert any(s["type"] == "error_pattern" for s in result["suggestions"])
 
     def test_internal_feedback_no_issues(self):
         evolver = EvolverLayer()
-        result = evolver.process_internal_feedback(
-            "s1", {"success_rate": 1.0, "error_patterns": []}
-        )
+        result = evolver.process_internal_feedback("s1", {"success_rate": 1.0, "error_patterns": []})
         assert result is None
 
     def test_external_evolution(self):
         evolver = EvolverLayer()
-        result = evolver.process_external_evolution(
-            "s1", {"version": "2.0", "type": "security_patch"}
-        )
+        result = evolver.process_external_evolution("s1", {"version": "2.0", "type": "security_patch"})
         assert result["skill_id"] == "s1"
         assert result["external_version"] == "2.0"
         assert result["recommendation"] == "review_for_adoption"
 
     def test_with_audit_layer(self):
         from skillpool.audit import AuditLayer
+
         audit = AuditLayer()
         evolver = EvolverLayer(audit_layer=audit)
-        _defect = evolver.record_defect(
-            skill_id="s1", version="1.0",
-            severity=DefectSeverity.MINOR, description="bug"
-        )
+        _defect = evolver.record_defect(skill_id="s1", version="1.0", severity=DefectSeverity.MINOR, description="bug")
         assert audit.get_record_count() == 1
 
     def test_proposal_with_audit_layer(self):
         from skillpool.audit import AuditLayer
+
         audit = AuditLayer()
         evolver = EvolverLayer(audit_layer=audit)
         proposal = evolver.create_proposal(context={"reason": "test"})
@@ -242,6 +232,7 @@ class TestEvolverLayer:
 
 
 # === V4.1: VERIFY Phase Tests ===
+
 
 class TestVerifyPhase:
     """Tests for the VERIFY phase (Detect → Adapt → Verify)."""
@@ -353,6 +344,7 @@ class TestVerifyPhase:
 
     def test_verify_with_audit(self):
         from skillpool.audit import AuditLayer
+
         audit = AuditLayer()
         evolver = EvolverLayer(audit_layer=audit)
         proposal = evolver.create_proposal(context={"skill_id": "s1"})
@@ -362,6 +354,7 @@ class TestVerifyPhase:
 
 
 # === V4.1: Safety Constraint Tests ===
+
 
 class TestSafetyConstraint1RateLimit:
     """Safety constraint #1: max auto-evolution frequency."""

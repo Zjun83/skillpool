@@ -1,4 +1,5 @@
 """Tests for IntentRouter — intent-to-skill routing with L1-L4 layers."""
+
 from __future__ import annotations
 
 
@@ -10,6 +11,7 @@ from skillpool.router import IntentRouter, SkillCandidate, RoutingResult
 # ============================================================
 # Fixtures
 # ============================================================
+
 
 @pytest.fixture
 def skills_dir(tmp_path):
@@ -60,6 +62,7 @@ def router(skills_dir):
 # SkillCandidate & RoutingResult Models
 # ============================================================
 
+
 class TestSkillCandidateModel:
     def test_valid_candidate(self):
         c = SkillCandidate(skill_id="S09", score=0.8, layer="L1")
@@ -104,6 +107,7 @@ class TestRoutingResultModel:
 # Index Building
 # ============================================================
 
+
 class TestBuildIndex:
     def test_build_index_discovers_flat_yaml(self, router):
         router._build_index()
@@ -136,14 +140,11 @@ class TestBuildIndex:
 # YAML Metadata Extraction
 # ============================================================
 
+
 class TestExtractYamlMetadata:
     def test_extract_from_valid_yaml(self, tmp_path):
         yaml_file = tmp_path / "test.yaml"
-        yaml_file.write_text(
-            "name: My Skill\n"
-            "description: A test skill\n"
-            "dimension: D5\n"
-        )
+        yaml_file.write_text("name: My Skill\ndescription: A test skill\ndimension: D5\n")
         parts = IntentRouter._extract_yaml_metadata(yaml_file)
         assert any("My Skill" in p for p in parts)
         assert any("dimension:D5" in p for p in parts)
@@ -164,6 +165,7 @@ class TestExtractYamlMetadata:
 # ============================================================
 # Keyword Matching (L1 fallback)
 # ============================================================
+
 
 class TestKeywordMatching:
     def test_keyword_match_with_overlap(self, router):
@@ -206,6 +208,7 @@ class TestKeywordMatching:
 # Route Method (End-to-End)
 # ============================================================
 
+
 class TestRoute:
     def test_route_returns_routing_result(self, router):
         result = router.route("I need resilience handling")
@@ -246,6 +249,7 @@ class TestRoute:
 # Cosine Similarity
 # ============================================================
 
+
 class TestCosineSimilarity:
     def test_identical_vectors(self):
         a = [1.0, 0.0, 0.0]
@@ -271,6 +275,7 @@ class TestCosineSimilarity:
 # ============================================================
 # L2 Logical Routing (Dependencies & Synergies)
 # ============================================================
+
 
 class TestL2LogicalRouting:
     def test_l2_adds_dependencies(self, router):
@@ -313,6 +318,7 @@ class TestL2LogicalRouting:
 # Ollama Check
 # ============================================================
 
+
 class TestOllamaCheck:
     def test_ollama_unavailable_returns_false(self, router):
         # Using a port that's definitely not listening
@@ -332,6 +338,7 @@ class TestOllamaCheck:
 # ============================================================
 # Find Skill YAML
 # ============================================================
+
 
 class TestFindSkillYaml:
     def test_find_flat_yaml(self, router):

@@ -5,6 +5,7 @@ Context binding: bind_contextvars(skill_id=..., checkpoint=..., gate_result=...)
 Canonical log lines: single JSON line with all context
 Two renderers: JSONRenderer (prod) and ConsoleRenderer (dev, colored)
 """
+
 from __future__ import annotations
 
 __all__ = [
@@ -69,6 +70,7 @@ class ContextVarsBinding:
 
 # ── Processors ──
 
+
 def add_timestamp(logger: str, method: str, event_dict: dict[str, Any]) -> dict[str, Any]:
     """Add ISO 8601 UTC timestamp to the event dict."""
     if "timestamp" not in event_dict:
@@ -101,6 +103,7 @@ def format_json(logger: str, method: str, event_dict: dict[str, Any]) -> dict[st
 
 # ── Renderers ──
 
+
 class JSONRenderer:
     """Render log events as single JSON lines (production)."""
 
@@ -120,10 +123,10 @@ class ConsoleRenderer:
     """
 
     _COLORS: dict[str, str] = {
-        "debug": "\033[90m",       # grey
-        "info": "\033[32m",        # green
-        "warning": "\033[33m",     # yellow
-        "error": "\033[31m",       # red
+        "debug": "\033[90m",  # grey
+        "info": "\033[32m",  # green
+        "warning": "\033[33m",  # yellow
+        "error": "\033[31m",  # red
     }
     _RESET = "\033[0m"
 
@@ -187,6 +190,7 @@ def get_skillpool_logger(name: str) -> SkillPoolLogger:
 
 
 # ── Logger ──
+
 
 class SkillPoolLogger:
     """structlog-style structured logger.

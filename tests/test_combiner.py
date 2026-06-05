@@ -1,4 +1,5 @@
 """Tests for combiner module — combination lifecycle + data models."""
+
 from __future__ import annotations
 
 import json
@@ -33,21 +34,24 @@ class TestCombinationModels:
 
     def test_initial_state_validating_for_human(self):
         combo = SkillCombination(
-            primary="review", enhancers=["karpathy"],
+            primary="review",
+            enhancers=["karpathy"],
             state=CombinationLifecycleState.VALIDATING,
         )
         assert combo.state == CombinationLifecycleState.VALIDATING
 
     def test_current_weight_zero_for_rejected(self):
         combo = SkillCombination(
-            primary="review", enhancers=["karpathy"],
+            primary="review",
+            enhancers=["karpathy"],
             state=CombinationLifecycleState.REJECTED,
         )
         assert combo.current_weight() == 0.0
 
     def test_current_weight_promoted_with_confidence(self):
         combo = SkillCombination(
-            primary="review", enhancers=["karpathy"],
+            primary="review",
+            enhancers=["karpathy"],
             state=CombinationLifecycleState.PROMOTED,
             execution_count=10,
             base_weight=0.8,
@@ -57,7 +61,8 @@ class TestCombinationModels:
 
     def test_current_weight_low_executions(self):
         combo = SkillCombination(
-            primary="review", enhancers=["karpathy"],
+            primary="review",
+            enhancers=["karpathy"],
             state=CombinationLifecycleState.PROMOTED,
             execution_count=2,
             base_weight=0.8,
@@ -105,9 +110,7 @@ class TestCombinationLifecycleManager:
         assert combo.source == "auto_discovered"
 
     def test_create_human_specified_combination(self, manager):
-        combo = manager.create_combination(
-            "review", ["karpathy"], source="human_specified"
-        )
+        combo = manager.create_combination("review", ["karpathy"], source="human_specified")
         assert combo.state == CombinationLifecycleState.VALIDATING
         assert combo.source == "human_specified"
 
@@ -182,9 +185,7 @@ class TestCombinationLifecycleManager:
         assert updated.gain_confidence == pytest.approx(0.4, abs=0.01)
 
     def test_try_promote_not_enough_executions(self, manager):
-        combo = manager.create_combination(
-            "review", ["karpathy"], source="human_specified"
-        )
+        combo = manager.create_combination("review", ["karpathy"], source="human_specified")
         for i in range(3):
             manager.record_execution(combo.combination_id, gain=1.5)
         result = manager.try_promote(combo.combination_id)
@@ -192,18 +193,14 @@ class TestCombinationLifecycleManager:
         assert "executions" in result.reason.lower()
 
     def test_try_promote_negative_gain_rejected(self, manager):
-        combo = manager.create_combination(
-            "review", ["karpathy"], source="human_specified"
-        )
+        combo = manager.create_combination("review", ["karpathy"], source="human_specified")
         for i in range(6):
             manager.record_execution(combo.combination_id, gain=-0.5)
         result = manager.try_promote(combo.combination_id)
         assert result.to_state == CombinationLifecycleState.REJECTED
 
     def test_try_promote_success(self, manager):
-        combo = manager.create_combination(
-            "review", ["karpathy"], source="human_specified"
-        )
+        combo = manager.create_combination("review", ["karpathy"], source="human_specified")
         for i in range(6):
             manager.record_execution(combo.combination_id, gain=1.5)
         result = manager.try_promote(combo.combination_id)
@@ -211,9 +208,7 @@ class TestCombinationLifecycleManager:
         assert result.to_state == CombinationLifecycleState.PROMOTED
 
     def test_get_promoted_combinations(self, manager):
-        combo1 = manager.create_combination(
-            "review", ["karpathy"], source="human_specified"
-        )
+        combo1 = manager.create_combination("review", ["karpathy"], source="human_specified")
         for i in range(6):
             manager.record_execution(combo1.combination_id, gain=1.5)
         manager.try_promote(combo1.combination_id)
@@ -234,9 +229,7 @@ class TestCombinationLifecycleManager:
 
     def test_persistence(self, data_dir):
         manager1 = CombinationLifecycleManager(data_dir=data_dir)
-        combo = manager1.create_combination(
-            "review", ["karpathy"], source="human_specified"
-        )
+        combo = manager1.create_combination("review", ["karpathy"], source="human_specified")
         for i in range(6):
             manager1.record_execution(combo.combination_id, gain=1.5)
         manager1.try_promote(combo.combination_id)
@@ -252,9 +245,7 @@ class TestCombinationLifecycleManager:
         assert result is None
 
     def test_deprecated_to_retired(self, manager):
-        combo = manager.create_combination(
-            "review", ["karpathy"], source="human_specified"
-        )
+        combo = manager.create_combination("review", ["karpathy"], source="human_specified")
         for i in range(6):
             manager.record_execution(combo.combination_id, gain=1.5)
         manager.try_promote(combo.combination_id)
@@ -299,56 +290,71 @@ class TestCombinationModelsExtended:
         """If discovered_at is provided, it should not be overwritten."""
         ts = "2026-01-01T00:00:00"
         combo = SkillCombination(
-            primary="review", enhancers=["karpathy"], discovered_at=ts,
+            primary="review",
+            enhancers=["karpathy"],
+            discovered_at=ts,
         )
         assert combo.discovered_at == ts
 
     def test_gain_confidence_bounds(self):
         """gain_confidence must be between 0.0 and 1.0."""
         combo = SkillCombination(
-            primary="review", enhancers=["karpathy"], gain_confidence=0.5,
+            primary="review",
+            enhancers=["karpathy"],
+            gain_confidence=0.5,
         )
         assert combo.gain_confidence == 0.5
 
         with pytest.raises(Exception):
             SkillCombination(
-                primary="review", enhancers=["karpathy"], gain_confidence=1.5,
+                primary="review",
+                enhancers=["karpathy"],
+                gain_confidence=1.5,
             )
 
         with pytest.raises(Exception):
             SkillCombination(
-                primary="review", enhancers=["karpathy"], gain_confidence=-0.1,
+                primary="review",
+                enhancers=["karpathy"],
+                gain_confidence=-0.1,
             )
 
     def test_base_weight_bounds(self):
         """base_weight must be between 0.0 and 1.0."""
         with pytest.raises(Exception):
             SkillCombination(
-                primary="review", enhancers=["karpathy"], base_weight=1.5,
+                primary="review",
+                enhancers=["karpathy"],
+                base_weight=1.5,
             )
 
         with pytest.raises(Exception):
             SkillCombination(
-                primary="review", enhancers=["karpathy"], base_weight=-0.1,
+                primary="review",
+                enhancers=["karpathy"],
+                base_weight=-0.1,
             )
 
     def test_current_weight_zero_for_discovered(self):
         combo = SkillCombination(
-            primary="review", enhancers=["karpathy"],
+            primary="review",
+            enhancers=["karpathy"],
             state=CombinationLifecycleState.DISCOVERED,
         )
         assert combo.current_weight() == 0.0
 
     def test_current_weight_zero_for_deprecated(self):
         combo = SkillCombination(
-            primary="review", enhancers=["karpathy"],
+            primary="review",
+            enhancers=["karpathy"],
             state=CombinationLifecycleState.DEPRECATED,
         )
         assert combo.current_weight() == 0.0
 
     def test_current_weight_zero_for_retired(self):
         combo = SkillCombination(
-            primary="review", enhancers=["karpathy"],
+            primary="review",
+            enhancers=["karpathy"],
             state=CombinationLifecycleState.RETIRED,
         )
         assert combo.current_weight() == 0.0
@@ -356,7 +362,8 @@ class TestCombinationModelsExtended:
     def test_current_weight_validating_with_executions(self):
         """Validating combination should have non-zero weight with executions."""
         combo = SkillCombination(
-            primary="review", enhancers=["karpathy"],
+            primary="review",
+            enhancers=["karpathy"],
             state=CombinationLifecycleState.VALIDATING,
             execution_count=10,
             base_weight=0.8,
@@ -371,14 +378,16 @@ class TestCombinationModelsExtended:
         old_ts = (now - timedelta(days=50)).isoformat()
 
         combo_recent = SkillCombination(
-            primary="review", enhancers=["karpathy"],
+            primary="review",
+            enhancers=["karpathy"],
             state=CombinationLifecycleState.PROMOTED,
             execution_count=10,
             base_weight=0.8,
             last_execution=recent_ts,
         )
         combo_old = SkillCombination(
-            primary="review", enhancers=["karpathy"],
+            primary="review",
+            enhancers=["karpathy"],
             state=CombinationLifecycleState.PROMOTED,
             execution_count=10,
             base_weight=0.8,
@@ -390,7 +399,8 @@ class TestCombinationModelsExtended:
         """Time decay should not go below 0.1."""
         very_old_ts = (utc_now() - timedelta(days=500)).isoformat()
         combo = SkillCombination(
-            primary="review", enhancers=["karpathy"],
+            primary="review",
+            enhancers=["karpathy"],
             state=CombinationLifecycleState.PROMOTED,
             execution_count=10,
             base_weight=0.8,
@@ -405,7 +415,8 @@ class TestCombinationModelsExtended:
     def test_current_weight_no_execution(self):
         """PROMOTED with no last_execution gets time_decay=0.5."""
         combo = SkillCombination(
-            primary="review", enhancers=["karpathy"],
+            primary="review",
+            enhancers=["karpathy"],
             state=CombinationLifecycleState.PROMOTED,
             execution_count=10,
             base_weight=0.8,
@@ -417,7 +428,8 @@ class TestCombinationModelsExtended:
     def test_current_weight_invalid_last_execution(self):
         """Invalid last_execution timestamp falls back to time_decay=1.0."""
         combo = SkillCombination(
-            primary="review", enhancers=["karpathy"],
+            primary="review",
+            enhancers=["karpathy"],
             state=CombinationLifecycleState.PROMOTED,
             execution_count=10,
             base_weight=0.8,
@@ -498,15 +510,15 @@ class TestCombinationLifecycleManagerExtended:
         manager._update_persisted(combo)
         manager.transition(combo.combination_id, CombinationLifecycleState.RETIRED)
 
-        rediscovered = manager.create_combination(
-            "review", ["karpathy"], source="human_specified"
-        )
+        rediscovered = manager.create_combination("review", ["karpathy"], source="human_specified")
         # Even human_specified source on rediscovery goes to DISCOVERED
         assert rediscovered.state == CombinationLifecycleState.DISCOVERED
 
     def test_create_with_custom_base_weight(self, manager):
         combo = manager.create_combination(
-            "review", ["karpathy"], base_weight=0.9,
+            "review",
+            ["karpathy"],
+            base_weight=0.9,
         )
         assert combo.base_weight == 0.9
 
@@ -548,21 +560,25 @@ class TestCombinationLifecycleManagerExtended:
             if target == CombinationLifecycleState.RETIRED:
                 continue
             assert not manager.validate_transition(
-                CombinationLifecycleState.RETIRED, target,
+                CombinationLifecycleState.RETIRED,
+                target,
             )
 
     # ── transition ──
 
     def test_transition_nonexistent_combination(self, manager):
         result = manager.transition(
-            "nonexistent+combo", CombinationLifecycleState.VALIDATING,
+            "nonexistent+combo",
+            CombinationLifecycleState.VALIDATING,
         )
         assert not result.success
         assert "not found" in result.reason.lower()
 
     def test_transition_sets_promoted_at(self, manager):
         combo = manager.create_combination(
-            "review", ["karpathy"], source="human_specified",
+            "review",
+            ["karpathy"],
+            source="human_specified",
         )
         for i in range(6):
             manager.record_execution(combo.combination_id, gain=1.5)
@@ -573,7 +589,9 @@ class TestCombinationLifecycleManagerExtended:
 
     def test_transition_sets_deprecated_at(self, manager):
         combo = manager.create_combination(
-            "review", ["karpathy"], source="human_specified",
+            "review",
+            ["karpathy"],
+            source="human_specified",
         )
         for i in range(6):
             manager.record_execution(combo.combination_id, gain=1.5)
@@ -585,7 +603,9 @@ class TestCombinationLifecycleManagerExtended:
 
     def test_transition_sets_rejection_reason(self, manager):
         combo = manager.create_combination(
-            "review", ["karpathy"], source="human_specified",
+            "review",
+            ["karpathy"],
+            source="human_specified",
         )
         for i in range(6):
             manager.record_execution(combo.combination_id, gain=-0.5)
@@ -597,7 +617,9 @@ class TestCombinationLifecycleManagerExtended:
     def test_transition_to_discovered_resets_validation_data(self, manager):
         """REJECTED → DISCOVERED should reset gain data."""
         combo = manager.create_combination(
-            "review", ["karpathy"], source="human_specified",
+            "review",
+            ["karpathy"],
+            source="human_specified",
         )
         for i in range(6):
             manager.record_execution(combo.combination_id, gain=1.0)
@@ -676,7 +698,9 @@ class TestCombinationLifecycleManagerExtended:
     def test_try_promote_low_confidence(self, manager):
         """Enough executions but low confidence should fail."""
         combo = manager.create_combination(
-            "review", ["karpathy"], source="human_specified",
+            "review",
+            ["karpathy"],
+            source="human_specified",
         )
         # Record 6 executions but manipulate confidence directly
         for i in range(6):
@@ -693,7 +717,9 @@ class TestCombinationLifecycleManagerExtended:
     def test_try_promote_snapshots_all_time_gain(self, manager):
         """On promotion, all_time_gain_avg and recent_gain_avg are snapshotted."""
         combo = manager.create_combination(
-            "review", ["karpathy"], source="human_specified",
+            "review",
+            ["karpathy"],
+            source="human_specified",
         )
         for i in range(6):
             manager.record_execution(combo.combination_id, gain=1.5)
@@ -709,7 +735,9 @@ class TestCombinationLifecycleManagerExtended:
     def test_check_deprecation_inactivity(self, manager):
         """No execution in 30 days triggers deprecation."""
         combo = manager.create_combination(
-            "review", ["karpathy"], source="human_specified",
+            "review",
+            ["karpathy"],
+            source="human_specified",
         )
         for i in range(6):
             manager.record_execution(combo.combination_id, gain=1.5)
@@ -728,7 +756,9 @@ class TestCombinationLifecycleManagerExtended:
     def test_check_deprecation_gain_decay(self, manager):
         """Recent gain < 50% of all-time gain triggers deprecation."""
         combo = manager.create_combination(
-            "review", ["karpathy"], source="human_specified",
+            "review",
+            ["karpathy"],
+            source="human_specified",
         )
         for i in range(6):
             manager.record_execution(combo.combination_id, gain=1.5)
@@ -750,7 +780,9 @@ class TestCombinationLifecycleManagerExtended:
     def test_check_deprecation_no_decay(self, manager):
         """Healthy combination should not be deprecated."""
         combo = manager.create_combination(
-            "review", ["karpathy"], source="human_specified",
+            "review",
+            ["karpathy"],
+            source="human_specified",
         )
         for i in range(6):
             manager.record_execution(combo.combination_id, gain=1.5)
@@ -779,7 +811,9 @@ class TestCombinationLifecycleManagerExtended:
     def test_check_deprecation_invalid_last_execution(self, manager):
         """Invalid last_execution timestamp should not crash."""
         combo = manager.create_combination(
-            "review", ["karpathy"], source="human_specified",
+            "review",
+            ["karpathy"],
+            source="human_specified",
         )
         for i in range(6):
             manager.record_execution(combo.combination_id, gain=1.5)
@@ -800,7 +834,9 @@ class TestCombinationLifecycleManagerExtended:
     def test_check_retirement_after_90_days(self, manager):
         """Deprecated for >90 days triggers retirement."""
         combo = manager.create_combination(
-            "review", ["karpathy"], source="human_specified",
+            "review",
+            ["karpathy"],
+            source="human_specified",
         )
         for i in range(6):
             manager.record_execution(combo.combination_id, gain=1.5)
@@ -830,7 +866,9 @@ class TestCombinationLifecycleManagerExtended:
     def test_check_retirement_too_recent(self, manager):
         """Recently deprecated (<90 days) should not be retired."""
         combo = manager.create_combination(
-            "review", ["karpathy"], source="human_specified",
+            "review",
+            ["karpathy"],
+            source="human_specified",
         )
         for i in range(6):
             manager.record_execution(combo.combination_id, gain=1.5)
@@ -843,7 +881,9 @@ class TestCombinationLifecycleManagerExtended:
     def test_check_retirement_invalid_deprecated_at(self, manager):
         """Invalid deprecated_at should not crash."""
         combo = manager.create_combination(
-            "review", ["karpathy"], source="human_specified",
+            "review",
+            ["karpathy"],
+            source="human_specified",
         )
         for i in range(6):
             manager.record_execution(combo.combination_id, gain=1.5)
@@ -861,10 +901,14 @@ class TestCombinationLifecycleManagerExtended:
 
     def test_get_validating_combinations(self, manager):
         combo1 = manager.create_combination(
-            "review", ["karpathy"], source="human_specified",
+            "review",
+            ["karpathy"],
+            source="human_specified",
         )
         combo2 = manager.create_combination(
-            "security", ["simplify"], source="human_specified",
+            "security",
+            ["simplify"],
+            source="human_specified",
         )
         combo3 = manager.create_combination("review", ["simplify"])
 
@@ -883,10 +927,16 @@ class TestCombinationLifecycleManagerExtended:
     def test_get_promoted_combinations_sorted_by_weight(self, manager):
         """Promoted combinations should be sorted by weight descending."""
         combo1 = manager.create_combination(
-            "review", ["karpathy"], source="human_specified", base_weight=0.5,
+            "review",
+            ["karpathy"],
+            source="human_specified",
+            base_weight=0.5,
         )
         combo2 = manager.create_combination(
-            "review", ["simplify"], source="human_specified", base_weight=0.9,
+            "review",
+            ["simplify"],
+            source="human_specified",
+            base_weight=0.9,
         )
         for i in range(6):
             manager.record_execution(combo1.combination_id, gain=1.5)
@@ -901,10 +951,14 @@ class TestCombinationLifecycleManagerExtended:
     def test_get_promoted_combinations_no_primary_filter(self, manager):
         """Without primary filter, all promoted combinations are returned."""
         combo1 = manager.create_combination(
-            "review", ["karpathy"], source="human_specified",
+            "review",
+            ["karpathy"],
+            source="human_specified",
         )
         combo2 = manager.create_combination(
-            "security", ["simplify"], source="human_specified",
+            "security",
+            ["simplify"],
+            source="human_specified",
         )
         for i in range(6):
             manager.record_execution(combo1.combination_id, gain=1.5)
@@ -935,20 +989,24 @@ class TestCombinationLifecycleManagerExtended:
 
         # PROMOTED → DEPRECATED
         result = manager.transition(
-            combo.combination_id, CombinationLifecycleState.DEPRECATED,
+            combo.combination_id,
+            CombinationLifecycleState.DEPRECATED,
         )
         assert result.success
 
         # DEPRECATED → RETIRED
         result = manager.transition(
-            combo.combination_id, CombinationLifecycleState.RETIRED,
+            combo.combination_id,
+            CombinationLifecycleState.RETIRED,
         )
         assert result.success
 
     def test_full_lifecycle_rejected_to_rediscovered(self, manager):
         """Test: VALIDATING → REJECTED → DISCOVERED (rediscovery)."""
         combo = manager.create_combination(
-            "review", ["karpathy"], source="human_specified",
+            "review",
+            ["karpathy"],
+            source="human_specified",
         )
         for i in range(6):
             manager.record_execution(combo.combination_id, gain=-0.5)
@@ -957,7 +1015,8 @@ class TestCombinationLifecycleManagerExtended:
 
         # REJECTED → DISCOVERED
         result = manager.transition(
-            combo.combination_id, CombinationLifecycleState.DISCOVERED,
+            combo.combination_id,
+            CombinationLifecycleState.DISCOVERED,
         )
         assert result.success
 

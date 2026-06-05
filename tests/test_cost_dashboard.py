@@ -1,4 +1,5 @@
 """Tests for CostDashboard — aggregated cost query and reporting."""
+
 import pytest
 
 from skillpool.cost.models import CostQuery
@@ -149,6 +150,7 @@ class TestCostDashboardMultiDimension:
 
     def test_cost_record_skill_id_field(self) -> None:
         from skillpool.cost.models import CostRecord
+
         r = CostRecord(agent_id="evolver_v4", skill_id="S09-recovery", cost_usd=0.10)
         assert r.skill_id == "S09-recovery"
         r2 = CostRecord(agent_id="evolver_v4", cost_usd=0.10)
@@ -192,6 +194,7 @@ class TestCostTimeSeries:
 
     def test_series_sorted_by_timestamp(self, dashboard: CostDashboard) -> None:
         import time
+
         dashboard.record("evolver_v4", 1000, 500, 0.10)
         time.sleep(0.01)
         dashboard.record("evolver_v4", 500, 250, 0.05)
@@ -199,4 +202,3 @@ class TestCostTimeSeries:
         # Should be sorted ascending
         if len(resp.series) > 1:
             assert resp.series[0]["timestamp"] <= resp.series[1]["timestamp"]
-

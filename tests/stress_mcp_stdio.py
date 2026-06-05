@@ -5,6 +5,7 @@ Tests sequential request handling, latency, and data integrity
 through the SkillPool MCP server's stdio transport.
 Each test iteration creates a fresh process (realistic for Agent usage).
 """
+
 from __future__ import annotations
 
 import json
@@ -21,6 +22,7 @@ TIMEOUT_SEC = 30
 
 # ── MCP stdio client ───────────────────────────────────────
 
+
 def send_mcp_request(request: dict, timeout: int = TIMEOUT_SEC) -> dict:
     """Send a single JSON-RPC request via stdio using persistent readline."""
     proc = subprocess.Popen(
@@ -32,15 +34,21 @@ def send_mcp_request(request: dict, timeout: int = TIMEOUT_SEC) -> dict:
     )
     try:
         # 1. Send initialize
-        init_req = json.dumps({
-            "jsonrpc": "2.0", "id": "init",
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2025-03-26",
-                "capabilities": {},
-                "clientInfo": {"name": "stress-test", "version": "1.0"},
-            },
-        }) + "\n"
+        init_req = (
+            json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": "init",
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2025-03-26",
+                        "capabilities": {},
+                        "clientInfo": {"name": "stress-test", "version": "1.0"},
+                    },
+                }
+            )
+            + "\n"
+        )
         proc.stdin.write(init_req.encode())
         proc.stdin.flush()
 
@@ -113,6 +121,7 @@ def make_request(req_id: int) -> tuple[int, dict, float]:
 
 
 # ── Main test ──────────────────────────────────────────────
+
 
 def main():
     print(f"MCP stdio stress test: {TOTAL_REQUESTS} requests, {CONCURRENCY} concurrent")

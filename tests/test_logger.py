@@ -1,4 +1,5 @@
 """Tests for SkillPoolLogger — structlog-style structured logging."""
+
 from __future__ import annotations
 
 import io
@@ -79,6 +80,7 @@ class TestJSONRenderer:
 
     def test_render_with_datetime(self):
         from datetime import UTC, datetime
+
         renderer = JSONRenderer()
         dt = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
         output = renderer("test", "info", {"event": "test", "ts": dt})
@@ -120,6 +122,7 @@ class TestSkillPoolLogger:
         )
         # Redirect stderr
         import sys
+
         old_stderr = sys.stderr
         sys.stderr = stream
         logger.info("test message", key="value")
@@ -134,6 +137,7 @@ class TestSkillPoolLogger:
         stream = io.StringIO()
         logger = SkillPoolLogger(name="test", renderer=JSONRenderer())
         import sys
+
         old_stderr = sys.stderr
         sys.stderr = stream
         for level_method in [logger.debug, logger.info, logger.warning, logger.error]:
@@ -155,6 +159,7 @@ class TestSkillPoolLogger:
         logger = SkillPoolLogger(name="test", renderer=JSONRenderer())
         bound = logger.bind(skill_id="S09")
         import sys
+
         old_stderr = sys.stderr
         sys.stderr = stream
         bound.info("test")
@@ -168,6 +173,7 @@ class TestSkillPoolLogger:
         logger = SkillPoolLogger(name="test", renderer=JSONRenderer())
         bound = logger.bind(skill_id="S09")
         import sys
+
         old_stderr = sys.stderr
         sys.stderr = stream
         bound.info("test", skill_id="S05a")
@@ -185,6 +191,7 @@ class TestGetSkillpoolLogger:
 
     def test_factory_with_log_level_env(self):
         import os
+
         os.environ["SKILLPOOL_LOG_LEVEL"] = "DEBUG"
         logger = get_skillpool_logger("test")
         assert isinstance(logger, SkillPoolLogger)

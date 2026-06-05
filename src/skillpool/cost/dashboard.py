@@ -1,4 +1,5 @@
 """CostDashboard — aggregated cost query and reporting."""
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -31,19 +32,29 @@ class CostDashboard:
         # In-memory cost records for aggregation
         self._records: list[dict] = []
 
-    def record(self, agent_id: str, tokens_input: int, tokens_output: int, cost_usd: float,
-               model: str = "", operation: str = "", skill_id: str = "") -> None:
+    def record(
+        self,
+        agent_id: str,
+        tokens_input: int,
+        tokens_output: int,
+        cost_usd: float,
+        model: str = "",
+        operation: str = "",
+        skill_id: str = "",
+    ) -> None:
         """Store a cost record for later querying."""
-        self._records.append({
-            "agent_id": agent_id,
-            "tokens_input": tokens_input,
-            "tokens_output": tokens_output,
-            "cost_usd": cost_usd,
-            "model": model,
-            "operation": operation,
-            "skill_id": skill_id,
-            "timestamp": utc_now().isoformat(),
-        })
+        self._records.append(
+            {
+                "agent_id": agent_id,
+                "tokens_input": tokens_input,
+                "tokens_output": tokens_output,
+                "cost_usd": cost_usd,
+                "model": model,
+                "operation": operation,
+                "skill_id": skill_id,
+                "timestamp": utc_now().isoformat(),
+            }
+        )
 
     def query(self, request: CostQuery) -> CostDashboardResponse:
         """Query aggregated cost data.
@@ -106,16 +117,18 @@ class CostDashboard:
             daily_usage = self._governor.get_daily_usage(aid)
             budget_consumed_pct = (daily_usage / budget_limit) if budget_limit > 0 else 0.0
 
-            by_agent.append(AgentCost(
-                agent_id=aid,
-                agent_type=cfg.agent_type if cfg else "",
-                tokens=data["tokens"],
-                cost_usd=round(data["cost_usd"], 4),
-                pct_of_total=round(pct_of_total, 2),
-                budget_limit=budget_limit,
-                budget_consumed_pct=round(budget_consumed_pct, 4),
-                throttled=self._governor.is_throttled(aid),
-            ))
+            by_agent.append(
+                AgentCost(
+                    agent_id=aid,
+                    agent_type=cfg.agent_type if cfg else "",
+                    tokens=data["tokens"],
+                    cost_usd=round(data["cost_usd"], 4),
+                    pct_of_total=round(pct_of_total, 2),
+                    budget_limit=budget_limit,
+                    budget_consumed_pct=round(budget_consumed_pct, 4),
+                    throttled=self._governor.is_throttled(aid),
+                )
+            )
 
         budget_pct = self._budget.get_consumed_pct() * 100
 

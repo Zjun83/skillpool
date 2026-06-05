@@ -1,4 +1,5 @@
 """BDD tests for Review Trigger — mapping to review-test-trigger.feature scenarios."""
+
 import pytest
 
 from skillpool.review import ReviewManager
@@ -101,6 +102,7 @@ class TestVetoEvaluator:
     def test_v1_d3_below_threshold(self):
         """Scenario: D3 < 7.0 triggers V1 veto."""
         from skillpool.review.veto_evaluator import VetoEvaluator
+
         ev = VetoEvaluator()
         scores = {"D3": 6.5, "D5": 8.0, "D7": 8.0, "D10": 7.0, "D11": 7.0}
         details, triggered = ev.evaluate(scores)
@@ -110,6 +112,7 @@ class TestVetoEvaluator:
     def test_v2_d5_below_threshold(self):
         """Scenario: D5 < 7.0 triggers V2 veto."""
         from skillpool.review.veto_evaluator import VetoEvaluator
+
         ev = VetoEvaluator()
         scores = {"D3": 8.0, "D5": 6.5, "D7": 8.0, "D10": 7.0, "D11": 7.0}
         details, triggered = ev.evaluate(scores)
@@ -119,6 +122,7 @@ class TestVetoEvaluator:
     def test_v3_d7_below_threshold(self):
         """Scenario: D7 < 7.5 triggers V3 veto."""
         from skillpool.review.veto_evaluator import VetoEvaluator
+
         ev = VetoEvaluator()
         scores = {"D3": 8.0, "D5": 8.0, "D7": 7.0, "D10": 7.0, "D11": 7.0}
         details, triggered = ev.evaluate(scores)
@@ -127,6 +131,7 @@ class TestVetoEvaluator:
 
     def test_v4_d11_below_threshold(self):
         from skillpool.review.veto_evaluator import VetoEvaluator
+
         ev = VetoEvaluator()
         scores = {"D3": 8.0, "D5": 8.0, "D7": 8.0, "D10": 7.0, "D11": 5.5}
         details, triggered = ev.evaluate(scores)
@@ -136,6 +141,7 @@ class TestVetoEvaluator:
     def test_v5_d10_risk_notice(self):
         """V5 is a risk notice, not a block."""
         from skillpool.review.veto_evaluator import VetoEvaluator
+
         ev = VetoEvaluator()
         scores = {"D3": 8.0, "D5": 8.0, "D7": 8.0, "D10": 5.0, "D11": 7.0}
         details, triggered = ev.evaluate(scores)
@@ -146,6 +152,7 @@ class TestVetoEvaluator:
     def test_all_pass_no_veto(self):
         """All scores above thresholds — no veto."""
         from skillpool.review.veto_evaluator import VetoEvaluator
+
         ev = VetoEvaluator()
         scores = {"D3": 9.0, "D5": 9.0, "D7": 9.0, "D10": 8.0, "D11": 8.0}
         details, triggered = ev.evaluate(scores)
@@ -155,6 +162,7 @@ class TestVetoEvaluator:
     def test_v6_baseline_avg_below_threshold(self):
         """V6: baseline average < 7.5 triggers veto explanation."""
         from skillpool.review.veto_evaluator import VetoEvaluator
+
         ev = VetoEvaluator()
         # All baseline scores just below 7.5
         scores = {"D3": 7.0, "D5": 7.0, "D7": 7.0, "D10": 7.0, "D11": 7.0}
@@ -169,6 +177,7 @@ class TestReviewTraceIdPropagation:
     def test_trace_id_propagated_to_telemetry(self):
         """Scenario: trace_id in ReviewTriggerRequest is propagated to telemetry events."""
         from skillpool.telemetry import TelemetryBridge
+
         bridge = TelemetryBridge()
         captured = []
         bridge.register_hook(lambda e: captured.append(e))
@@ -220,17 +229,20 @@ class TestAsyncReviewQueue:
     def test_concurrent_limit_blocks_submit(self):
         """Scenario: Max concurrent reviews reached → submit raises RuntimeError."""
         from skillpool.review.async_queue import AsyncReviewQueue
+
         queue = AsyncReviewQueue(max_concurrent=1, cooldown_seconds=0.01)
         # Submit first review, mark as PROCESSING
         req1 = ReviewTriggerRequest(
-            trigger=ReviewTrigger.MANUAL, checkpoint=CheckpointLevel.L1,
+            trigger=ReviewTrigger.MANUAL,
+            checkpoint=CheckpointLevel.L1,
             affected_skills=["S01"],
         )
         rid1 = queue.submit(req1)
         queue.set_status(rid1, ReviewStatus.PROCESSING)
         # 2nd submit should fail (max_concurrent=1)
         req2 = ReviewTriggerRequest(
-            trigger=ReviewTrigger.MANUAL, checkpoint=CheckpointLevel.L1,
+            trigger=ReviewTrigger.MANUAL,
+            checkpoint=CheckpointLevel.L1,
             affected_skills=["S02"],
         )
         with pytest.raises(RuntimeError, match="Max concurrent"):
@@ -239,9 +251,11 @@ class TestAsyncReviewQueue:
     def test_cooldown_prevents_duplicate_review(self):
         """Scenario: Cooldown prevents duplicate reviews for same skill."""
         from skillpool.review.async_queue import AsyncReviewQueue
+
         queue = AsyncReviewQueue(cooldown_seconds=3600.0)
         req = ReviewTriggerRequest(
-            trigger=ReviewTrigger.MANUAL, checkpoint=CheckpointLevel.L1,
+            trigger=ReviewTrigger.MANUAL,
+            checkpoint=CheckpointLevel.L1,
             affected_skills=["S09"],
         )
         queue.submit(req)
@@ -252,9 +266,11 @@ class TestAsyncReviewQueue:
     def test_queue_entry_tracking(self):
         """Scenario: AsyncReviewQueue tracks submitted entries."""
         from skillpool.review.async_queue import AsyncReviewQueue
+
         queue = AsyncReviewQueue(max_concurrent=10, cooldown_seconds=0.01)
         req = ReviewTriggerRequest(
-            trigger=ReviewTrigger.MANUAL, checkpoint=CheckpointLevel.L1,
+            trigger=ReviewTrigger.MANUAL,
+            checkpoint=CheckpointLevel.L1,
             affected_skills=["S01"],
         )
         rid = queue.submit(req)

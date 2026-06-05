@@ -5,6 +5,7 @@ and appends structured entries under the appropriate category subsection.
 
 Categories: Added, Fixed, Changed, Deprecated, Removed, Security
 """
+
 from __future__ import annotations
 
 __all__ = ["append_changelog_entry"]
@@ -17,14 +18,16 @@ from pathlib import Path
 _CHANGELOG_PATH = Path(__file__).resolve().parent.parent.parent.parent / "CHANGELOG.md"
 
 # Valid categories (Keep a Changelog standard)
-VALID_CATEGORIES = frozenset({
-    "Added",
-    "Fixed",
-    "Changed",
-    "Deprecated",
-    "Removed",
-    "Security",
-})
+VALID_CATEGORIES = frozenset(
+    {
+        "Added",
+        "Fixed",
+        "Changed",
+        "Deprecated",
+        "Removed",
+        "Security",
+    }
+)
 
 
 def _detect_current_version(content: str) -> str | None:
@@ -157,9 +160,7 @@ def append_changelog_entry(
         FileNotFoundError: If CHANGELOG.md does not exist.
     """
     if category not in VALID_CATEGORIES:
-        raise ValueError(
-            f"Invalid category '{category}'. Must be one of: {', '.join(sorted(VALID_CATEGORIES))}"
-        )
+        raise ValueError(f"Invalid category '{category}'. Must be one of: {', '.join(sorted(VALID_CATEGORIES))}")
 
     path = Path(changelog_path) if changelog_path else _CHANGELOG_PATH
 
@@ -202,10 +203,7 @@ def append_changelog_entry(
 
     # Check if the category subsection header needs to be created
     category_header = f"### {category}"
-    category_exists = any(
-        lines[i].strip() == category_header
-        for i in range(section_start, section_end)
-    )
+    category_exists = any(lines[i].strip() == category_header for i in range(section_start, section_end))
 
     if category_exists:
         # Just insert the entry line

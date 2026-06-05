@@ -8,6 +8,7 @@ Targeted gaps:
 - parse_state: empty string, lowercase, uppercase, mixed case
 - check_auto_deprecation: skill with no executions, skill with low effectiveness
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch

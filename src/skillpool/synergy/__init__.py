@@ -7,6 +7,7 @@ Discovers and manages skill combination synergies:
 
 Part of SkillPool — independent infrastructure, shared by all agents.
 """
+
 from __future__ import annotations
 
 import logging
@@ -23,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 class SynergyEdge(BaseModel):
     """A synergy relationship between two skills with gain data."""
+
     source: str = Field(description="Primary skill ID")
     target: str = Field(description="Enhancing skill ID")
     gain: str = Field(default="", description="Expected gain (e.g. '+15%')")
@@ -33,6 +35,7 @@ class SynergyEdge(BaseModel):
 
 class SynergyDetectionResult(BaseModel):
     """Result of synergy detection run."""
+
     edges_created: int = 0
     edges_updated: int = 0
     edges_total: int = 0
@@ -81,6 +84,7 @@ class SynergyDetector:
             for yaml_file in skill_dir.glob("*.yaml"):
                 try:
                     import yaml
+
                     data = yaml.safe_load(yaml_file.read_text())
                     if not data or not isinstance(data, dict):
                         continue
@@ -186,7 +190,7 @@ class SynergyDetector:
                         target=enhancer,
                         gain=f"+{combo.gain_avg:.1f}%",
                         reason=f"{CombinationLifecycleState(combo.state).name} combination "
-                                f"(source={combo.source}, executions={combo.execution_count})",
+                        f"(source={combo.source}, executions={combo.execution_count})",
                         weight=round(weight, 3),
                         evidence="observed" if combo.state == CombinationLifecycleState.PROMOTED else "exploratory",
                     )

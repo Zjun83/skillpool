@@ -1,4 +1,5 @@
 """SkillPool CLI — command-line interface for skill governance and materialization."""
+
 from __future__ import annotations
 
 import json
@@ -47,12 +48,15 @@ def init():
 
 
 @main.command()
-@click.option("--agent", "agent_type", default="claude-code",
-              help="Target agent type (claude-code, codex, hermes)")
-@click.option("--target", "target_dir", type=click.Path(), default=None,
-              help="Target directory for materialized files")
-@click.option("--csdf", "csdf_path", type=click.Path(exists=True), default=None,
-              help="Path to a single CSDF YAML file to materialize")
+@click.option("--agent", "agent_type", default="claude-code", help="Target agent type (claude-code, codex, hermes)")
+@click.option("--target", "target_dir", type=click.Path(), default=None, help="Target directory for materialized files")
+@click.option(
+    "--csdf",
+    "csdf_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to a single CSDF YAML file to materialize",
+)
 def materialize(agent_type: str, target_dir: str | None, csdf_path: str | None):
     """Materialize skills into agent-specific runtime format.
 
@@ -61,7 +65,9 @@ def materialize(agent_type: str, target_dir: str | None, csdf_path: str | None):
     """
     from skillpool.materializer import Materializer
     from skillpool.profile import (
-        CLAUDE_CODE_PROFILE, CODEX_PROFILE, HERMES_PROFILE,
+        CLAUDE_CODE_PROFILE,
+        CODEX_PROFILE,
+        HERMES_PROFILE,
     )
 
     profiles = {
@@ -117,10 +123,8 @@ def materialize(agent_type: str, target_dir: str | None, csdf_path: str | None):
 
 
 @main.command()
-@click.option("--agent", "agent_type", default="claude-code",
-              help="Target agent type")
-@click.option("--target", "target_dir", type=click.Path(), default=None,
-              help="Target directory")
+@click.option("--agent", "agent_type", default="claude-code", help="Target agent type")
+@click.option("--target", "target_dir", type=click.Path(), default=None, help="Target directory")
 @click.option("--force", is_flag=True, help="Force re-materialize all skills")
 def sync(agent_type: str, target_dir: str | None, force: bool):
     """Incremental sync — only re-materialize changed skills.
@@ -132,7 +136,9 @@ def sync(agent_type: str, target_dir: str | None, force: bool):
 
     from skillpool.materializer import Materializer
     from skillpool.profile import (
-        CLAUDE_CODE_PROFILE, CODEX_PROFILE, HERMES_PROFILE,
+        CLAUDE_CODE_PROFILE,
+        CODEX_PROFILE,
+        HERMES_PROFILE,
     )
 
     profiles = {
@@ -205,6 +211,7 @@ def sync(agent_type: str, target_dir: str | None, force: bool):
 
             # Copy directory skill as-is
             import shutil
+
             dest_dir = out_path / skill_id
             if dest_dir.exists():
                 shutil.rmtree(dest_dir)
@@ -216,13 +223,13 @@ def sync(agent_type: str, target_dir: str | None, force: bool):
 
     click.echo(f"[sync] Synced {synced} skill(s), skipped {skipped} unchanged -> {target_dir}")
 
+
 # ── Register ──────────────────────────────────────────────────────
 
 
 @main.command()
 @click.option("--name", default="", help="Skill name")
-@click.option("--path", "skill_path", type=click.Path(exists=True), default=None,
-              help="Path to CSDF YAML file")
+@click.option("--path", "skill_path", type=click.Path(exists=True), default=None, help="Path to CSDF YAML file")
 def register(name: str, skill_path: str | None):
     """Register a skill into the Registry.
 
@@ -238,6 +245,7 @@ def register(name: str, skill_path: str | None):
 
     if skill_path:
         import yaml
+
         content = Path(skill_path).read_text()
         csdf = yaml.safe_load(content) or {}
         skill_id = csdf.get("id", Path(skill_path).stem)
@@ -290,6 +298,7 @@ def inspect(skill_id: str):
     # 3. Try CSDF YAML file (direct filesystem lookup)
     if record is None:
         import yaml as _yaml
+
         sp_dir = _find_skillpool_dir()
         skills_dir = sp_dir / "skills"
 
@@ -363,11 +372,10 @@ def status():
 
 @main.command()
 @click.argument("skill_id")
-@click.option("--upgrade-type", default="PATCH",
-              type=click.Choice(["PATCH", "MINOR", "MAJOR"]),
-              help="Evolution upgrade type")
-@click.option("--updates", default=None,
-              help="JSON string of field updates to apply")
+@click.option(
+    "--upgrade-type", default="PATCH", type=click.Choice(["PATCH", "MINOR", "MAJOR"]), help="Evolution upgrade type"
+)
+@click.option("--updates", default=None, help="JSON string of field updates to apply")
 def evolve(skill_id: str, upgrade_type: str, updates: str | None):
     """Execute an evolution for a skill: write changes to CSDF YAML + re-materialize.
 
@@ -436,7 +444,7 @@ def heal(proposal_id: str):
     elif result["status"] == "verified":
         click.echo(f"Healed: {result['proposal_id']}")
         click.echo(f"  BDD passed: {result['verification']['bdd_passed']}")
-        if result['verification'].get('yaml_updated') or result['verification'].get('yaml_restored'):
+        if result["verification"].get("yaml_updated") or result["verification"].get("yaml_restored"):
             click.echo("  YAML changes persisted: yes")
     elif result["status"] == "rolled_back":
         click.echo(f"Healing rolled back: {result['proposal_id']}")
@@ -449,8 +457,7 @@ def heal(proposal_id: str):
 
 
 @main.command()
-@click.option("--checkpoint", type=click.Choice(["L1", "L2", "L3", "L4"]),
-              default="L2", help="Review checkpoint level")
+@click.option("--checkpoint", type=click.Choice(["L1", "L2", "L3", "L4"]), default="L2", help="Review checkpoint level")
 def review(checkpoint: str):
     """Run a review checkpoint (L1-L4).
 
@@ -481,10 +488,10 @@ def gate():
 
 @gate.command()
 @click.argument("task_description")
-@click.option("--policy", "policy_path", type=click.Path(exists=True), default=None,
-              help="Path to gate.policy YAML file")
-@click.option("--files", "changed_files", default=None,
-              help="Comma-separated list of changed files")
+@click.option(
+    "--policy", "policy_path", type=click.Path(exists=True), default=None, help="Path to gate.policy YAML file"
+)
+@click.option("--files", "changed_files", default=None, help="Comma-separated list of changed files")
 def assess(task_description: str, policy_path: str | None, changed_files: str | None):
     """Assess task complexity and set gate level.
 
@@ -510,8 +517,7 @@ def assess(task_description: str, policy_path: str | None, changed_files: str | 
 
 @gate.command()
 @click.argument("target_phase")
-@click.option("--state-path", type=click.Path(), default=None,
-              help="Path to gate.json file")
+@click.option("--state-path", type=click.Path(), default=None, help="Path to gate.json file")
 def transition(target_phase: str, state_path: str | None):
     """Transition gate to target phase.
 
@@ -535,8 +541,7 @@ def transition(target_phase: str, state_path: str | None):
 
 
 @gate.command("status")
-@click.option("--state-path", type=click.Path(), default=None,
-              help="Path to gate.json file")
+@click.option("--state-path", type=click.Path(), default=None, help="Path to gate.json file")
 def gate_status(state_path: str | None):
     """Show current gate state.
 
@@ -560,8 +565,7 @@ def gate_status(state_path: str | None):
 
 
 @gate.command("reset")
-@click.option("--state-path", type=click.Path(), default=None,
-              help="Path to gate.json file")
+@click.option("--state-path", type=click.Path(), default=None, help="Path to gate.json file")
 def gate_reset(state_path: str | None):
     """Reset gate state to IDLE (preserves created_at).
 
@@ -580,14 +584,14 @@ def gate_reset(state_path: str | None):
 
 
 @main.command()
-@click.option("--agent-type", default="claude-code",
-              help="Agent type for MCP server context")
+@click.option("--agent-type", default="claude-code", help="Agent type for MCP server context")
 def mcp(agent_type: str):
     """Start the SkillPool MCP server (stdio transport).
 
     This is how Agents connect to SkillPool at runtime.
     """
     from skillpool.mcp_server import mcp as mcp_server
+
     mcp_server.run(transport="stdio")
 
 
@@ -599,10 +603,8 @@ if __name__ == "__main__":
 
 
 @main.command("audit-runtime")
-@click.option("--duration", default=5, type=int,
-              help="Seconds to monitor before reporting (default: 5)")
-@click.option("--log-file", type=click.Path(), default=None,
-              help="Custom path for runtime audit JSONL log")
+@click.option("--duration", default=5, type=int, help="Seconds to monitor before reporting (default: 5)")
+@click.option("--log-file", type=click.Path(), default=None, help="Custom path for runtime audit JSONL log")
 def audit_runtime(duration: int, log_file: str | None):
     """Install runtime audit hook and report security-sensitive events.
 
@@ -652,8 +654,12 @@ def cost() -> None:
 @cost.command()
 @click.argument("skill_id")
 @click.option("--skill-length", type=int, default=0, help="Character count of skill definition")
-@click.option("--review-level", type=click.Choice(["L0", "L1", "L2", "L3+L2+"]), default="L1", help="Complexity review level")
-@click.option("--include-review-checkpoint/--no-review-checkpoint", default=False, help="Include review checkpoint overhead")
+@click.option(
+    "--review-level", type=click.Choice(["L0", "L1", "L2", "L3+L2+"]), default="L1", help="Complexity review level"
+)
+@click.option(
+    "--include-review-checkpoint/--no-review-checkpoint", default=False, help="Include review checkpoint overhead"
+)
 @click.option("--emergency-bypass-path", type=str, default=None, help="Path to emergency_overrides.json")
 def estimate(
     skill_id: str,

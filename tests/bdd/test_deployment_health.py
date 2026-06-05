@@ -35,7 +35,7 @@ class TestHealthCheck:
     def test_component_exception(self):
         """Scenario: Component check throws exception → NOT_SERVING for that component."""
         checker = HealthChecker()
-        checker.register("db", check_fn=lambda: 1/0, critical=True)
+        checker.register("db", check_fn=lambda: 1 / 0, critical=True)
         resp = checker.check()
         assert resp.status == ServingStatus.NOT_SERVING
 
@@ -148,9 +148,9 @@ class TestGrpcHealthMock:
         # Our mapping: SERVING→SERVING, NOT_SERVING→NOT_SERVING, SERVICE_UNKNOWN→DEGRADED
         grpc_to_internal = {
             0: ServingStatus.NOT_SERVING,  # UNKNOWN
-            1: ServingStatus.SERVING,       # SERVING
-            2: ServingStatus.NOT_SERVING,   # NOT_SERVING
-            3: ServingStatus.DEGRADED,      # SERVICE_UNKNOWN
+            1: ServingStatus.SERVING,  # SERVING
+            2: ServingStatus.NOT_SERVING,  # NOT_SERVING
+            3: ServingStatus.DEGRADED,  # SERVICE_UNKNOWN
         }
         assert grpc_to_internal[1] == ServingStatus.SERVING
         assert grpc_to_internal[2] == ServingStatus.NOT_SERVING
@@ -158,6 +158,7 @@ class TestGrpcHealthMock:
 
     def test_grpc_health_check_request_mock(self):
         """Scenario: gRPC HealthCheckRequest mock with service name."""
+
         # Simulate a gRPC HealthCheckRequest
         class MockHealthCheckRequest:
             def __init__(self, service: str = ""):
@@ -168,6 +169,7 @@ class TestGrpcHealthMock:
 
     def test_grpc_health_check_response_mock(self):
         """Scenario: gRPC HealthCheckResponse mock maps to internal status."""
+
         class MockGrpcHealthResponse:
             SERVING = 1
             NOT_SERVING = 2

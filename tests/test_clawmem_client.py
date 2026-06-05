@@ -1,4 +1,5 @@
 """Tests for ClawMemClient — ClawMem integration for dual-write."""
+
 from __future__ import annotations
 
 
@@ -56,7 +57,12 @@ class TestClawMemClientBasic:
         client = ClawMemClient(http_url="http://127.0.0.1:19999", use_http=True, timeout_seconds=0.5)
         result = client.write_blindspot("test")
         assert not result.success
-        assert "error" in result.error.lower() or "refused" in result.error.lower() or "timed" in result.error.lower() or "connect" in result.error.lower()
+        assert (
+            "error" in result.error.lower()
+            or "refused" in result.error.lower()
+            or "timed" in result.error.lower()
+            or "connect" in result.error.lower()
+        )
 
     def test_pending_writes_accumulate(self) -> None:
         client = ClawMemClient(use_http=False)

@@ -17,6 +17,7 @@ CSDF Mapper — 14 条 CSDF→SKILL.md 映射规则引擎
   R13: min_trust_level → 信任等级要求
   R14: paradigm → 范式标签
 """
+
 from __future__ import annotations
 
 from typing import Callable

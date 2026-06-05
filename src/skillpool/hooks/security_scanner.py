@@ -7,6 +7,7 @@ Runs before any skill is materialized to ensure safety:
 
 Part of SkillPool — independent infrastructure, shared by all agents.
 """
+
 from __future__ import annotations
 
 import re
@@ -15,9 +16,9 @@ from enum import Enum
 from pathlib import Path
 
 
-
 class ThreatLevel(Enum):
     """Threat severity classification."""
+
     SAFE = "safe"
     WARNING = "warning"
     CRITICAL = "critical"
@@ -26,6 +27,7 @@ class ThreatLevel(Enum):
 @dataclass
 class SecurityCheckResult:
     """Result of a security check on skill content."""
+
     threat_level: ThreatLevel
     checks_passed: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
@@ -39,10 +41,10 @@ class SecurityCheckResult:
 # Dangerous patterns to detect in skill content (NOT executed — regex strings for scanning only)
 # These patterns are used to flag unsafe code in skill YAML/MD content before materialization.
 _DANGEROUS_PATTERNS: list[tuple[str, str]] = [
-    (r"\bexec\s*\(", "exec() call — arbitrary code execution"),           # NOSONAR: regex for detection, not a call
-    (r"\beval\s*\(", "eval() call — arbitrary code execution"),           # NOSONAR: regex for detection, not a call
-    (r"\bos\.system\s*\(", "os.system() call — shell injection risk"),    # NOSONAR: regex for detection, not a call
-    (r"\bos\.popen\s*\(", "os.popen() call — shell injection risk"),      # NOSONAR: regex for detection, not a call
+    (r"\bexec\s*\(", "exec() call — arbitrary code execution"),  # NOSONAR: regex for detection, not a call
+    (r"\beval\s*\(", "eval() call — arbitrary code execution"),  # NOSONAR: regex for detection, not a call
+    (r"\bos\.system\s*\(", "os.system() call — shell injection risk"),  # NOSONAR: regex for detection, not a call
+    (r"\bos\.popen\s*\(", "os.popen() call — shell injection risk"),  # NOSONAR: regex for detection, not a call
     (r"\bsubprocess\.\w+\s*\(", "subprocess call — external process execution"),
     (r"\b__import__\s*\(", "__import__() call — dynamic import risk"),
     (r"\bcompile\s*\(", "compile() call — dynamic code compilation"),
@@ -54,10 +56,10 @@ _DANGEROUS_PATTERNS: list[tuple[str, str]] = [
 
 # Safe contexts that should be excluded from dangerous matches
 _SAFE_CONTEXTS = [
-    r"#\s*",       # commented out code
-    r'"""',        # inside docstring
-    r"'''",        # inside docstring
-    r"re\.compile", # re.compile() is safe (not builtins.compile)
+    r"#\s*",  # commented out code
+    r'"""',  # inside docstring
+    r"'''",  # inside docstring
+    r"re\.compile",  # re.compile() is safe (not builtins.compile)
 ]
 
 
@@ -213,9 +215,7 @@ class SecurityScanner:
                 if is_safe_context:
                     continue
 
-                result.warnings.append(
-                    f"{description} at position {match.start()}: {match.group()}"
-                )
+                result.warnings.append(f"{description} at position {match.start()}: {match.group()}")
                 # Patterns that are always critical
                 critical_patterns = {r"\bexec\s*\(", r"\beval\s*\(", r"\bos\.system\s*\("}
                 if pattern in critical_patterns:
@@ -236,29 +236,24 @@ class SecurityScanner:
         """
         import os
 
-        tier = getattr(self, "_evidence_tier", None) or os.environ.get(
-            "SKILLPOOL_EVIDENCE_TIER", "dev"
-        )
+        tier = getattr(self, "_evidence_tier", None) or os.environ.get("SKILLPOOL_EVIDENCE_TIER", "dev")
         result = SecurityCheckResult(threat_level=ThreatLevel.SAFE)
         result.checks_passed.append("signature_check")
 
         if tier == "prod":
             # Production: signature is REQUIRED — block if not verified
             result.blockers.append(
-                "Signature verification REQUIRED in prod tier — "
-                "configure cosign/sigstore before deployment"
+                "Signature verification REQUIRED in prod tier — configure cosign/sigstore before deployment"
             )
             result.threat_level = ThreatLevel.CRITICAL
         elif tier == "ci":
             result.warnings.append(
-                "Signature verification is a placeholder in CI — "
-                "production deployment requires cosign/sigstore"
+                "Signature verification is a placeholder in CI — production deployment requires cosign/sigstore"
             )
             result.threat_level = ThreatLevel.WARNING
         else:
             result.warnings.append(
-                "Signature verification skipped (dev tier) — "
-                "set SKILLPOOL_EVIDENCE_TIER=prod for strict checking"
+                "Signature verification skipped (dev tier) — set SKILLPOOL_EVIDENCE_TIER=prod for strict checking"
             )
         return result
 

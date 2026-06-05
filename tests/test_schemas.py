@@ -16,6 +16,7 @@ from skillpool.schemas import (
 
 # --- Fixtures ---
 
+
 @pytest.fixture
 def valid_csdf_dict() -> dict:
     """A minimal valid CSDF skill dictionary."""
@@ -63,6 +64,7 @@ checklist:
 
 # --- Tests for ChecklistItem ---
 
+
 class TestChecklistItem:
     def test_valid_checklist_item(self) -> None:
         item = ChecklistItem(id="C01", description="Test item", severity="critical")
@@ -81,6 +83,7 @@ class TestChecklistItem:
 
 
 # --- Tests for CSDFSkill ---
+
 
 class TestCSDFSkill:
     def test_valid_csdf_passes(self, valid_csdf_dict: dict) -> None:
@@ -163,6 +166,7 @@ class TestCSDFSkill:
 
 # --- Tests for validate_csdf function ---
 
+
 class TestValidateCsdf:
     def test_validate_csdf_returns_skill(self, valid_csdf_dict: dict) -> None:
         skill = validate_csdf(valid_csdf_dict)
@@ -176,33 +180,26 @@ class TestValidateCsdf:
 
 # --- Tests for validate_csdf_file function ---
 
+
 class TestValidateCsdfFile:
-    def test_validate_csdf_file_valid_yaml(
-        self, valid_csdf_yaml: Path
-    ) -> None:
+    def test_validate_csdf_file_valid_yaml(self, valid_csdf_yaml: Path) -> None:
         skill = validate_csdf_file(valid_csdf_yaml)
         assert skill.id == "S05a"
         assert skill.version == "9.0.0"
         assert len(skill.checklist) == 2
 
-    def test_validate_csdf_file_missing_raises(
-        self, tmp_path: Path
-    ) -> None:
+    def test_validate_csdf_file_missing_raises(self, tmp_path: Path) -> None:
         missing_path = tmp_path / "nonexistent.yaml"
         with pytest.raises(FileNotFoundError):
             validate_csdf_file(missing_path)
 
-    def test_validate_csdf_file_invalid_yaml_content(
-        self, tmp_path: Path
-    ) -> None:
+    def test_validate_csdf_file_invalid_yaml_content(self, tmp_path: Path) -> None:
         bad_yaml = tmp_path / "invalid.yaml"
         bad_yaml.write_text("- item1\n- item2\n", encoding="utf-8")
         with pytest.raises(ValueError, match="Expected a YAML mapping"):
             validate_csdf_file(bad_yaml)
 
-    def test_validate_csdf_file_schema_error(
-        self, tmp_path: Path
-    ) -> None:
+    def test_validate_csdf_file_schema_error(self, tmp_path: Path) -> None:
         bad_schema = tmp_path / "bad_schema.yaml"
         bad_schema.write_text(
             """
@@ -216,6 +213,7 @@ name: "Missing required fields"
 
 
 # --- Tests for validate_contract method (lines 67-85) ---
+
 
 class TestValidateContract:
     """Tests for CSDFSkill.validate_contract() — GovernSpec contract validation.
@@ -415,6 +413,7 @@ class TestValidateContract:
 
 
 # --- Integration test with real skill file ---
+
 
 class TestRealSkillFiles:
     def test_validate_real_s05a_yaml(self) -> None:
