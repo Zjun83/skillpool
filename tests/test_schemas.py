@@ -416,6 +416,10 @@ class TestValidateContract:
 
 
 class TestRealSkillFiles:
+    @pytest.mark.skipif(
+        not Path("/root/.skillpool/skills").is_dir(),
+        reason="Real skill files not available (CI environment)",
+    )
     def test_validate_real_s05a_yaml(self) -> None:
         """Validate an actual skill file from the skills directory."""
         skill_path = Path("/root/.skillpool/skills/S05a-security-transport.yaml")
@@ -426,6 +430,10 @@ class TestRealSkillFiles:
             assert skill.weight is not None
             assert 0 < skill.weight <= 1
 
+    @pytest.mark.skipif(
+        not Path("/root/.skillpool/skills").is_dir(),
+        reason="Real skill files not available (CI environment)",
+    )
     def test_validate_real_s10_yaml(self) -> None:
         """Validate S10 which has version 9.1.0."""
         skill_path = Path("/root/.skillpool/skills/S10-recovery-mttr.yaml")
@@ -435,6 +443,10 @@ class TestRealSkillFiles:
             assert skill.version == "9.1.0"
             assert skill.dimension == SkillDimension.D5
 
+    @pytest.mark.skipif(
+        not Path("/root/.skillpool/skills").is_dir(),
+        reason="Real skill files not available (CI environment)",
+    )
     def test_validate_real_s00_yaml(self) -> None:
         """Validate S00 orchestrator with dimension=ALL and weight=null."""
         skill_path = Path("/root/.skillpool/skills/S00-orchestrator.yaml")

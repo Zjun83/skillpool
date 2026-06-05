@@ -81,7 +81,7 @@ def _reset_search_state(tmp_path):
     _mod._search_done_callers.clear()
     _mod._RESOURCE_CACHE.clear()
     sd = _create_test_skills(tmp_path / "skills")
-    with patch.object(_mod, "_SKILLS_DIR", sd):
+    with patch.object(_mod, "_SKILLS_DIR", sd), patch.object(_mod._lazy_loader, "_skills_dir", sd):
         yield
     _mod._search_done_callers.clear()
     _mod._RESOURCE_CACHE.clear()

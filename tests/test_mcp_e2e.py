@@ -16,14 +16,26 @@ Part of SkillPool — independent infrastructure, shared by all agents.
 from __future__ import annotations
 
 import os
+from unittest.mock import patch
 
 # Ensure dev evidence tier BEFORE importing mcp_server
 os.environ.setdefault("SKILLPOOL_EVIDENCE_TIER", "dev")
 
+import pytest
 import pytest_asyncio
 
 from fastmcp.client import Client
 from skillpool.mcp_server import mcp
+import skillpool.mcp_server as _mod
+from tests.conftest import _create_test_skills
+
+
+@pytest.fixture(autouse=True)
+def _patch_skills_dir(tmp_path):
+    """Patch mcp_server._SKILLS_DIR and LazySkillLoader with test data for CI compatibility."""
+    sd = _create_test_skills(tmp_path / "skills")
+    with patch.object(_mod, "_SKILLS_DIR", sd), patch.object(_mod._lazy_loader, "_skills_dir", sd):
+        yield
 
 
 @pytest_asyncio.fixture
