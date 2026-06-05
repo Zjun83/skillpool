@@ -415,9 +415,17 @@ class TestValidateContract:
 # --- Integration test with real skill file ---
 
 
+def _skills_dir_accessible() -> bool:
+    """Check if /root/.skillpool/skills is accessible (not in CI)."""
+    try:
+        return Path("/root/.skillpool/skills").is_dir()
+    except PermissionError:
+        return False
+
+
 class TestRealSkillFiles:
     @pytest.mark.skipif(
-        not Path("/root/.skillpool/skills").is_dir(),
+        not _skills_dir_accessible(),
         reason="Real skill files not available (CI environment)",
     )
     def test_validate_real_s05a_yaml(self) -> None:
@@ -431,7 +439,7 @@ class TestRealSkillFiles:
             assert 0 < skill.weight <= 1
 
     @pytest.mark.skipif(
-        not Path("/root/.skillpool/skills").is_dir(),
+        not _skills_dir_accessible(),
         reason="Real skill files not available (CI environment)",
     )
     def test_validate_real_s10_yaml(self) -> None:
@@ -444,7 +452,7 @@ class TestRealSkillFiles:
             assert skill.dimension == SkillDimension.D5
 
     @pytest.mark.skipif(
-        not Path("/root/.skillpool/skills").is_dir(),
+        not _skills_dir_accessible(),
         reason="Real skill files not available (CI environment)",
     )
     def test_validate_real_s00_yaml(self) -> None:
