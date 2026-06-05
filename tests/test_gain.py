@@ -171,11 +171,11 @@ class TestGainReport:
 class TestGainTrackerInit:
     """Test GainTracker constructor."""
 
-    def test_default_data_dir(self):
+    def test_default_data_dir(self, tmp_path):
         """When no data_dir provided, uses get_data_dir() / 'gain'."""
-        with patch("skillpool.gain.get_data_dir", return_value=Path("/fake")):
+        with patch("skillpool.gain.get_data_dir", return_value=tmp_path / "fake"):
             t = GainTracker()
-            assert t.data_dir == Path("/fake/gain")
+            assert t.data_dir == tmp_path / "fake" / "gain"
 
     def test_custom_data_dir(self, tmp_path):
         t = GainTracker(data_dir=tmp_path)

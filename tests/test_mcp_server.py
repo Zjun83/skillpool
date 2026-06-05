@@ -70,11 +70,19 @@ from skillpool.audit import AuditLayer
 
 
 @pytest.fixture(autouse=True)
-def _reset_search_state():
-    """Clear search-first enforcement state between tests."""
+def _reset_search_state(tmp_path):
+    """Clear search-first enforcement state between tests.
+
+    Also patches _SKILLS_DIR to a temp dir with minimal test skill data,
+    so tests work in CI where ~/.skillpool/skills/ is empty.
+    """
+    from tests.conftest import _create_test_skills
+
     _mod._search_done_callers.clear()
     _mod._RESOURCE_CACHE.clear()
-    yield
+    sd = _create_test_skills(tmp_path / "skills")
+    with patch.object(_mod, "_SKILLS_DIR", sd):
+        yield
     _mod._search_done_callers.clear()
     _mod._RESOURCE_CACHE.clear()
 
