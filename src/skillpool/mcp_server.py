@@ -209,6 +209,61 @@ class TimingMiddleware(Middleware):
         return result
 
 
+class OtelTracingMiddleware(Middleware):
+    """Export MCP spans to OpenTelemetry collector (Jaeger) via OTLP HTTP.
+
+    Enabled by setting SKILLPOOL_OTEL_EXPORT=true.
+    Sends trace data to localhost:4318 (Jaeger OTLP HTTP endpoint).
+    """
+
+    def __init__(self) -> None:
+        self._enabled = os.environ.get("SKILLPOOL_OTEL_EXPORT", "").lower() == "true"
+        self._tracer = None
+        if self._enabled:
+            try:
+                from opentelemetry import trace
+                from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+                from opentelemetry.sdk.trace import TracerProvider
+                from opentelemetry.sdk.trace.export import BatchSpanProcessor
+                from opentelemetry.sdk.resources import Resource
+
+                resource = Resource.create({"service.name": "skillpool", "service.version": "4.3.0"})
+                exporter = OTLPSpanExporter(endpoint="http://localhost:4318/v1/traces")
+                provider = TracerProvider(resource=resource)
+                provider.add_span_processor(BatchSpanProcessor(exporter))
+                trace.set_tracer_provider(provider)
+                self._tracer = trace.get_tracer("skillpool.mcp")
+                logger.info("otel_tracing_enabled: endpoint=http://localhost:4318")
+            except Exception as e:
+                logger.warning("otel_tracing_setup_failed: %s", e)
+                self._enabled = False
+
+    async def on_call_tool(self, context, call_next):
+        if not self._enabled or not self._tracer:
+            return await call_next(context)
+        tool_name = context.message.name
+        with self._tracer.start_as_current_span(f"mcp.tool.{tool_name}") as span:
+            span.set_attribute("mcp.tool.name", tool_name)
+            span.set_attribute("mcp.type", "tool")
+            result = await call_next(context)
+            status = SkillPoolLoggingMiddleware._detect_error_status(result)
+            span.set_attribute("mcp.result", status)
+            if status != "success":
+                from opentelemetry import trace as _trace
+                span.set_status(_trace.StatusCode.ERROR)
+            return result
+
+    async def on_read_resource(self, context, call_next):
+        if not self._enabled or not self._tracer:
+            return await call_next(context)
+        uri = str(getattr(context.message, "uri", "unknown"))
+        with self._tracer.start_as_current_span(f"mcp.resource.{uri}") as span:
+            span.set_attribute("mcp.resource.uri", uri)
+            span.set_attribute("mcp.type", "resource")
+            result = await call_next(context)
+            return result
+
+
 _PROFILES: dict[str, AgentCapabilityProfile] = {
     "claude-code": CLAUDE_CODE_PROFILE,
     "codex": CODEX_PROFILE,
@@ -240,6 +295,7 @@ _security_scanner = SecurityScanner()  # Part of SkillPool
 mcp.add_middleware(AuthMiddleware())
 mcp.add_middleware(SkillPoolLoggingMiddleware())
 mcp.add_middleware(TimingMiddleware(monitor=_monitor))
+mcp.add_middleware(OtelTracingMiddleware())
 
 
 def _get_profile(name: str) -> AgentCapabilityProfile:
