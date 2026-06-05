@@ -1,4 +1,4 @@
-# ── SkillPool V4.1 Docker Compose ────────────────────────────────
+# ── SkillPool V4.3 Docker Compose ────────────────────────────────
 # docker compose -f deploy/docker-compose.yml up -d
 # ──────────────────────────────────────────────────────────────────
 
@@ -10,6 +10,12 @@ services:
     image: skillpool:4.3.0
     container_name: skillpool
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
     ports:
       - "8101:8101"
     environment:

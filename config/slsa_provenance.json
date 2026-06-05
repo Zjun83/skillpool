@@ -1,26 +1,41 @@
 {
+  "_comment": "SLSA Provenance v1.0 template — CI fills in per-build values at <CI: ...> markers",
   "_type": "https://in-toto.io/Statement/v0.1",
-  "predicateType": "https://slsa.dev/provenance/v1.0",
-  "subject": [],
-  "predicate": {
-    "buildDefinition": {
-      "buildType": "https://github.com/actions/workflow",
-      "externalParameters": {
-        "workflow": "ci.yml",
-        "ref": "refs/heads/main"
-      },
-      "internalParameters": {},
-      "resolvedDependencies": []
-    },
-    "runDetails": {
-      "builder": {
-        "id": "https://github.com/sigstore/cosign"
-      },
-      "metadata": {
-        "invocationId": "",
-        "startedOn": "",
-        "finishedOn": ""
+  "predicateType": "https://slsa.dev/provenance/v0.2",
+  "subject": [
+    {
+      "name": "skillpool",
+      "digest": {
+        "sha256": "<CI: insert artifact sha256>"
       }
     }
+  ],
+  "predicate": {
+    "builder": {
+      "id": "https://github.com/Zjun83/skillpool/.github/workflows/ci.yml"
+    },
+    "buildType": "https://github.com/actions/workflow",
+    "invocation": {
+      "configSource": {
+        "uri": "https://github.com/Zjun83/skillpool.git",
+        "digest": {
+          "sha1": "<CI: insert commit sha>"
+        },
+        "entryPoint": ".github/workflows/ci.yml"
+      },
+      "parameters": {},
+      "environment": {
+        "GITHUB_RUN_ID": "<CI: insert run id>"
+      }
+    },
+    "buildConfig": {},
+    "materials": [
+      {
+        "uri": "pkg:pypi/skillpool@<CI: insert version>",
+        "digest": {
+          "sha256": "<CI: insert wheel sha256>"
+        }
+      }
+    ]
   }
 }
