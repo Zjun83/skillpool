@@ -5,25 +5,56 @@
 ## Quick Start
 
 ```bash
-# Install (editable)
+# Install
+pip install skillpool
+
+# Or install from source (editable)
 pip install -e .
 
 # CLI
 skillpool --version
 skillpool inspect S09
 
-# MCP Server (stdio)
+# MCP Server (HTTP, recommended for production)
+skillpool-mcp --transport streamable-http --port 8101
+
+# MCP Server (stdio, for single-agent use)
 skillpool-mcp
 ```
+
+### MCP Configuration (Claude Code)
+
+```json
+{
+  "skillpool": {
+    "url": "http://127.0.0.1:8101/mcp",
+    "headers": {
+      "Authorization": "Bearer <your-api-key>"
+    }
+  }
+}
+```
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SKILLPOOL_API_KEY` | (unset) | API key for auth (unset = auth disabled) |
+| `SKILLPOOL_REGISTRY_PATH` | (none) | Registry persistence path (.db/.jsonl/.json) |
+| `SKILLPOOL_EVIDENCE_TIER` | `prod` | Supply chain evidence tier (dev/ci/prod) |
+| `SKILLPOOL_HOST` | `127.0.0.1` | HTTP server bind address |
+| `SKILLPOOL_PORT` | `8101` | HTTP server port |
 
 ## Architecture (V4.3 Dual-Channel)
 
 | Channel | Transport | Purpose |
 |---------|-----------|---------|
 | CLI | Start Hook | Materialization — one-time SKILL.md file writes |
-| MCP Resources | stdio | Read-only context delivery (skill definitions, audit, bugs) |
-| MCP Tools | stdio | State-changing governance actions (register, gate, heal) |
-| MCP Prompts | stdio | User-controlled templates (review, skill context) |
+| MCP Resources | HTTP/stdio | Read-only context delivery (skill definitions, audit, bugs) |
+| MCP Tools | HTTP/stdio | State-changing governance actions (register, gate, heal) |
+| MCP Prompts | HTTP/stdio | User-controlled templates (review, skill context) |
+
+Production deployment uses Streamable HTTP (`:8101`) for shared-state multi-agent access.
 
 ## MCP Resources (Read-Only)
 
@@ -55,6 +86,9 @@ skillpool-mcp
 | `monitor_evaluate` | Five-dimension skill evaluation |
 | `health_check` | System health check |
 | `review_trigger` | Trigger review checkpoint (L1-L4) |
+| `skill_search` | Search skills by intent |
+| `skill_get` | Get skill definition |
+| `skill_match` | Match skills to task description |
 
 ## MCP Prompts (User-Controlled)
 
@@ -69,7 +103,8 @@ skillpool-mcp
 Three-layer pre-materialization security gate:
 1. **Hook layer**: SecurityScanner — YAML safety + dangerous pattern scanning
 2. **MCP layer**: `gate_check` tool — complexity assessment + profile matching
-3. **Audit layer**: Immutable hash chain — all actions recorded, tamper-evident
+3. **Auth layer**: `AuthMiddleware` — Bearer token API key authentication
+4. **Audit layer**: Immutable hash chain — all actions recorded, tamper-evident
 
 Timeout degradation: `gate_check` → DENY, `telemetry` → silent, `health_check` → DEGRADED
 
@@ -89,11 +124,25 @@ Timeout degradation: `gate_check` → DENY, `telemetry` → silent, `health_chec
 | SecurityScanner | YAML safety + dangerous pattern scanning + signature placeholder |
 | Audit | 34-field OTel audit + SHA-256 hash chain |
 | Evolver | Defect accumulation + Add/Merge/Discard evolution |
-| Registry | Skill registry + supply chain evidence + 9-state lifecycle |
+| Registry | Skill registry + supply chain evidence + SQLite/JSON dual-backend |
+
+## Monitoring
+
+Prometheus metrics available at `:9101/metrics` via `scripts/metrics_server.py`.
+
+| Metric | Description |
+|--------|-------------|
+| `skillpool_skill_invocations_total` | Total skill invocations |
+| `skillpool_skill_errors_total` | Total skill errors |
+| `skillpool_health_status` | Health check status |
+
+## Deployment
+
+See [docs/deployment.md](docs/deployment.md) for systemd, Docker, and K8s deployment guides.
 
 ## Test Baseline
 
-1027 tests passing (V4.3.0)
+2261 tests passing (V4.3.0), 96%+ statement coverage
 
 ## License
 

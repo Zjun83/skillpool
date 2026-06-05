@@ -84,13 +84,19 @@ class AuthMiddleware(Middleware):
         """Extract and validate API key from request context."""
         if not self._required_key:
             return True
-        # Check Authorization: Bearer <key>
-        headers = getattr(context, "headers", None) or {}
-        auth_header = headers.get("authorization", "") or headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header[7:].strip()
-            if token == self._required_key:
-                return True
+        # Check Authorization: Bearer <key> via HTTP request
+        try:
+            from fastmcp.server.dependencies import get_http_request
+
+            request = get_http_request()
+            if request:
+                auth_header = request.headers.get("authorization", "")
+                if auth_header.startswith("Bearer "):
+                    token = auth_header[7:].strip()
+                    if token == self._required_key:
+                        return True
+        except (ImportError, LookupError, RuntimeError):
+            pass
         # Check api_key in message arguments (for tool calls)
         args = getattr(context.message, "arguments", None) or {}
         if isinstance(args, dict) and args.get("api_key") == self._required_key:
@@ -100,22 +106,26 @@ class AuthMiddleware(Middleware):
     async def on_call_tool(self, context, call_next):
         if not self._validate_key(context):
             logger.warning("mcp_auth_rejected", extra={"tool": context.message.name})
-            from fastmcp.utilities.types import TextContent
+            from mcp.types import TextContent
             from fastmcp.server.types import ToolResult
 
             return ToolResult(
                 content=[
                     TextContent(type="text", text='{"error": "unauthorized", "detail": "Invalid or missing API key"}')
-                ]
+                ],
+                is_error=True,
             )
         return await call_next(context)
 
     async def on_read_resource(self, context, call_next):
         if not self._validate_key(context):
             logger.warning("mcp_auth_rejected_resource", extra={"uri": str(getattr(context.message, "uri", "unknown"))})
-            from fastmcp.utilities.types import TextContent
+            from fastmcp.resources import ResourceResult
 
-            return [TextContent(type="text", text='{"error": "unauthorized", "detail": "Invalid or missing API key"}')]
+            return ResourceResult(
+                '{"error": "unauthorized", "detail": "Invalid or missing API key"}',
+                meta={"error": True},
+            )
         return await call_next(context)
 
 
@@ -218,7 +228,7 @@ _RESOURCE_CACHE_MAX = 50  # max cached entries
 # Part of SkillPool — independent infrastructure, shared by all agents
 _audit = AuditLayer()
 _evolver = EvolverLayer(audit_layer=_audit)
-_registry = Registry(audit_layer=_audit)
+_registry = Registry(audit_layer=_audit, registry_path=os.environ.get("SKILLPOOL_REGISTRY_PATH"))
 _monitor = MonitorLayer(audit_layer=_audit)
 _health = HealthManager(monitor=_monitor)
 _lazy_loader = LazySkillLoader()

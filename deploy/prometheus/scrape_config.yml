@@ -1,0 +1,7 @@
+scrape_configs:
+  - job_name: skillpool
+    static_configs:
+      - targets: ['localhost:9101']
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    metrics_path: /metrics

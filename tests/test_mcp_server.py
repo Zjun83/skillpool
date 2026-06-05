@@ -1097,9 +1097,8 @@ class TestAuthMiddleware:
         with patch.dict(os.environ, {"SKILLPOOL_API_KEY": "test-secret-123"}):
             mw = _mod.AuthMiddleware()
             context = MagicMock()
-            context.headers = {"authorization": "Bearer test-secret-123"}
             context.message = MagicMock()
-            context.message.arguments = {}
+            context.message.arguments = {"api_key": "test-secret-123"}
             assert mw._validate_key(context) is True
 
     def test_invalid_key_fails(self):
@@ -1107,9 +1106,8 @@ class TestAuthMiddleware:
         with patch.dict(os.environ, {"SKILLPOOL_API_KEY": "test-secret-123"}):
             mw = _mod.AuthMiddleware()
             context = MagicMock()
-            context.headers = {"authorization": "Bearer wrong-key"}
             context.message = MagicMock()
-            context.message.arguments = {}
+            context.message.arguments = {"api_key": "wrong-key"}
             assert mw._validate_key(context) is False
 
     def test_missing_key_fails(self):
@@ -1117,7 +1115,6 @@ class TestAuthMiddleware:
         with patch.dict(os.environ, {"SKILLPOOL_API_KEY": "test-secret-123"}):
             mw = _mod.AuthMiddleware()
             context = MagicMock()
-            context.headers = {}
             context.message = MagicMock()
             context.message.arguments = {}
             assert mw._validate_key(context) is False
@@ -1127,10 +1124,21 @@ class TestAuthMiddleware:
         with patch.dict(os.environ, {"SKILLPOOL_API_KEY": "test-secret-123"}):
             mw = _mod.AuthMiddleware()
             context = MagicMock()
-            context.headers = {}
             context.message = MagicMock()
             context.message.arguments = {"api_key": "test-secret-123"}
             assert mw._validate_key(context) is True
+
+    def test_bearer_header_passes(self):
+        """API key via Authorization Bearer header should pass validation."""
+        with patch.dict(os.environ, {"SKILLPOOL_API_KEY": "test-secret-123"}):
+            mw = _mod.AuthMiddleware()
+            context = MagicMock()
+            context.message = MagicMock()
+            context.message.arguments = {}
+            mock_request = MagicMock()
+            mock_request.headers = {"authorization": "Bearer test-secret-123"}
+            with patch("fastmcp.server.dependencies.get_http_request", return_value=mock_request):
+                assert mw._validate_key(context) is True
 
 
 # ═══════════════════════════════════════════════════════════════════

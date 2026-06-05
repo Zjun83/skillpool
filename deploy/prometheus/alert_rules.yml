@@ -1,0 +1,31 @@
+groups:
+  - name: skillpool
+    rules:
+      - alert: SkillPoolHighErrorRate
+        expr: >
+          rate(skillpool_skill_errors_total[5m])
+          / rate(skillpool_skill_invocations_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "SkillPool error rate above 5%"
+          description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+
+      - alert: SkillPoolHighMemory
+        expr: process_resident_memory_bytes > 268435456
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "SkillPool memory above 256MB"
+          description: "RSS memory is {{ $value | humanize }}B"
+
+      - alert: SkillPoolServiceDown
+        expr: up{job="skillpool"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SkillPool metrics server is down"
+          description: "Prometheus cannot reach SkillPool metrics endpoint"
