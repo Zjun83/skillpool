@@ -264,6 +264,88 @@ class OtelTracingMiddleware(Middleware):
             return result
 
 
+class AgentProfileMiddleware(Middleware):
+    """Read agent capability profile from MCP initialize or HTTP header.
+
+    Resolution order:
+      1. capabilities.experimental.agentProfile in initialize handshake
+      2. X-Agent-Profile HTTP header (JSON-encoded dict)
+      3. Fallback to static _PROFILES dict by agent_type
+
+    The resolved profile is stored in session state so tools/resources
+    can access it via ctx.get_state("agent_profile").
+    """
+
+    async def on_initialize(self, context, call_next):
+        profile: AgentCapabilityProfile | None = None
+
+        # 1. Try capabilities.experimental.agentProfile
+        caps = getattr(context.message, "capabilities", None) or {}
+        experimental = caps.get("experimental", {}) if isinstance(caps, dict) else getattr(caps, "experimental", {})
+        agent_profile_data = experimental.get("agentProfile") if isinstance(experimental, dict) else None
+
+        if isinstance(agent_profile_data, dict) and agent_profile_data:
+            try:
+                profile = AgentCapabilityProfile.from_dict(agent_profile_data)
+                logger.info("agent_profile_from_mcp: %s", profile.name)
+            except (ValueError, TypeError) as e:
+                logger.warning("agent_profile_mcp_parse_failed: %s", e)
+
+        # 2. Fallback: X-Agent-Profile HTTP header
+        if profile is None:
+            try:
+                from fastmcp.server.dependencies import get_http_headers
+
+                headers = get_http_headers(include={"x-agent-profile"})
+                header_val = headers.get("x-agent-profile", "")
+                if header_val:
+                    import json
+
+                    header_data = json.loads(header_val)
+                    profile = AgentCapabilityProfile.from_dict(header_data)
+                    logger.info("agent_profile_from_header: %s", profile.name)
+            except Exception:
+                pass  # Non-HTTP transport or bad header — OK, use fallback
+
+        # 3. Fallback: static profile by agent_type
+        if profile is None:
+            agent_type = "claude-code"  # safe default
+            profile = _PROFILES.get(agent_type, CLAUDE_CODE_PROFILE)
+            logger.info("agent_profile_from_fallback: %s", profile.name)
+
+        # Store in session state for tools/resources to access
+        if context.fastmcp_context:
+            await context.fastmcp_context.set_state("agent_profile", profile)
+
+        return await call_next(context)
+
+    async def on_request(self, context, call_next):
+        """Also try X-Agent-Profile on non-initialize requests (lazy clients)."""
+        # Check if profile already set in session
+        if context.fastmcp_context:
+            existing = await context.fastmcp_context.get_state("agent_profile")
+            if existing is not None:
+                return await call_next(context)
+
+        # Try X-Agent-Profile header as fallback
+        try:
+            from fastmcp.server.dependencies import get_http_headers
+
+            headers = get_http_headers(include={"x-agent-profile"})
+            header_val = headers.get("x-agent-profile", "")
+            if header_val:
+                import json
+
+                header_data = json.loads(header_val)
+                profile = AgentCapabilityProfile.from_dict(header_data)
+                await context.fastmcp_context.set_state("agent_profile", profile)
+                logger.info("agent_profile_from_header_request: %s", profile.name)
+        except Exception:
+            pass
+
+        return await call_next(context)
+
+
 _PROFILES: dict[str, AgentCapabilityProfile] = {
     "claude-code": CLAUDE_CODE_PROFILE,
     "codex": CODEX_PROFILE,
@@ -296,6 +378,7 @@ mcp.add_middleware(AuthMiddleware())
 mcp.add_middleware(SkillPoolLoggingMiddleware())
 mcp.add_middleware(TimingMiddleware(monitor=_monitor))
 mcp.add_middleware(OtelTracingMiddleware())
+mcp.add_middleware(AgentProfileMiddleware())
 
 
 def _get_profile(name: str) -> AgentCapabilityProfile:
@@ -303,6 +386,21 @@ def _get_profile(name: str) -> AgentCapabilityProfile:
     if name not in _PROFILES:
         raise ValueError(f"Unknown agent_type '{name}'. Must be one of: {', '.join(_PROFILES.keys())}")
     return _PROFILES[name]
+
+
+def _resolve_profile(agent_type: str, ctx=None) -> AgentCapabilityProfile:
+    """Resolve profile: dynamic (from session state) first, then static fallback.
+
+    Tools should use this instead of _get_profile() when a Context is available.
+    """
+    if ctx is not None:
+        try:
+            dynamic = ctx.get_state("agent_profile")
+            if dynamic is not None and isinstance(dynamic, AgentCapabilityProfile):
+                return dynamic
+        except Exception:
+            pass
+    return _get_profile(agent_type)
 
 
 def _cached_resource(uri: str, compute_fn):
@@ -580,7 +678,7 @@ def gate_check(csdf: dict, profile_name: str) -> dict:
     """
     # Part of SkillPool — independent infrastructure, shared by all agents
     try:
-        profile = _get_profile(profile_name)
+        profile = _resolve_profile(profile_name)
         gate = GateManager(profile=profile)
         result = gate.check(csdf)
         return {
@@ -626,7 +724,7 @@ def gate_check_with_policy(
     """
     # Part of SkillPool — independent infrastructure, shared by all agents
     try:
-        profile = _get_profile(profile_name)
+        profile = _resolve_profile(profile_name)
         gate = GateManager(profile=profile)
 
         from pathlib import Path as _Path
@@ -1253,7 +1351,7 @@ def gate_status(skill_id: str, agent_type: str = "claude-code") -> str:
     if csdf is None:
         return f"Skill not found: {skill_id}"
 
-    profile = _get_profile(agent_type)
+    profile = _resolve_profile(agent_type)
     gate = GateManager(profile=profile)
     result = gate.check(csdf)
 
@@ -1474,7 +1572,7 @@ def skill_match(task_description: str, agent_type: str, include_combinations: bo
     from skillpool.resolver import SkillResolver, SkillResolveRequest
     from skillpool.router import IntentRouter
 
-    _profile = _get_profile(agent_type)
+    _profile = _resolve_profile(agent_type)
 
     # L1+L2: Intent routing (semantic + logical)
     intent_router = IntentRouter(skills_dir=_SKILLS_DIR)
@@ -1720,7 +1818,7 @@ def assess_paradigm(paradigm: str, agent_type: str, skill_id: str = "") -> dict:
     # Part of SkillPool — independent infrastructure, shared by all agents
     from skillpool.paradigm import ParadigmRegistry
 
-    profile = _get_profile(agent_type)
+    profile = _resolve_profile(agent_type)
     registry = ParadigmRegistry()
 
     # Check if paradigm exists

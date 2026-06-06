@@ -56,6 +56,48 @@ class AgentCapabilityProfile:
 
         return (True, "ok")
 
+    @classmethod
+    def from_dict(cls, data: dict) -> AgentCapabilityProfile:
+        """Build a profile from a dict (e.g., MCP experimental.agentProfile or HTTP header).
+
+        Required keys: agent_type, context_window.
+        Optional keys: trust_level (default 3), required_capabilities, supported_paradigms.
+        """
+        agent_type = data.get("agent_type")
+        if not agent_type:
+            raise ValueError("agent_type is required in profile dict")
+
+        context_window = data.get("context_window")
+        if not context_window:
+            raise ValueError("context_window is required in profile dict")
+        context_window = int(context_window)
+
+        caps = data.get("required_capabilities", set())
+        if isinstance(caps, (list, tuple)):
+            caps = set(caps)
+
+        paradigms = data.get("supported_paradigms", set())
+        if isinstance(paradigms, (list, tuple)):
+            paradigms = set(paradigms)
+
+        return cls(
+            name=agent_type,
+            required_capabilities=caps,
+            context_window=context_window,
+            trust_level=int(data.get("trust_level", 3)),
+            supported_paradigms=paradigms,
+        )
+
+    def to_dict(self) -> dict:
+        """Serialize profile to dict for MCP transmission or logging."""
+        return {
+            "agent_type": self.name,
+            "context_window": self.context_window,
+            "trust_level": self.trust_level,
+            "required_capabilities": sorted(self.required_capabilities),
+            "supported_paradigms": sorted(self.supported_paradigms),
+        }
+
 
 # ---------------------------------------------------------------------------
 # Preset profiles
@@ -63,32 +105,32 @@ class AgentCapabilityProfile:
 
 CLAUDE_CODE_PROFILE = AgentCapabilityProfile(
     name="claude-code",
-    required_capabilities={"bash", "file_system", "python", "web_search"},
+    required_capabilities={"bash", "file_system", "python", "web_search", "mcp", "subagent", "task_management"},
     context_window=200000,
     trust_level=3,
-    supported_paradigms={"review", "code", "planning", "4d", "docsdd", "sdd", "bdd", "tdd"},
+    supported_paradigms={"review", "code", "planning", "4d", "docsdd", "sdd", "bdd", "tdd", "test", "debug"},
 )
 
 CODEX_PROFILE = AgentCapabilityProfile(
     name="codex",
-    required_capabilities={"bash", "file_system", "python"},
-    context_window=128000,
-    trust_level=2,
-    supported_paradigms={"code", "test", "4d", "sdd", "bdd", "tdd"},
+    required_capabilities={"bash", "file_system", "python", "mcp", "subagent", "web_search"},
+    context_window=1000000,
+    trust_level=3,
+    supported_paradigms={"code", "test", "planning", "review", "sdd", "bdd", "tdd"},
 )
 
 HERMES_PROFILE = AgentCapabilityProfile(
     name="hermes",
-    required_capabilities={"file_system", "web_search"},
-    context_window=32000,
-    trust_level=1,
-    supported_paradigms={"research", "planning", "4d", "docsdd"},
+    required_capabilities={"file_system", "web_search", "bash", "mcp", "subagent", "scheduling", "memory"},
+    context_window=200000,
+    trust_level=3,
+    supported_paradigms={"research", "planning", "code", "test", "debug", "4d"},
 )
 
 OPENCLAW_PROFILE = AgentCapabilityProfile(
     name="openclaw",
-    required_capabilities={"bash", "file_system", "python", "web_search"},
-    context_window=128000,
-    trust_level=2,
-    supported_paradigms={"review", "code", "test", "planning", "4d", "docsdd", "sdd", "bdd", "tdd"},
+    required_capabilities={"bash", "file_system", "python", "web_search", "mcp", "subagent", "scheduling", "media_generation"},
+    context_window=1000000,
+    trust_level=3,
+    supported_paradigms={"code", "planning", "test", "automation"},
 )
